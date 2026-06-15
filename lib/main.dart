@@ -1,3 +1,6 @@
+// coverage:ignore-file
+// App bootstrap: wires platform DB paths (path_provider) into the repository
+// and calls runApp. Exercised end-to-end by running the app, not unit tests.
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';

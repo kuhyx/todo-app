@@ -28,6 +28,29 @@ class CaptureScreen extends StatefulWidget {
 class _CaptureScreenState extends State<CaptureScreen> {
   static const _uuid = Uuid();
 
+  /// Placeholder for the note's title line; selected on reset so the first
+  /// keystroke replaces it.
+  static const _titlePlaceholder = '<imperative title>';
+
+  /// The structured scaffold pre-filled into every new note (see the
+  /// `<work_backlog>` format). Pre-filling beats a hint because the em-dashes
+  /// and labels are tedious to type on mobile — the user just fills the gaps.
+  static const _template =
+      '$_titlePlaceholder\n'
+      '\n'
+      'what — \n'
+      'where — \n'
+      'must —\n'
+      '- \n'
+      'nice —\n'
+      '- \n'
+      'out —\n'
+      '- \n'
+      'done — \n'
+      'depends — \n'
+      'estimate — \n'
+      'refs — ';
+
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
@@ -37,6 +60,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
   DateTime? _draftCreatedAt;
   DateTime? _lastSavedAt;
 
+  /// Priority/status applied to the current draft. Chosen before or during
+  /// typing; persisted on the first keystroke and on every later change.
+  Priority _draftPriority = Priority.defaultValue;
+  Status _draftStatus = Status.todo;
+
   final SyncService _syncService = const SyncService();
   SyncSettings? _settings;
   bool _syncing = false;
@@ -44,10 +72,28 @@ class _CaptureScreenState extends State<CaptureScreen> {
   @override
   void initState() {
     super.initState();
+    _resetToTemplate();
     SyncSettings.load().then((s) {
       if (mounted) setState(() => _settings = s);
     });
   }
+
+  /// Loads the blank template into the field with the title placeholder
+  /// selected, so typing immediately overwrites it. Setting the controller
+  /// value programmatically does not fire [_onChanged], so this never
+  /// persists a note on its own — only a real edit does.
+  void _resetToTemplate() {
+    _controller.value = const TextEditingValue(
+      text: _template,
+      selection: TextSelection(
+        baseOffset: 0,
+        extentOffset: _titlePlaceholder.length,
+      ),
+    );
+  }
+
+  /// Whether [text] is still the untouched scaffold (nothing worth saving).
+  bool _isPristine(String text) => text.trim() == _template.trim();
 
   @override
   void dispose() {
@@ -62,7 +108,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
     if (!mounted) return;
     final result = await Navigator.of(context).push<SyncSettings>(
       MaterialPageRoute(
-        builder: (_) => SettingsScreen(initial: current),
+        builder: (_) =>
+            SettingsScreen(initial: current, repository: widget.repository),
       ),
     );
     if (result != null && mounted) setState(() => _settings = result);
@@ -112,7 +159,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
   /// the first non-empty keystroke so empty drafts never hit storage.
   Future<void> _onChanged(String text) async {
     if (_draftId == null) {
-      if (text.isEmpty) return;
+      // Don't persist an empty field or the untouched template scaffold —
+      // a note is only created once the user actually fills something in.
+      if (text.isEmpty || _isPristine(text)) return;
       _draftId = _uuid.v4();
       _draftCreatedAt = DateTime.now();
     }
@@ -121,7 +170,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
       Note(
         id: _draftId!,
         text: text,
-        priority: Priority.none,
+        priority: _draftPriority,
+        status: _draftStatus,
         createdAt: _draftCreatedAt!,
         updatedAt: now,
       ),
@@ -129,17 +179,51 @@ class _CaptureScreenState extends State<CaptureScreen> {
     if (mounted) setState(() => _lastSavedAt = now);
   }
 
-  /// Finalises the current idea and resets the field for the next one.
+  /// Applies a new priority to the draft, persisting immediately if a note
+  /// row already exists (otherwise it is applied on the first keystroke).
+  Future<void> _setPriority(Priority priority) async {
+    setState(() => _draftPriority = priority);
+    await _persistDraftMeta();
+  }
+
+  /// Applies a new status to the draft, persisting immediately if a note
+  /// row already exists.
+  Future<void> _setStatus(Status status) async {
+    setState(() => _draftStatus = status);
+    await _persistDraftMeta();
+  }
+
+  /// Re-saves the draft's metadata when only priority/status changed.
+  Future<void> _persistDraftMeta() async {
+    if (_draftId == null) return;
+    final now = DateTime.now();
+    await widget.repository.upsert(
+      Note(
+        id: _draftId!,
+        text: _controller.text,
+        priority: _draftPriority,
+        status: _draftStatus,
+        createdAt: _draftCreatedAt!,
+        updatedAt: now,
+      ),
+    );
+    if (mounted) setState(() => _lastSavedAt = now);
+  }
+
+  /// Finalises the current idea and resets the field to a fresh template.
   void _saveAndReset() {
-    final hadText = _controller.text.trim().isNotEmpty;
+    // A note was actually persisted only if a draft row was created.
+    final saved = _draftId != null;
     setState(() {
-      _controller.clear();
+      _resetToTemplate();
       _draftId = null;
       _draftCreatedAt = null;
       _lastSavedAt = null;
+      _draftPriority = Priority.defaultValue;
+      _draftStatus = Status.todo;
     });
     _focusNode.requestFocus();
-    if (hadText) {
+    if (saved) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Idea saved locally'),
@@ -157,10 +241,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
         title: const Text('Capture'),
         actions: [
           // Live count of stored notes, proving local persistence.
-          StreamBuilder<List<Note>>(
-            stream: widget.repository.watchNotes(),
+          StreamBuilder<int>(
+            stream: widget.repository.watchCount(),
             builder: (context, snapshot) {
-              final count = snapshot.data?.length ?? 0;
+              final count = snapshot.data ?? 0;
               return Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: Center(child: Text('$count saved')),
@@ -195,6 +279,32 @@ class _CaptureScreenState extends State<CaptureScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Pickers sit above the editor so the bottom-right Save FAB
+            // never overlaps them.
+            Row(
+              children: [
+                Expanded(
+                  child: _MetaDropdown<Priority>(
+                    label: 'Priority',
+                    value: _draftPriority,
+                    values: Priority.values,
+                    labelOf: (p) => p.label,
+                    onChanged: _setPriority,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _MetaDropdown<Status>(
+                    label: 'Status',
+                    value: _draftStatus,
+                    values: Status.values,
+                    labelOf: (s) => s.label,
+                    onChanged: _setStatus,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             Expanded(
               child: TextField(
                 controller: _controller,
@@ -213,11 +323,15 @@ class _CaptureScreenState extends State<CaptureScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              _lastSavedAt == null
-                  ? 'Autosaves as you type'
-                  : 'Saved locally at ${_formatTime(_lastSavedAt!)}',
-              style: theme.textTheme.bodySmall,
+            // Leave room so the Save FAB doesn't cover the save indicator.
+            Padding(
+              padding: const EdgeInsets.only(right: 96),
+              child: Text(
+                _lastSavedAt == null
+                    ? 'Autosaves as you type'
+                    : 'Saved locally at ${_formatTime(_lastSavedAt!)}',
+                style: theme.textTheme.bodySmall,
+              ),
             ),
           ],
         ),
@@ -234,5 +348,51 @@ class _CaptureScreenState extends State<CaptureScreen> {
   String _formatTime(DateTime t) {
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
+  }
+}
+
+/// A compact labelled dropdown for picking an enum value (priority/status).
+///
+/// Generic over the enum type [T] so the same control drives both pickers
+/// without duplication; [labelOf] maps a value to its display string.
+class _MetaDropdown<T> extends StatelessWidget {
+  const _MetaDropdown({
+    required this.label,
+    required this.value,
+    required this.values,
+    required this.labelOf,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<T> values;
+  final String Function(T) labelOf;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isDense: true,
+          isExpanded: true,
+          items: [
+            for (final v in values)
+              DropdownMenuItem<T>(value: v, child: Text(labelOf(v))),
+          ],
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+        ),
+      ),
+    );
   }
 }

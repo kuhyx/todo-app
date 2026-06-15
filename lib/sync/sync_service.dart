@@ -7,10 +7,7 @@ import 'github_client.dart';
 
 /// Outcome of a sync run, for surfacing in the UI.
 class SyncResult {
-  const SyncResult({
-    required this.mergedDevices,
-    required this.pushed,
-  });
+  const SyncResult({required this.mergedDevices, required this.pushed});
 
   /// How many other devices' changesets were pulled and merged.
   final int mergedDevices;

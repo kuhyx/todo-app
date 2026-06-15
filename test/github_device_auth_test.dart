@@ -7,10 +7,10 @@ import 'package:todo/sync/github_device_auth.dart';
 
 /// Builds an auth instance whose polls resolve instantly (no real waiting).
 GitHubDeviceAuth authWith(http.Client client) => GitHubDeviceAuth(
-      clientId: 'test-client-id',
-      httpClient: client,
-      delay: (_) => Future<void>.value(),
-    );
+  clientId: 'test-client-id',
+  httpClient: client,
+  delay: (_) => Future<void>.value(),
+);
 
 const _device = DeviceCodeResponse(
   deviceCode: 'dev-123',
@@ -50,10 +50,15 @@ void main() {
       calls++;
       // Pending on the first two polls, then success.
       if (calls < 3) {
-        return http.Response(jsonEncode({'error': 'authorization_pending'}), 200);
+        return http.Response(
+          jsonEncode({'error': 'authorization_pending'}),
+          200,
+        );
       }
       return http.Response(
-          jsonEncode({'access_token': 'gho_abc', 'token_type': 'bearer'}), 200);
+        jsonEncode({'access_token': 'gho_abc', 'token_type': 'bearer'}),
+        200,
+      );
     });
 
     final token = await authWith(client).pollForToken(_device);
@@ -67,7 +72,9 @@ void main() {
       calls++;
       if (calls == 1) {
         return http.Response(
-            jsonEncode({'error': 'slow_down', 'interval': 1}), 200);
+          jsonEncode({'error': 'slow_down', 'interval': 1}),
+          200,
+        );
       }
       return http.Response(jsonEncode({'access_token': 'gho_xyz'}), 200);
     });
@@ -77,13 +84,72 @@ void main() {
   });
 
   test('pollForToken throws on access_denied', () async {
-    final client = MockClient((req) async => http.Response(
-        jsonEncode({'error': 'access_denied', 'error_description': 'no'}), 200));
+    final client = MockClient(
+      (req) async => http.Response(
+        jsonEncode({'error': 'access_denied', 'error_description': 'no'}),
+        200,
+      ),
+    );
 
     expect(
       () => authWith(client).pollForToken(_device),
-      throwsA(isA<DeviceAuthException>()
-          .having((e) => e.code, 'code', 'access_denied')),
+      throwsA(
+        isA<DeviceAuthException>().having(
+          (e) => e.code,
+          'code',
+          'access_denied',
+        ),
+      ),
+    );
+  });
+
+  test('pollForToken honors slow_down then succeeds', () async {
+    var calls = 0;
+    final client = MockClient((req) async {
+      calls++;
+      if (calls == 1) {
+        return http.Response(
+          jsonEncode({'error': 'slow_down', 'interval': 0}),
+          200,
+        );
+      }
+      return http.Response(jsonEncode({'access_token': 'gho_ok'}), 200);
+    });
+
+    expect(await authWith(client).pollForToken(_device), 'gho_ok');
+    expect(calls, 2);
+  });
+
+  test('pollForToken throws on an unexpected response shape', () async {
+    final client = MockClient(
+      (_) async => http.Response(jsonEncode({'foo': 'bar'}), 200),
+    );
+    expect(
+      () => authWith(client).pollForToken(_device),
+      throwsA(isA<DeviceAuthException>()),
+    );
+  });
+
+  test('pollForToken throws when the device code has expired', () async {
+    final client = MockClient(
+      (_) async => http.Response(jsonEncode({'access_token': 'x'}), 200),
+    );
+    const expired = DeviceCodeResponse(
+      deviceCode: 'd',
+      userCode: 'u',
+      verificationUri: 'v',
+      interval: 1,
+      expiresIn: 0, // deadline is now → loop body never runs
+    );
+    expect(
+      () => authWith(client).pollForToken(expired),
+      throwsA(
+        isA<DeviceAuthException>().having(
+          (e) => e.code,
+          'code',
+          'expired_token',
+        ),
+      ),
     );
   });
 }

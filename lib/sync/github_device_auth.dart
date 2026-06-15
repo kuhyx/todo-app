@@ -68,9 +68,9 @@ class GitHubDeviceAuth {
     this.scope = 'repo',
     http.Client? httpClient,
     Future<void> Function(Duration)? delay,
-  })  : _http = httpClient ?? http.Client(),
-        // Indirection so tests can skip real waiting between polls.
-        _delay = delay ?? Future<void>.delayed;
+  }) : _http = httpClient ?? http.Client(),
+       // Indirection so tests can skip real waiting between polls.
+       _delay = delay ?? Future<void>.delayed;
 
   final String clientId;
 
@@ -82,8 +82,7 @@ class GitHubDeviceAuth {
 
   static const _deviceCodeUrl = 'https://github.com/login/device/code';
   static const _tokenUrl = 'https://github.com/login/oauth/access_token';
-  static const _grantType =
-      'urn:ietf:params:oauth:grant-type:device_code';
+  static const _grantType = 'urn:ietf:params:oauth:grant-type:device_code';
 
   /// Step 1: ask GitHub for a device + user code.
   Future<DeviceCodeResponse> requestDeviceCode() async {
@@ -96,7 +95,8 @@ class GitHubDeviceAuth {
       throw DeviceAuthException('http_${res.statusCode}', res.body);
     }
     return DeviceCodeResponse.fromJson(
-        jsonDecode(res.body) as Map<String, dynamic>);
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
   }
 
   /// Step 2: poll until the user authorizes, returning the access token.
@@ -132,7 +132,9 @@ class GitHubDeviceAuth {
           intervalSeconds = (json['interval'] as int?) ?? intervalSeconds + 5;
         case final String error:
           throw DeviceAuthException(
-              error, (json['error_description'] as String?) ?? error);
+            error,
+            (json['error_description'] as String?) ?? error,
+          );
         case null:
           throw DeviceAuthException('unknown', 'Unexpected response: $json');
       }

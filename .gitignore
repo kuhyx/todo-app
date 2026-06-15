@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Exported personal notes — never commit (contains private idea content)
+BACKLOG.md
+todo-backlog.md
+
+# Android Gradle build output
+/android/build/

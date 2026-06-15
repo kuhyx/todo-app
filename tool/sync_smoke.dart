@@ -25,11 +25,8 @@ Future<void> main() async {
 
   // Throwaway directory so we never pollute the real `changesets/`.
   const service = SyncService(changesetDir: 'changesets_smoketest');
-  GitHubClient client() => GitHubClient(
-        owner: 'kuhyx',
-        repo: 'todo-sync',
-        token: token,
-      );
+  GitHubClient client() =>
+      GitHubClient(owner: 'kuhyx', repo: 'todo-sync', token: token);
 
   final deviceA = await NoteRepository.openInMemory();
   final deviceB = await NoteRepository.openInMemory();
@@ -57,7 +54,8 @@ Future<void> main() async {
     'Idea from device A @ $stamp',
     'Idea from device B @ $stamp',
   };
-  final converged = aNotes.containsAll(expected) && bNotes.containsAll(expected);
+  final converged =
+      aNotes.containsAll(expected) && bNotes.containsAll(expected);
 
   // Cleanup: remove the throwaway changeset files.
   final cleanup = client();
@@ -73,7 +71,9 @@ Future<void> main() async {
   await deviceB.close();
 
   if (converged) {
-    stdout.writeln('\n✅ PASS: both devices converged to both notes via GitHub.');
+    stdout.writeln(
+      '\n✅ PASS: both devices converged to both notes via GitHub.',
+    );
     exit(0);
   } else {
     stdout.writeln('\n❌ FAIL: devices did not converge. Expected $expected.');
@@ -83,11 +83,14 @@ Future<void> main() async {
 
 Future<void> _insert(NoteRepository repo, String text) async {
   final now = DateTime.now();
-  await repo.upsert(Note(
-    id: '${now.microsecondsSinceEpoch}-${text.hashCode}',
-    text: text,
-    priority: Priority.none,
-    createdAt: now,
-    updatedAt: now,
-  ));
+  await repo.upsert(
+    Note(
+      id: '${now.microsecondsSinceEpoch}-${text.hashCode}',
+      text: text,
+      priority: Priority.medium,
+      status: Status.todo,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
 }

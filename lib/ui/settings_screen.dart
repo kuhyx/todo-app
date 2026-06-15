@@ -1,34 +1,57 @@
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../data/note_repository.dart';
 import '../sync/github_client.dart';
 import '../sync/github_device_auth.dart';
+import '../sync/notes_markdown.dart';
 import '../sync/sync_settings.dart';
 
-/// Settings screen for GitHub sync configuration.
+/// Settings screen for GitHub sync configuration and note backup.
 ///
-/// Primary path: the "Connect GitHub" button runs the OAuth **device flow**
-/// (authorize in a browser, no token pasting). The manual token field
-/// remains as a fallback.
+/// Primary sync path: the "Connect GitHub" button runs the OAuth **device
+/// flow** (authorize in a browser, no token pasting). The manual token field
+/// remains as a fallback. The Backup section exports/imports all notes as a
+/// single Markdown file (see [NotesMarkdown]).
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({required this.initial, super.key});
+  const SettingsScreen({
+    required this.initial,
+    required this.repository,
+    this.httpClient,
+    super.key,
+  });
 
   final SyncSettings initial;
+  final NoteRepository repository;
+
+  /// Optional HTTP client for the GitHub calls (test-connection and device
+  /// flow). Injected by tests; production uses each client's default.
+  final http.Client? httpClient;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late final TextEditingController _owner =
-      TextEditingController(text: widget.initial.owner);
-  late final TextEditingController _repo =
-      TextEditingController(text: widget.initial.repo);
-  late final TextEditingController _token =
-      TextEditingController(text: widget.initial.token);
-  late final TextEditingController _clientId =
-      TextEditingController(text: widget.initial.clientId);
+  late final TextEditingController _owner = TextEditingController(
+    text: widget.initial.owner,
+  );
+  late final TextEditingController _repo = TextEditingController(
+    text: widget.initial.repo,
+  );
+  late final TextEditingController _token = TextEditingController(
+    text: widget.initial.token,
+  );
+  late final TextEditingController _clientId = TextEditingController(
+    text: widget.initial.clientId,
+  );
 
   bool _testing = false;
   String? _status;
@@ -43,11 +66,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   SyncSettings get _current => SyncSettings(
-        owner: _owner.text.trim(),
-        repo: _repo.text.trim(),
-        token: _token.text.trim(),
-        clientId: _clientId.text.trim(),
-      );
+    owner: _owner.text.trim(),
+    repo: _repo.text.trim(),
+    token: _token.text.trim(),
+    clientId: _clientId.text.trim(),
+  );
 
   /// Runs the OAuth device flow and, on success, fills in the token field.
   Future<void> _connectGitHub() async {
@@ -56,7 +79,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _status = 'Enter the OAuth App client id first.');
       return;
     }
-    final auth = GitHubDeviceAuth(clientId: clientId);
+    final auth = GitHubDeviceAuth(
+      clientId: clientId,
+      httpClient: widget.httpClient,
+    );
     try {
       final device = await auth.requestDeviceCode();
       if (!mounted) return;
@@ -85,12 +111,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _status = null;
     });
     final s = _current;
-    final client = GitHubClient(owner: s.owner, repo: s.repo, token: s.token);
+    final client = GitHubClient(
+      owner: s.owner,
+      repo: s.repo,
+      token: s.token,
+      httpClient: widget.httpClient,
+    );
     try {
       final ok = await client.canAccessRepo();
-      setState(() => _status = ok
-          ? 'Connected — repo is reachable.'
-          : 'Could not access ${s.owner}/${s.repo}. Check token scope.');
+      setState(
+        () => _status = ok
+            ? 'Connected — repo is reachable.'
+            : 'Could not access ${s.owner}/${s.repo}. Check token scope.',
+      );
     } catch (e) {
       setState(() => _status = 'Error: $e');
     } finally {
@@ -103,6 +136,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = _current;
     await s.save();
     if (mounted) Navigator.of(context).pop(s);
+  }
+
+  /// Exports every note to a single Markdown file. On mobile this opens the
+  /// system share sheet; on desktop it writes the canonical `~/todo/
+  /// BACKLOG.md` so a future tool/agent has a stable path to read.
+  Future<void> _export() async {
+    try {
+      final notes = await widget.repository.listNotes();
+      final markdown = NotesMarkdown.export(notes);
+
+      // coverage:ignore-start
+      // Mobile-only share path: Platform.isAndroid/isIOS are always false on
+      // the Linux test host, so these lines are structurally unreachable in
+      // CI and excluded from the coverage denominator. Verified on-device.
+      if (Platform.isAndroid || Platform.isIOS) {
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/todo-backlog.md');
+        await file.writeAsString(markdown);
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path, mimeType: 'text/markdown')],
+            subject: 'todo backlog (${notes.length} notes)',
+          ),
+        );
+      } else {
+        // coverage:ignore-end
+        final home = Platform.environment['HOME'] ?? Directory.current.path;
+        final dir = Directory('$home/todo');
+        if (!dir.existsSync()) dir.createSync(recursive: true);
+        final file = File('${dir.path}/BACKLOG.md');
+        await file.writeAsString(markdown);
+        if (mounted) {
+          setState(
+            () => _status = 'Exported ${notes.length} notes to ${file.path}',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _status = 'Export failed: $e');
+    }
+  }
+
+  /// Imports notes from a user-picked Markdown file, merging by id so a
+  /// stale backup never clobbers a newer local edit (see
+  /// [NoteRepository.importNotes]).
+  Future<void> _import() async {
+    try {
+      const group = XTypeGroup(
+        label: 'Markdown',
+        extensions: ['md', 'markdown', 'txt'],
+        // UTIs/MIME so the picker accepts the file on iOS/Android too.
+        uniformTypeIdentifiers: ['net.daringfireball.markdown', 'public.text'],
+        mimeTypes: ['text/markdown', 'text/plain'],
+      );
+      final file = await openFile(acceptedTypeGroups: const [group]);
+      if (file == null) return; // user cancelled
+      final content = await file.readAsString();
+
+      final notes = NotesMarkdown.parse(content);
+      final outcome = await widget.repository.importNotes(notes);
+      if (mounted) {
+        setState(
+          () => _status =
+              'Imported ${outcome.total}: ${outcome.added} new, '
+              '${outcome.updated} updated, ${outcome.skipped} unchanged',
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _status = 'Import failed: $e');
+    }
   }
 
   @override
@@ -128,8 +231,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          Text('Connect with GitHub',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Connect with GitHub',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _clientId,
@@ -148,8 +253,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 8),
-          Text('Or paste a token (fallback)',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Or paste a token (fallback)',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _token,
@@ -179,6 +286,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onPressed: _save,
                 icon: const Icon(Icons.save),
                 label: const Text('Save'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 8),
+          Text('Backup', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Export all notes to a single Markdown file, or import/merge a '
+            'file back (matching ids are merged, never duplicated).',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: _export,
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Export notes'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: _import,
+                icon: const Icon(Icons.download),
+                label: const Text('Import notes'),
               ),
             ],
           ),

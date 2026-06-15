@@ -42,7 +42,8 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.2
-
+  share_plus: ^13.1.0
+  file_selector: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -53,6 +54,12 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+  # Plugin platform interfaces, depended on directly so tests can swap in
+  # fakes for the file picker and URL launcher (see settings_screen_test.dart).
+  file_selector_platform_interface: ^2.7.0
+  url_launcher_platform_interface: ^2.3.2
+  plugin_platform_interface: ^2.1.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

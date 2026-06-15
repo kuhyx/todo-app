@@ -38,11 +38,11 @@ class GitHubClient {
     required String token,
     http.Client? httpClient,
     this.branch = 'main',
-  })  // Dart forbids private named params, so this can't be an initializing
-      // formal; assign it explicitly.
-      // ignore: prefer_initializing_formals
-      : _token = token,
-        _http = httpClient ?? http.Client();
+  }) // Dart forbids private named params, so this can't be an initializing
+    // formal; assign it explicitly.
+    // ignore: prefer_initializing_formals
+    : _token = token,
+       _http = httpClient ?? http.Client();
 
   final String owner;
   final String repo;
@@ -53,11 +53,11 @@ class GitHubClient {
   static const _apiBase = 'https://api.github.com';
 
   Map<String, String> get _headers => {
-        'Authorization': 'Bearer $_token',
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'todo-app-sync',
-      };
+    'Authorization': 'Bearer $_token',
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'todo-app-sync',
+  };
 
   Uri _contentsUri(String path) =>
       Uri.parse('$_apiBase/repos/$owner/$repo/contents/$path');
@@ -76,11 +76,13 @@ class GitHubClient {
     return decoded
         .cast<Map<String, dynamic>>()
         .where((e) => e['type'] == 'file')
-        .map((e) => GitHubFile(
-              name: e['name'] as String,
-              path: e['path'] as String,
-              sha: e['sha'] as String,
-            ))
+        .map(
+          (e) => GitHubFile(
+            name: e['name'] as String,
+            path: e['path'] as String,
+            sha: e['sha'] as String,
+          ),
+        )
         .toList();
   }
 
@@ -148,7 +150,10 @@ class GitHubClient {
 
   void _ensureOk(http.Response res, String action) {
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw GitHubApiException(res.statusCode, 'Failed to $action: ${res.body}');
+      throw GitHubApiException(
+        res.statusCode,
+        'Failed to $action: ${res.body}',
+      );
     }
   }
 }
