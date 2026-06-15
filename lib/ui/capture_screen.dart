@@ -1,11 +1,16 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/note.dart';
 import '../data/note_repository.dart';
 import '../data/note_template.dart';
 import '../sync/github_client.dart';
+import '../sync/local_backup.dart';
 import '../sync/sync_service.dart';
 import '../sync/sync_settings.dart';
 import 'note_editor.dart';
@@ -20,7 +25,12 @@ import 'settings_screen.dart';
 /// action finalises the current idea and clears the field for the next
 /// one (remote sync will hook in here later).
 class CaptureScreen extends StatefulWidget {
-  const CaptureScreen({required this.repository, this.httpClient, super.key});
+  const CaptureScreen({
+    required this.repository,
+    this.httpClient,
+    this.localBackup,
+    super.key,
+  });
 
   final NoteRepository repository;
 
@@ -28,6 +38,10 @@ class CaptureScreen extends StatefulWidget {
   /// (the GitHubClient creates its own); tests pass a mock so the configured
   /// sync flow can be exercised without real network access.
   final http.Client? httpClient;
+
+  /// Injectable local-disk backup. Production leaves this null (a platform
+  /// file-backed instance is created); tests pass a fake with in-memory IO.
+  final LocalBackup? localBackup;
 
   @override
   State<CaptureScreen> createState() => _CaptureScreenState();
@@ -39,6 +53,11 @@ class _CaptureScreenState extends State<CaptureScreen>
 
   /// Single-flight guard so a launch sync and a background sync never overlap.
   bool _autoSyncing = false;
+
+  /// Keeps an always-current Markdown backup on local disk and recovers from
+  /// it on launch (third durability layer beside sync + Android Auto Backup).
+  late final LocalBackup _localBackup;
+  StreamSubscription<List<Note>>? _notesSub;
 
   /// Latest assembled text from the editor; persisted on change and re-saved
   /// when only priority/status change.
@@ -66,6 +85,13 @@ class _CaptureScreenState extends State<CaptureScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _localBackup = widget.localBackup ?? _platformLocalBackup();
+    // Recover from the local backup first (covers an empty DB after a wipe),
+    // then keep the backup current as notes change.
+    _recoverFromBackup();
+    _notesSub = widget.repository.watchNotes().listen(
+      _localBackup.scheduleExport,
+    );
     SyncSettings.load().then((s) {
       if (!mounted) return;
       setState(() => _settings = s);
@@ -76,8 +102,45 @@ class _CaptureScreenState extends State<CaptureScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _notesSub?.cancel();
+    _localBackup.dispose();
     super.dispose();
   }
+
+  /// Restores notes from the local backup file, but only into an empty DB so a
+  /// stale backup never clobbers existing notes (merge-by-id stays safe too).
+  Future<void> _recoverFromBackup() async {
+    final existing = await widget.repository.listNotes();
+    if (existing.isNotEmpty) return;
+    final recovered = await _localBackup.recover();
+    if (recovered.isNotEmpty) await widget.repository.importNotes(recovered);
+  }
+
+  // coverage:ignore-start
+  // Platform file IO for the local backup: BACKLOG.md under ~/todo on desktop
+  // (the path the user's workflow already reads), or the app documents dir on
+  // mobile (which Android Auto Backup includes). Exercised by running the app;
+  // tests inject an in-memory LocalBackup instead.
+  static LocalBackup _platformLocalBackup() {
+    Future<File> backupFile() async {
+      if (Platform.isAndroid || Platform.isIOS) {
+        final dir = await getApplicationDocumentsDirectory();
+        return File('${dir.path}/todo-backlog.md');
+      }
+      final home = Platform.environment['HOME'] ?? Directory.current.path;
+      final dir = Directory('$home/todo')..createSync(recursive: true);
+      return File('${dir.path}/BACKLOG.md');
+    }
+
+    return LocalBackup(
+      reader: () async {
+        final file = await backupFile();
+        return file.existsSync() ? file.readAsString() : null;
+      },
+      writer: (markdown) async => (await backupFile()).writeAsString(markdown),
+    );
+  }
+  // coverage:ignore-end
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/data/note.dart';
+import 'package:todo/sync/local_backup.dart';
+import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/ui/capture_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
 
@@ -18,6 +20,8 @@ void main() {
     WidgetTester tester, {
     Map<String, Object> prefs = const {},
     http.Client? httpClient,
+    List<Note> seed = const [],
+    LocalBackup? localBackup,
   }) async {
     SharedPreferences.setMockInitialValues(prefs);
     // Tall surface so a pushed settings screen builds its whole ListView.
@@ -26,11 +30,24 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final repo = FakeNoteRepository();
+    final repo = FakeNoteRepository(seed);
     addTearDown(repo.close);
+    // Default to an in-memory, no-op backup so tests never touch real disk
+    // (the production backup writes ~/todo/BACKLOG.md on the Linux test host).
+    final backup =
+        localBackup ??
+        LocalBackup(
+          reader: () async => null,
+          writer: (_) async {},
+          debounce: Duration.zero,
+        );
     await tester.pumpWidget(
       MaterialApp(
-        home: CaptureScreen(repository: repo, httpClient: httpClient),
+        home: CaptureScreen(
+          repository: repo,
+          httpClient: httpClient,
+          localBackup: backup,
+        ),
       ),
     );
     await tester.pump(); // flush initial stream + settings load
@@ -273,5 +290,81 @@ void main() {
 
     expect(find.textContaining('Sync failed'), findsNothing);
     expect(find.textContaining('Synced'), findsNothing);
+  });
+
+  testWidgets('recovers notes from the local backup into an empty DB', (
+    tester,
+  ) async {
+    final markdown = NotesMarkdown.export([
+      Note(
+        id: 'r1',
+        text: '# Recovered idea',
+        priority: Priority.medium,
+        status: Status.todo,
+        createdAt: DateTime(2026, 6, 15),
+        updatedAt: DateTime(2026, 6, 15),
+      ),
+    ]);
+    final backup = LocalBackup(
+      reader: () async => markdown,
+      writer: (_) async {},
+      debounce: Duration.zero,
+    );
+
+    final repo = await pumpCapture(tester, localBackup: backup);
+    await tester.pump(); // recover → import
+
+    final notes = await repo.listNotes();
+    expect(notes, hasLength(1));
+    expect(notes.single.text, contains('Recovered idea'));
+  });
+
+  testWidgets('does not recover when the DB already has notes', (tester) async {
+    final backup = LocalBackup(
+      reader: () async => NotesMarkdown.export([
+        Note(
+          id: 'r1',
+          text: '# From backup',
+          priority: Priority.medium,
+          status: Status.todo,
+          createdAt: DateTime(2026, 6, 15),
+          updatedAt: DateTime(2026, 6, 15),
+        ),
+      ]),
+      writer: (_) async {},
+      debounce: Duration.zero,
+    );
+    final seeded = Note(
+      id: 'local',
+      text: '# Existing',
+      priority: Priority.medium,
+      status: Status.todo,
+      createdAt: DateTime(2026, 6, 15),
+      updatedAt: DateTime(2026, 6, 15),
+    );
+
+    final repo = await pumpCapture(tester, seed: [seeded], localBackup: backup);
+    await tester.pump();
+
+    // The backup is ignored because the DB was not empty.
+    final notes = await repo.listNotes();
+    expect(notes, hasLength(1));
+    expect(notes.single.id, 'local');
+  });
+
+  testWidgets('writes the local backup as notes change', (tester) async {
+    final writes = <String>[];
+    final backup = LocalBackup(
+      reader: () async => null,
+      writer: (md) async => writes.add(md),
+      debounce: Duration.zero,
+    );
+
+    await pumpCapture(tester, localBackup: backup);
+    await tester.enterText(find.byType(TextField).first, 'Backed up idea');
+    await tester.pump();
+
+    expect(writes, isNotEmpty);
+    expect(writes.last, contains('Backed up idea'));
   });
 }
