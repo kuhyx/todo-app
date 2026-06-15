@@ -215,6 +215,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Text(
+            'Connect to GitHub',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Authorize in your browser — no token to paste. Syncs to '
+            'kuhyx/todo-sync by default.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _connectGitHub,
+            icon: const Icon(Icons.login),
+            label: const Text('Connect GitHub'),
+          ),
+          const SizedBox(height: 16),
           TextField(
             controller: _owner,
             decoration: const InputDecoration(
@@ -230,64 +247,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            'Connect with GitHub',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
           const SizedBox(height: 8),
-          TextField(
-            controller: _clientId,
-            decoration: const InputDecoration(
-              labelText: 'OAuth App client id',
-              helperText: 'From your GitHub OAuth App (device flow enabled)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _connectGitHub,
-            icon: const Icon(Icons.login),
-            label: const Text('Connect GitHub'),
-          ),
-          const SizedBox(height: 24),
-          const Divider(),
-          const SizedBox(height: 8),
-          Text(
-            'Or paste a token (fallback)',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _token,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Access token (fine-grained PAT)',
-              helperText: 'Contents: read/write on the sync repo only',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
+          // Manual escape hatches — most users never open this.
+          ExpansionTile(
+            title: const Text('Advanced'),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 8),
             children: [
-              OutlinedButton.icon(
-                onPressed: _testing ? null : _test,
-                icon: _testing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.wifi_tethering),
-                label: const Text('Test connection'),
+              TextField(
+                controller: _clientId,
+                decoration: const InputDecoration(
+                  labelText: 'OAuth App client id',
+                  helperText:
+                      'Leave as the baked-in default unless self-hosting',
+                  border: OutlineInputBorder(),
+                ),
               ),
-              const Spacer(),
-              FilledButton.icon(
-                onPressed: _save,
-                icon: const Icon(Icons.save),
-                label: const Text('Save'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _token,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Access token (fallback)',
+                  helperText: 'Contents: read/write on the sync repo only',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _testing ? null : _test,
+                  icon: _testing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.wifi_tethering),
+                  label: const Text('Test connection'),
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.save),
+              label: const Text('Save'),
+            ),
           ),
           const SizedBox(height: 24),
           const Divider(),

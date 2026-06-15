@@ -19,9 +19,14 @@ class SyncSettings {
   final String token;
 
   /// GitHub OAuth App client id used by the device-flow "Connect" button.
-  /// Not a secret (device flow needs no client secret), so it is safe to
-  /// store here and could later be shipped as a compile-time default.
+  /// Not a secret (device flow needs no client secret), so it is safe to ship
+  /// as a compile-time default and commit to source — see [defaultClientId].
   final String clientId;
+
+  /// The app's own GitHub OAuth App (device-flow enabled) client id, baked in
+  /// so "Connect GitHub" works with zero setup — even after a reinstall. A
+  /// device-flow client id is a public identifier, not a secret.
+  static const defaultClientId = 'Ov23li9tF2R46PqzJgch';
 
   /// True when enough is set to attempt a sync.
   bool get isConfigured =>
@@ -35,15 +40,16 @@ class SyncSettings {
   static const _kToken = 'sync.token';
   static const _kClientId = 'sync.clientId';
 
-  /// Loads settings, defaulting the repo to `kuhyx/todo-sync` so the user
-  /// only has to authorize on first run.
+  /// Loads settings, defaulting the repo to `kuhyx/todo-sync` and the client id
+  /// to the baked-in [defaultClientId] so first run (and any reinstall) needs
+  /// nothing but a single "Connect GitHub" tap.
   static Future<SyncSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
     return SyncSettings(
       owner: prefs.getString(_kOwner) ?? 'kuhyx',
       repo: prefs.getString(_kRepo) ?? 'todo-sync',
       token: prefs.getString(_kToken) ?? '',
-      clientId: prefs.getString(_kClientId) ?? '',
+      clientId: prefs.getString(_kClientId) ?? defaultClientId,
     );
   }
 

@@ -11,7 +11,8 @@ void main() {
       expect(s.owner, 'kuhyx');
       expect(s.repo, 'todo-sync');
       expect(s.token, '');
-      expect(s.clientId, '');
+      // Client id defaults to the baked-in OAuth App id (one-tap connect).
+      expect(s.clientId, SyncSettings.defaultClientId);
     },
   );
 

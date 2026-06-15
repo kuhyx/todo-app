@@ -130,6 +130,8 @@ void main() {
     final mock = MockClient((_) async => http.Response('{}', 200));
     await pumpSettings(tester, httpClient: mock);
 
+    await tester.tap(find.text('Advanced')); // Test connection lives here now
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Test connection'));
     await tester.pump(); // start
     await tester.pump(); // resolve future + rebuild
@@ -141,6 +143,8 @@ void main() {
     final mock = MockClient((_) async => http.Response('', 404));
     await pumpSettings(tester, httpClient: mock);
 
+    await tester.tap(find.text('Advanced'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Test connection'));
     await tester.pump();
     await tester.pump();
@@ -152,6 +156,8 @@ void main() {
     final mock = MockClient((_) async => throw Exception('offline'));
     await pumpSettings(tester, httpClient: mock);
 
+    await tester.tap(find.text('Advanced'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Test connection'));
     await tester.pump();
     await tester.pump();
