@@ -44,6 +44,9 @@ dependencies:
   url_launcher: ^6.3.2
   share_plus: ^13.1.0
   file_selector: ^1.1.0
+  # Stores the GitHub sync token in the OS keystore (Android Keystore /
+  # libsecret) instead of plaintext SharedPreferences.
+  flutter_secure_storage: ^10.3.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

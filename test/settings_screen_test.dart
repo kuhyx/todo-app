@@ -17,6 +17,7 @@ import 'package:url_launcher_platform_interface/link.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 import 'fake_note_repository.dart';
+import 'fake_secure_storage.dart';
 
 /// Stub file picker that returns a fixed in-memory file (no disk I/O, so the
 /// `_import` flow stays timer-free and deterministic under the widget tester).
@@ -85,6 +86,7 @@ void main() {
     FakeNoteRepository? repository,
   }) async {
     SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
     // Tall surface so the whole settings ListView builds (its Backup section
     // is below the default 800×600 fold and would otherwise be lazy-skipped).
     tester.view.physicalSize = const Size(1200, 2800);
@@ -316,6 +318,7 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
     tester.view.physicalSize = const Size(1200, 2800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

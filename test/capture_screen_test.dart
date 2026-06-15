@@ -10,6 +10,7 @@ import 'package:todo/ui/capture_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
 
 import 'fake_note_repository.dart';
+import 'fake_secure_storage.dart';
 
 void main() {
   // A real CRDT DB schedules sqflite timers that never drain under the
@@ -24,6 +25,7 @@ void main() {
     LocalBackup? localBackup,
   }) async {
     SharedPreferences.setMockInitialValues(prefs);
+    installFakeSecureStorage();
     // Tall surface so a pushed settings screen builds its whole ListView.
     tester.view.physicalSize = const Size(1200, 2800);
     tester.view.devicePixelRatio = 1.0;

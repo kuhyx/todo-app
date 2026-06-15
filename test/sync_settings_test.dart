@@ -2,11 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/sync/sync_settings.dart';
 
+import 'fake_secure_storage.dart';
+
 void main() {
+  // installFakeSecureStorage touches the test binary messenger, which needs the
+  // binding up first (widget tests get this for free via testWidgets).
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test(
     'load returns the kuhyx/todo-sync defaults on a fresh install',
     () async {
       SharedPreferences.setMockInitialValues({});
+      installFakeSecureStorage();
       final s = await SyncSettings.load();
       expect(s.owner, 'kuhyx');
       expect(s.repo, 'todo-sync');
@@ -16,8 +23,9 @@ void main() {
     },
   );
 
-  test('save then load round-trips all fields', () async {
+  test('save stores the token in the keystore, not in prefs', () async {
     SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
     await const SyncSettings(
       owner: 'me',
       repo: 'notes',
@@ -25,11 +33,73 @@ void main() {
       clientId: 'cid',
     ).save();
 
+    // Token must not linger in plaintext prefs once secured.
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('sync.token'), isNull);
+
     final s = await SyncSettings.load();
     expect(s.owner, 'me');
     expect(s.repo, 'notes');
     expect(s.token, 'tok');
     expect(s.clientId, 'cid');
+  });
+
+  test('load reads the token straight from the keystore', () async {
+    SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage(initial: {'sync.token': 'fromKeystore'});
+    final s = await SyncSettings.load();
+    expect(s.token, 'fromKeystore');
+  });
+
+  test('load migrates a legacy plaintext token into the keystore', () async {
+    SharedPreferences.setMockInitialValues({'sync.token': 'legacy'});
+    installFakeSecureStorage();
+
+    final s = await SyncSettings.load();
+    expect(s.token, 'legacy');
+
+    // The plaintext copy is dropped once the secure write succeeds, and the
+    // value now resolves from the keystore on the next load.
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('sync.token'), isNull);
+    final again = await SyncSettings.load();
+    expect(again.token, 'legacy');
+  });
+
+  test(
+    'load keeps the plaintext token when no secret service is available',
+    () async {
+      SharedPreferences.setMockInitialValues({'sync.token': 'plain'});
+      installFakeSecureStorage(throwing: true);
+
+      final s = await SyncSettings.load();
+      expect(s.token, 'plain');
+      // Never drop the only copy when the keystore write can't be confirmed.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('sync.token'), 'plain');
+    },
+  );
+
+  test('save falls back to plaintext prefs when the keystore fails', () async {
+    SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage(throwing: true);
+    await const SyncSettings(owner: 'o', repo: 'r', token: 'tok').save();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('sync.token'), 'tok');
+  });
+
+  test('save with an empty token clears the keystore entry', () async {
+    // Seed a keystore token, then save an empty token: it must be deleted and
+    // no plaintext copy written.
+    SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage(initial: {'sync.token': 'old'});
+    await const SyncSettings(owner: 'o', repo: 'r', token: '').save();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('sync.token'), isNull);
+    final s = await SyncSettings.load();
+    expect(s.token, '');
   });
 
   test('isConfigured requires owner, repo and token', () {
