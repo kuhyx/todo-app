@@ -12,6 +12,7 @@ import '../data/note_repository.dart';
 import '../sync/github_client.dart';
 import '../sync/github_device_auth.dart';
 import '../sync/notes_markdown.dart';
+import '../sync/sync_service.dart';
 import '../sync/sync_settings.dart';
 
 /// Settings screen for GitHub sync configuration and note backup.
@@ -94,14 +95,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (token != null && token.isNotEmpty) {
         setState(() {
           _token.text = token;
-          _status = 'Connected via GitHub. Token saved on Save.';
+          _status = 'Connected — syncing…';
         });
         await _current.save();
+        await _syncAfterConnect();
       }
     } catch (e) {
       if (mounted) setState(() => _status = 'Could not start device flow: $e');
     } finally {
       auth.close();
+    }
+  }
+
+  /// Runs a sync right after connecting so the user's notes download
+  /// immediately and they get clear confirmation it worked.
+  Future<void> _syncAfterConnect() async {
+    final s = _current;
+    final client = GitHubClient(
+      owner: s.owner,
+      repo: s.repo,
+      token: s.token,
+      httpClient: widget.httpClient,
+    );
+    try {
+      final result = await const SyncService().sync(widget.repository, client);
+      if (mounted) {
+        setState(
+          () => _status =
+              'Connected and synced (merged ${result.mergedDevices} '
+              'device(s)). Your notes are up to date.',
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _status = 'Connected, but sync failed: $e');
+    } finally {
+      client.close();
     }
   }
 

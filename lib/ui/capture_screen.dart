@@ -175,7 +175,7 @@ class _CaptureScreenState extends State<CaptureScreen>
   Future<void> _openSettings() async {
     final current = _settings ?? await SyncSettings.load();
     if (!mounted) return;
-    final result = await Navigator.of(context).push<SyncSettings>(
+    await Navigator.of(context).push<SyncSettings>(
       MaterialPageRoute(
         builder: (_) => SettingsScreen(
           initial: current,
@@ -184,7 +184,12 @@ class _CaptureScreenState extends State<CaptureScreen>
         ),
       ),
     );
-    if (result != null && mounted) setState(() => _settings = result);
+    if (!mounted) return;
+    // Always reload from storage: a device-flow "Connect" saves the token
+    // without popping a result, so relying on the pop value would miss it and
+    // leave us syncing with stale (token-less) settings.
+    final fresh = await SyncSettings.load();
+    setState(() => _settings = fresh);
   }
 
   void _openList() {

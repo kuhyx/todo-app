@@ -219,11 +219,58 @@ void main() {
     await tester.pump(); // dialog builds, shows the user code
     expect(find.text('WXYZ-1234'), findsOneWidget);
 
-    // Let the dialog poll (interval 0) and resolve the token.
+    // Let the dialog poll (interval 0) and resolve the token, then the
+    // post-connect sync runs against the mock (list → empty, then PUT).
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
 
-    expect(find.textContaining('Connected via GitHub'), findsOneWidget);
+    expect(find.textContaining('Connected and synced'), findsOneWidget);
+  });
+
+  testWidgets('device flow connects but surfaces a post-connect sync failure', (
+    tester,
+  ) async {
+    final mock = MockClient((req) async {
+      if (req.url.path.contains('device/code')) {
+        return http.Response(
+          jsonEncode({
+            'device_code': 'dev123',
+            'user_code': 'WXYZ-1234',
+            'verification_uri': 'https://github.com/login/device',
+            'interval': 0,
+            'expires_in': 900,
+          }),
+          200,
+        );
+      }
+      if (req.url.path.contains('login/oauth/access_token')) {
+        return http.Response(jsonEncode({'access_token': 'gho_test'}), 200);
+      }
+      return http.Response('boom', 500); // the sync's repo calls fail
+    });
+
+    await pumpSettings(
+      tester,
+      initial: const SyncSettings(
+        owner: 'o',
+        repo: 'r',
+        token: '',
+        clientId: 'cid',
+      ),
+      httpClient: mock,
+    );
+
+    await tester.tap(find.text('Connect GitHub'));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+
+    expect(find.textContaining('sync failed'), findsOneWidget);
   });
 
   testWidgets('Export notes writes the backlog file (desktop)', (tester) async {
