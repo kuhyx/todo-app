@@ -95,4 +95,18 @@ void main() {
       throwsA(isA<GitHubApiException>()),
     );
   });
+
+  test('GitHubApiException.toString includes status and message', () {
+    expect(
+      GitHubApiException(500, 'boom').toString(),
+      'GitHubApiException(500): boom',
+    );
+  });
+
+  test('creates a default http client when none is injected', () {
+    // No httpClient → the constructor builds a real http.Client; just make
+    // sure that branch runs and the client closes cleanly (no request made).
+    final c = GitHubClient(owner: 'o', repo: 'r', token: 't');
+    addTearDown(c.close);
+  });
 }

@@ -9,6 +9,7 @@ import 'package:http/testing.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/data/note.dart';
+import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:todo/ui/settings_screen.dart';
@@ -30,6 +31,26 @@ class _FakeFileSelector extends FileSelectorPlatform
     String? initialDirectory,
     String? confirmButtonText,
   }) async => file;
+}
+
+/// Repository whose reads fail, to exercise the export error path.
+class _ExplodingRepo extends FakeNoteRepository {
+  @override
+  Future<List<Note>> listNotes({
+    NoteSort sort = NoteSort.modifiedDesc,
+    NoteFilter filter = const NoteFilter(),
+  }) async => throw Exception('db down');
+}
+
+/// File picker stub that throws, to exercise the import error path.
+class _ThrowingFileSelector extends FileSelectorPlatform
+    with MockPlatformInterfaceMixin {
+  @override
+  Future<XFile?> openFile({
+    List<XTypeGroup>? acceptedTypeGroups,
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async => throw Exception('picker blew up');
 }
 
 /// Stub launcher that records the URL instead of opening it, so `_openPage`
@@ -61,6 +82,7 @@ void main() {
     ),
     http.Client? httpClient,
     List<Note> seed = const [],
+    FakeNoteRepository? repository,
   }) async {
     SharedPreferences.setMockInitialValues({});
     // Tall surface so the whole settings ListView builds (its Backup section
@@ -70,7 +92,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final repo = FakeNoteRepository(seed);
+    final repo = repository ?? FakeNoteRepository(seed);
     addTearDown(repo.close);
     await tester.pumpWidget(
       MaterialApp(
@@ -223,6 +245,20 @@ void main() {
     expect(find.textContaining('Exported'), findsOneWidget);
   });
 
+  testWidgets('Export surfaces a failure when the repository read fails', (
+    tester,
+  ) async {
+    await pumpSettings(tester, repository: _ExplodingRepo());
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Export notes'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pump();
+
+    expect(find.textContaining('Export failed'), findsOneWidget);
+  });
+
   testWidgets('Save persists the settings and closes the screen', (
     tester,
   ) async {
@@ -316,6 +352,18 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('Imported'), findsNothing);
+    expect(await repo.listNotes(), isEmpty);
+  });
+
+  testWidgets('Import surfaces a failure from the picker', (tester) async {
+    FileSelectorPlatform.instance = _ThrowingFileSelector();
+    final repo = await pumpSettings(tester);
+
+    await tester.tap(find.text('Import notes'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('Import failed'), findsOneWidget);
     expect(await repo.listNotes(), isEmpty);
   });
 

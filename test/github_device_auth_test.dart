@@ -152,4 +152,11 @@ void main() {
       ),
     );
   });
+
+  test('defaults to a real http client and delay when none are injected', () {
+    // Omitting httpClient/delay exercises the `?? http.Client()` and
+    // `?? Future.delayed` constructor fallbacks; no request is made.
+    final auth = GitHubDeviceAuth(clientId: 'c');
+    addTearDown(auth.close);
+  });
 }

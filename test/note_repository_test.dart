@@ -313,6 +313,44 @@ void main() {
     expect(notes.single.priority, Priority.medium);
   });
 
+  test('v1→v2 migration adds the status column with a default', () async {
+    final dir = await Directory.systemTemp.createTemp('todo_migration_v1');
+    final path = '${dir.path}/notes.db';
+    addTearDown(() => dir.delete(recursive: true));
+
+    // v1 schema predates the status column entirely.
+    final v1 = await SqliteCrdt.open(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE notes (
+            id TEXT NOT NULL,
+            text TEXT NOT NULL DEFAULT '',
+            priority INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (id)
+          )
+        ''');
+      },
+    );
+    final now = DateTime.now().toIso8601String();
+    await v1.execute(
+      'INSERT INTO notes (id, text, priority, created_at, updated_at) '
+      'VALUES (?1, ?2, ?3, ?4, ?5)',
+      ['old', 'pre-status idea', 1, now, now],
+    );
+    await v1.close();
+
+    // Reopening runs onUpgrade v1→v2 (adds status, default todo) then v2→v3.
+    final repo = await NoteRepository.open(path);
+    addTearDown(repo.close);
+    final notes = await repo.listNotes();
+    expect(notes.single.id, 'old');
+    expect(notes.single.status, Status.todo); // backfilled default
+  });
+
   group('sorting and streams', () {
     test('createdDesc and alphabetical orderings', () async {
       final repo = await NoteRepository.openInMemory();
@@ -370,5 +408,35 @@ void main() {
     await target.merge(revived);
     final merged = await target.listNotes();
     expect(merged.single.text, 'shared idea');
+  });
+
+  group('NoteFilter', () {
+    test('a default filter is empty (all facets cleared)', () {
+      // Evaluates the full conjunction in `isEmpty`, including the date bounds.
+      const filter = NoteFilter();
+      expect(filter.isEmpty, isTrue);
+      expect(filter.activeCount, 0);
+    });
+
+    test('a filter with any facet set is not empty', () {
+      expect(const NoteFilter(query: 'x').isEmpty, isFalse);
+      expect(const NoteFilter(statuses: {Status.done}).isEmpty, isFalse);
+    });
+
+    test('copyWith with no arguments preserves every facet', () {
+      final base = NoteFilter(
+        query: 'milk',
+        priorities: const {Priority.high},
+        statuses: const {Status.todo},
+        createdFrom: DateTime(2026, 1, 1),
+        updatedTo: DateTime(2026, 2, 2),
+      );
+      final clone = base.copyWith();
+      expect(clone.query, base.query);
+      expect(clone.priorities, base.priorities);
+      expect(clone.statuses, base.statuses);
+      expect(clone.createdFrom, base.createdFrom);
+      expect(clone.updatedTo, base.updatedTo);
+    });
   });
 }

@@ -11,7 +11,8 @@ import '../data/note.dart';
 /// rather than creating duplicates — the basis for "never lose ideas"
 /// recovery and round-tripping a backup.
 class NotesMarkdown {
-  const NotesMarkdown._();
+  // Private ctor: this is a static-only utility class, never instantiated.
+  const NotesMarkdown._(); // coverage:ignore-line
 
   static const _uuid = Uuid();
 

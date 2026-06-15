@@ -250,4 +250,65 @@ void main() {
 
     expect(repo.lastFilter!.createdFrom, isNull);
   });
+
+  testWidgets('filter sheet toggles a priority and a Last-updated preset', (
+    tester,
+  ) async {
+    final repo = await pumpList(tester, seed: [note('a', 'x')]);
+
+    await tester.tap(find.byIcon(Icons.filter_list));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('High')); // priority chip toggle
+    // Second "Today" belongs to the Last-updated section.
+    await tester.tap(find.text('Today').last);
+    await tester.pump();
+    await tester.tap(find.text('Apply'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(repo.lastFilter!.priorities, contains(Priority.high));
+    expect(repo.lastFilter!.updatedFrom, isNotNull);
+    expect(repo.lastFilter!.updatedTo, isNotNull);
+  });
+
+  testWidgets('a 30-day preset then Custom… confirms the seeded range', (
+    tester,
+  ) async {
+    final repo = await pumpList(tester, seed: [note('a', 'x')]);
+
+    await tester.tap(find.byIcon(Icons.filter_list));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('30 days').first); // _applyDays(30)
+    await tester.pump();
+    // Custom… opens the range picker seeded with the 30-day range
+    // (initialDateRange != null); confirming with Save returns that range.
+    await tester.tap(find.text('Custom…').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300)); // picker opens
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Apply'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(repo.lastFilter!.createdFrom, isNotNull);
+    expect(repo.lastFilter!.createdTo, isNotNull);
+  });
+
+  testWidgets('per-note sheet changes priority via a chip', (tester) async {
+    final repo = await pumpList(tester, seed: [note('a', 'Repriortise me')]);
+
+    await tester.tap(find.text('Repriortise me'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Low')); // default is Medium → change to Low
+    await tester.pump();
+
+    expect((await repo.listNotes()).single.priority, Priority.low);
+  });
 }

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/capture_screen.dart';
+import 'package:todo/ui/settings_screen.dart';
 
 import 'fake_note_repository.dart';
 
@@ -11,14 +14,35 @@ void main() {
   // widget tester's fake clock, so these tests inject a timer-free fake.
   // (NOTE: avoid pumpAndSettle — the autofocused field's cursor blink never
   // settles; pump explicit frames instead.)
-  Future<FakeNoteRepository> pumpCapture(WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+  Future<FakeNoteRepository> pumpCapture(
+    WidgetTester tester, {
+    Map<String, Object> prefs = const {},
+    http.Client? httpClient,
+  }) async {
+    SharedPreferences.setMockInitialValues(prefs);
+    // Tall surface so a pushed settings screen builds its whole ListView.
+    tester.view.physicalSize = const Size(1200, 2800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final repo = FakeNoteRepository();
     addTearDown(repo.close);
-    await tester.pumpWidget(MaterialApp(home: CaptureScreen(repository: repo)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CaptureScreen(repository: repo, httpClient: httpClient),
+      ),
+    );
     await tester.pump(); // flush initial stream + settings load
     return repo;
   }
+
+  // Seeds a fully configured GitHub sync so the configured `_sync` path runs.
+  const configuredPrefs = {
+    'sync.owner': 'o',
+    'sync.repo': 'r',
+    'sync.token': 'tok',
+  };
 
   testWidgets('pre-fills the structured template', (tester) async {
     await pumpCapture(tester);
@@ -134,5 +158,60 @@ void main() {
     await tester.pump();
 
     expect((await repo.listNotes()).single.status, Status.inProgress);
+  });
+
+  testWidgets('Sync with a configured token runs the sync service', (
+    tester,
+  ) async {
+    // Empty remote directory (404) → the service has nothing to merge and
+    // pushes this device's own changeset (PUT).
+    final mock = MockClient((req) async {
+      if (req.method == 'PUT') return http.Response('{}', 200);
+      return http.Response('', 404);
+    });
+    await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
+
+    await tester.tap(find.byTooltip('Sync'));
+    await tester.pump(); // setState(_syncing = true)
+    await tester.pump(); // service runs, snackbar scheduled
+    await tester.pump(); // snackbar builds
+
+    expect(find.textContaining('Synced: merged 0 device'), findsOneWidget);
+  });
+
+  testWidgets('Sync surfaces a failure from the sync service', (tester) async {
+    final mock = MockClient((_) async => throw Exception('offline'));
+    await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
+
+    await tester.tap(find.byTooltip('Sync'));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('Sync failed'), findsOneWidget);
+  });
+
+  testWidgets('returning from settings adopts the saved configuration', (
+    tester,
+  ) async {
+    await pumpCapture(tester);
+
+    await tester.tap(find.byTooltip('Sync settings'));
+    await tester.pumpAndSettle(); // route transition
+    expect(find.text('Connect GitHub'), findsOneWidget); // settings is up
+
+    // Saving pops a SyncSettings back to the capture screen (covers the
+    // result-adoption branch in _openSettings). Scope to the settings route —
+    // the capture screen's own "Save" is still mounted behind it.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SettingsScreen),
+        matching: find.text('Save'),
+      ),
+    );
+    await tester.pumpAndSettle(); // save + pop transition
+
+    expect(find.text('Connect GitHub'), findsNothing); // back on capture
+    expect(find.byTooltip('Sync settings'), findsOneWidget);
   });
 }

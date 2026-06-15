@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
 import '../data/note.dart';
@@ -17,9 +18,14 @@ import 'settings_screen.dart';
 /// action finalises the current idea and clears the field for the next
 /// one (remote sync will hook in here later).
 class CaptureScreen extends StatefulWidget {
-  const CaptureScreen({required this.repository, super.key});
+  const CaptureScreen({required this.repository, this.httpClient, super.key});
 
   final NoteRepository repository;
+
+  /// Injectable HTTP client for the sync path. Production leaves this null
+  /// (the GitHubClient creates its own); tests pass a mock so the configured
+  /// sync flow can be exercised without real network access.
+  final http.Client? httpClient;
 
   @override
   State<CaptureScreen> createState() => _CaptureScreenState();
@@ -108,8 +114,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
     if (!mounted) return;
     final result = await Navigator.of(context).push<SyncSettings>(
       MaterialPageRoute(
-        builder: (_) =>
-            SettingsScreen(initial: current, repository: widget.repository),
+        builder: (_) => SettingsScreen(
+          initial: current,
+          repository: widget.repository,
+          httpClient: widget.httpClient,
+        ),
       ),
     );
     if (result != null && mounted) setState(() => _settings = result);
@@ -136,6 +145,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
       owner: settings.owner,
       repo: settings.repo,
       token: settings.token,
+      httpClient: widget.httpClient,
     );
     try {
       final result = await _syncService.sync(widget.repository, client);

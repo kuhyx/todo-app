@@ -65,5 +65,12 @@ void main() {
     expect(next.repo, 'r');
     expect(next.token, 'new');
     expect(next.clientId, 'c');
+
+    // No-arg copy exercises the `?? this.x` fallback on every field.
+    final clone = base.copyWith();
+    expect(clone.owner, 'o');
+    expect(clone.repo, 'r');
+    expect(clone.token, 't');
+    expect(clone.clientId, 'c');
   });
 }
