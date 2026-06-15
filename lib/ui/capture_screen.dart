@@ -33,8 +33,12 @@ class CaptureScreen extends StatefulWidget {
   State<CaptureScreen> createState() => _CaptureScreenState();
 }
 
-class _CaptureScreenState extends State<CaptureScreen> {
+class _CaptureScreenState extends State<CaptureScreen>
+    with WidgetsBindingObserver {
   static const _uuid = Uuid();
+
+  /// Single-flight guard so a launch sync and a background sync never overlap.
+  bool _autoSyncing = false;
 
   /// Latest assembled text from the editor; persisted on change and re-saved
   /// when only priority/status change.
@@ -61,9 +65,47 @@ class _CaptureScreenState extends State<CaptureScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     SyncSettings.load().then((s) {
-      if (mounted) setState(() => _settings = s);
+      if (!mounted) return;
+      setState(() => _settings = s);
+      _autoSync(); // pull on launch so a reinstalled device recovers its notes
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Push on background so the remote (the durable store) stays near-current.
+    if (state == AppLifecycleState.paused) _autoSync();
+  }
+
+  /// Best-effort background sync: silent, skips when unconfigured, and never
+  /// overlaps itself. Failures are swallowed — the manual Sync button is the
+  /// place that surfaces errors.
+  Future<void> _autoSync() async {
+    final settings = _settings;
+    if (_autoSyncing || settings == null || !settings.isConfigured) return;
+    _autoSyncing = true;
+    final client = GitHubClient(
+      owner: settings.owner,
+      repo: settings.repo,
+      token: settings.token,
+      httpClient: widget.httpClient,
+    );
+    try {
+      await _syncService.sync(widget.repository, client);
+    } catch (_) {
+      // Best-effort: ignore (offline, transient GitHub errors, etc.).
+    } finally {
+      client.close();
+      _autoSyncing = false;
+    }
   }
 
   /// Opens the settings screen and adopts any saved configuration.

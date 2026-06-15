@@ -216,4 +216,62 @@ void main() {
     expect(find.text('Connect GitHub'), findsNothing); // back on capture
     expect(find.byTooltip('Sync settings'), findsOneWidget);
   });
+
+  // A MockClient that records request methods and answers the sync flow:
+  // 404 for the (empty) changeset listing, 200 for the device's own PUT.
+  MockClient recordingMock(List<String> methods) => MockClient((req) async {
+    methods.add(req.method);
+    if (req.method == 'PUT') return http.Response('{}', 200);
+    return http.Response('', 404);
+  });
+
+  testWidgets('auto-syncs on launch when configured', (tester) async {
+    final methods = <String>[];
+    await pumpCapture(
+      tester,
+      prefs: configuredPrefs,
+      httpClient: recordingMock(methods),
+    );
+    await tester.pump(); // settings load → auto-sync (pull) …
+    await tester.pump(); // … then push
+
+    expect(methods, contains('PUT')); // this device pushed its changeset
+  });
+
+  testWidgets('does not auto-sync when unconfigured', (tester) async {
+    final methods = <String>[];
+    await pumpCapture(tester, httpClient: recordingMock(methods)); // no token
+    await tester.pump();
+    await tester.pump();
+
+    expect(methods, isEmpty);
+  });
+
+  testWidgets('auto-syncs again when the app is backgrounded', (tester) async {
+    final methods = <String>[];
+    await pumpCapture(
+      tester,
+      prefs: configuredPrefs,
+      httpClient: recordingMock(methods),
+    );
+    await tester.pump();
+    await tester.pump();
+    methods.clear();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    await tester.pump();
+
+    expect(methods, contains('PUT'));
+  });
+
+  testWidgets('auto-sync failure is silent (no snackbar)', (tester) async {
+    final mock = MockClient((_) async => throw Exception('offline'));
+    await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('Sync failed'), findsNothing);
+    expect(find.textContaining('Synced'), findsNothing);
+  });
 }
