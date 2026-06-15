@@ -105,7 +105,7 @@ void main() {
   testWidgets('per-note sheet deletes the note', (tester) async {
     final repo = await pumpList(tester, seed: [note('a', 'Delete me')]);
 
-    await tester.tap(find.text('Delete me'));
+    await tester.tap(find.byTooltip('Quick actions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300)); // sheet open
     await tester.tap(find.text('Delete note'));
@@ -117,7 +117,7 @@ void main() {
   testWidgets('per-note sheet changes status via a chip', (tester) async {
     final repo = await pumpList(tester, seed: [note('a', 'Change me')]);
 
-    await tester.tap(find.text('Change me'));
+    await tester.tap(find.byTooltip('Quick actions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('In progress'));
@@ -303,12 +303,25 @@ void main() {
   testWidgets('per-note sheet changes priority via a chip', (tester) async {
     final repo = await pumpList(tester, seed: [note('a', 'Repriortise me')]);
 
-    await tester.tap(find.text('Repriortise me'));
+    await tester.tap(find.byTooltip('Quick actions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Low')); // default is Medium → change to Low
     await tester.pump();
 
     expect((await repo.listNotes()).single.priority, Priority.low);
+  });
+
+  testWidgets('tapping a note opens the detail screen', (tester) async {
+    await pumpList(tester, seed: [note('a', '# Open me\n\nbody')]);
+
+    await tester.tap(find.text('Open me'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300)); // route transition
+
+    // The detail screen shows the note title in its app bar plus the
+    // Priority/Status meta dropdowns and the editor mode toggle.
+    expect(find.text('Priority'), findsOneWidget);
+    expect(find.text('View'), findsOneWidget);
   });
 }

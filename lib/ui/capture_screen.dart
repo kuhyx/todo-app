@@ -4,9 +4,11 @@ import 'package:uuid/uuid.dart';
 
 import '../data/note.dart';
 import '../data/note_repository.dart';
+import '../data/note_template.dart';
 import '../sync/github_client.dart';
 import '../sync/sync_service.dart';
 import '../sync/sync_settings.dart';
+import 'note_editor.dart';
 import 'notes_list_screen.dart';
 import 'settings_screen.dart';
 
@@ -34,31 +36,12 @@ class CaptureScreen extends StatefulWidget {
 class _CaptureScreenState extends State<CaptureScreen> {
   static const _uuid = Uuid();
 
-  /// Placeholder for the note's title line; selected on reset so the first
-  /// keystroke replaces it.
-  static const _titlePlaceholder = '<imperative title>';
+  /// Latest assembled text from the editor; persisted on change and re-saved
+  /// when only priority/status change.
+  String _draftText = '';
 
-  /// The structured scaffold pre-filled into every new note (see the
-  /// `<work_backlog>` format). Pre-filling beats a hint because the em-dashes
-  /// and labels are tedious to type on mobile — the user just fills the gaps.
-  static const _template =
-      '$_titlePlaceholder\n'
-      '\n'
-      'what — \n'
-      'where — \n'
-      'must —\n'
-      '- \n'
-      'nice —\n'
-      '- \n'
-      'out —\n'
-      '- \n'
-      'done — \n'
-      'depends — \n'
-      'estimate — \n'
-      'refs — ';
-
-  final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
+  /// Bumped on save to recreate the editor with a fresh, empty template.
+  int _editorGeneration = 0;
 
   /// Id of the note currently being edited, or null before the first
   /// keystroke of a fresh draft.
@@ -78,34 +61,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
   @override
   void initState() {
     super.initState();
-    _resetToTemplate();
     SyncSettings.load().then((s) {
       if (mounted) setState(() => _settings = s);
     });
-  }
-
-  /// Loads the blank template into the field with the title placeholder
-  /// selected, so typing immediately overwrites it. Setting the controller
-  /// value programmatically does not fire [_onChanged], so this never
-  /// persists a note on its own — only a real edit does.
-  void _resetToTemplate() {
-    _controller.value = const TextEditingValue(
-      text: _template,
-      selection: TextSelection(
-        baseOffset: 0,
-        extentOffset: _titlePlaceholder.length,
-      ),
-    );
-  }
-
-  /// Whether [text] is still the untouched scaffold (nothing worth saving).
-  bool _isPristine(String text) => text.trim() == _template.trim();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
-    super.dispose();
   }
 
   /// Opens the settings screen and adopts any saved configuration.
@@ -168,10 +126,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
   /// Persists the current text on every change. Creates the note row on
   /// the first non-empty keystroke so empty drafts never hit storage.
   Future<void> _onChanged(String text) async {
+    _draftText = text;
     if (_draftId == null) {
-      // Don't persist an empty field or the untouched template scaffold —
-      // a note is only created once the user actually fills something in.
-      if (text.isEmpty || _isPristine(text)) return;
+      // A note is only created once the user actually fills something in, so
+      // an empty template (no section typed yet) never hits storage.
+      if (text.trim().isEmpty) return;
       _draftId = _uuid.v4();
       _draftCreatedAt = DateTime.now();
     }
@@ -210,7 +169,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
     await widget.repository.upsert(
       Note(
         id: _draftId!,
-        text: _controller.text,
+        text: _draftText,
         priority: _draftPriority,
         status: _draftStatus,
         createdAt: _draftCreatedAt!,
@@ -225,14 +184,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
     // A note was actually persisted only if a draft row was created.
     final saved = _draftId != null;
     setState(() {
-      _resetToTemplate();
+      _editorGeneration++; // recreate the editor with a fresh template
+      _draftText = '';
       _draftId = null;
       _draftCreatedAt = null;
       _lastSavedAt = null;
       _draftPriority = Priority.defaultValue;
       _draftStatus = Status.todo;
     });
-    _focusNode.requestFocus();
     if (saved) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -316,19 +275,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
+              child: NoteEditor(
+                key: ValueKey(_editorGeneration),
+                initialTemplate: NoteTemplate.defaultTemplate,
                 autofocus: true,
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                keyboardType: TextInputType.multiline,
-                style: theme.textTheme.bodyLarge,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: 'Write your idea…',
-                ),
                 onChanged: _onChanged,
               ),
             ),

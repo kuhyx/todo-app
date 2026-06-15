@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../data/note.dart';
 import '../data/note_repository.dart';
+import '../data/note_template.dart';
+import 'note_detail_screen.dart';
 
 /// The default status selection: hide completed/dropped work. This is the
 /// app's notion of "unfiltered", so it does not count towards the filter
@@ -106,7 +108,17 @@ class _NotesListScreenState extends State<NotesListScreen> {
     }
   }
 
-  /// Opens the per-note actions sheet (priority, status, delete).
+  /// Opens the full note: read it, edit the body, change priority/status.
+  Future<void> _openNote(Note note) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) =>
+            NoteDetailScreen(note: note, repository: widget.repository),
+      ),
+    );
+  }
+
+  /// Opens the per-note quick-actions sheet (priority, status, delete).
   Future<void> _openNoteActions(Note note) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -218,7 +230,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, i) => _NoteTile(
                     note: notes[i],
-                    onTap: () => _openNoteActions(notes[i]),
+                    onTap: () => _openNote(notes[i]),
+                    onActions: () => _openNoteActions(notes[i]),
                   ),
                 );
               },
@@ -232,14 +245,23 @@ class _NotesListScreenState extends State<NotesListScreen> {
 
 /// One row in the notes list: first line, then a metadata subtitle.
 class _NoteTile extends StatelessWidget {
-  const _NoteTile({required this.note, required this.onTap});
+  const _NoteTile({
+    required this.note,
+    required this.onTap,
+    required this.onActions,
+  });
 
   final Note note;
+
+  /// Open the full note for reading/editing.
   final VoidCallback onTap;
+
+  /// Open the quick-actions sheet (priority/status/delete).
+  final VoidCallback onActions;
 
   @override
   Widget build(BuildContext context) {
-    final firstLine = note.text.split('\n').first;
+    final firstLine = noteTitle(note.text);
     // Every note has a status and a priority now, so both are always shown.
     final meta = <String>[
       note.status.label,
@@ -253,8 +275,13 @@ class _NoteTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(meta),
-      trailing: const Icon(Icons.more_vert),
+      trailing: IconButton(
+        icon: const Icon(Icons.more_vert),
+        tooltip: 'Quick actions',
+        onPressed: onActions,
+      ),
       onTap: onTap,
+      onLongPress: onActions,
     );
   }
 
@@ -300,7 +327,7 @@ class _NoteActionsSheetState extends State<_NoteActionsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final firstLine = widget.note.text.split('\n').first;
+    final firstLine = noteTitle(widget.note.text);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

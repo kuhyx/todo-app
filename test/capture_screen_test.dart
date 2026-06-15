@@ -44,12 +44,15 @@ void main() {
     'sync.token': 'tok',
   };
 
-  testWidgets('pre-fills the structured template', (tester) async {
+  testWidgets('opens the guided editor with section guidance', (tester) async {
     await pumpCapture(tester);
 
-    expect(find.textContaining('<imperative title>'), findsOneWidget);
-    expect(find.textContaining('what —'), findsOneWidget);
-    expect(find.textContaining('done —'), findsOneWidget);
+    // The guided stepper shows the design-spec sections and the title step's
+    // guidance, with no note persisted yet.
+    expect(find.text('Guided'), findsOneWidget);
+    expect(find.textContaining('imperative'), findsOneWidget); // title helper
+    expect(find.text('what'), findsOneWidget); // a section step header
+    expect(find.text('done'), findsOneWidget);
     expect(find.text('0 saved'), findsOneWidget);
   });
 
@@ -67,10 +70,8 @@ void main() {
   ) async {
     final repo = await pumpCapture(tester);
 
-    await tester.enterText(
-      find.byType(TextField),
-      'My idea\n\nwhat — build the thing',
-    );
+    // The first field in the guided stepper is the title section.
+    await tester.enterText(find.byType(TextField).first, 'My idea');
     await tester.pump();
 
     final notes = await repo.listNotes();
@@ -86,7 +87,7 @@ void main() {
   ) async {
     final repo = await pumpCapture(tester);
 
-    await tester.enterText(find.byType(TextField), 'A real idea');
+    await tester.enterText(find.byType(TextField).first, 'A real idea');
     await tester.pump();
     await tester.tap(find.text('Save'));
     await tester.pump(); // build the snackbar
@@ -95,7 +96,8 @@ void main() {
     await tester.pump();
 
     expect(await repo.listNotes(), hasLength(1));
-    expect(find.textContaining('<imperative title>'), findsOneWidget);
+    // The editor reset to a fresh guided template (title guidance shown again).
+    expect(find.textContaining('imperative'), findsOneWidget);
   });
 
   testWidgets('tapping Sync while unconfigured prompts for a token', (
@@ -127,7 +129,7 @@ void main() {
   ) async {
     final repo = await pumpCapture(tester);
 
-    await tester.enterText(find.byType(TextField), 'Prioritised idea');
+    await tester.enterText(find.byType(TextField).first, 'Prioritised idea');
     await tester.pump();
 
     await tester.tap(
@@ -146,7 +148,7 @@ void main() {
   ) async {
     final repo = await pumpCapture(tester);
 
-    await tester.enterText(find.byType(TextField), 'Status idea');
+    await tester.enterText(find.byType(TextField).first, 'Status idea');
     await tester.pump();
 
     await tester.tap(
