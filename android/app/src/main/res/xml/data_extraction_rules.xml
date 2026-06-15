@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Auto Backup rules (API 31+ / Android 12+).
+
+  Empty <cloud-backup> and <device-transfer> elements mean "back up the default
+  set": the app's files dir (which holds the local CRDT DB, todo.db), the
+  databases dir, and shared_prefs (which holds the GitHub sync settings + token).
+
+  Backing up shared_prefs is intentional: it lets a reinstall restore the sync
+  configuration too, so recovery is zero-touch (no re-auth). The token is a
+  narrowly-scoped, contents-only PAT for the single private sync repo, stored in
+  the user's own Google backup. Auto-sync (the app's primary durability path)
+  still covers device loss; this is the secondary, OS-level safety net.
+-->
+<data-extraction-rules>
+    <cloud-backup />
+    <device-transfer />
+</data-extraction-rules>

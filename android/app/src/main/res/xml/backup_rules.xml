@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Legacy Auto Backup rules (pre-Android 12 / API < 31). An empty
+  <full-backup-content> means "back up the default set" — the app's files dir
+  (the local CRDT DB todo.db), databases, and shared_prefs (sync settings +
+  token). See data_extraction_rules.xml for the rationale on backing up the
+  token for zero-touch recovery.
+-->
+<full-backup-content>
+</full-backup-content>
