@@ -109,11 +109,31 @@ class NoteTemplate {
             "'new app: <name>', and platform(s).",
       ),
       TemplateSection(
+        key: 'tech',
+        label: 'tech',
+        hint: 'language/framework@version, key libraries',
+        helper:
+            'Tech stack with versions (e.g. Flutter 3.32, Dart 3.8, '
+            'sqlite_crdt 0.5). Tells the agent the exact environment.',
+      ),
+      TemplateSection(
         key: 'must',
         label: 'must',
         inline: false,
         hint: '- required behaviour',
-        helper: 'Required behaviours, one per line — hard requirements.',
+        helper:
+            'Required behaviours the agent should do without asking, '
+            'one per line — hard requirements.',
+      ),
+      TemplateSection(
+        key: 'ask',
+        label: 'ask',
+        inline: false,
+        hint: '- decision needing your approval before proceeding',
+        helper:
+            'High-impact decisions where the agent must stop and confirm '
+            'with you first (e.g. schema changes, deleting data). '
+            'Leave blank if none.',
       ),
       TemplateSection(
         key: 'nice',
@@ -125,13 +145,14 @@ class NoteTemplate {
             'Leave blank if none.',
       ),
       TemplateSection(
-        key: 'out',
-        label: 'out',
+        key: 'never',
+        label: 'never',
         inline: false,
-        hint: '- explicitly out of scope',
+        hint: '- hard stop / explicitly out of scope',
         helper:
-            'Explicitly out of scope — stops gold-plating. '
-            'Leave blank if none.',
+            'Hard stops and explicitly out-of-scope items — '
+            'agent must not do these. Prevents gold-plating and '
+            'dangerous actions. Leave blank if none.',
       ),
       TemplateSection(
         key: 'done',
