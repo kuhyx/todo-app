@@ -78,6 +78,12 @@ class _NoteEditorState extends State<NoteEditor> {
   /// One controller per structured section (keyed by section key).
   final Map<String, TextEditingController> _section = {};
 
+  /// One key per structured section, used to scroll the newly-active step's
+  /// content into view after a step change — the Stepper reflows height
+  /// (other steps collapse/expand) without moving the scroll offset, so
+  /// without this the active step's input can end up hidden off-screen.
+  final Map<String, GlobalKey> _stepKeys = {};
+
   /// Single field used for the freeform [NoteTemplate.blank] body and for raw
   /// mode of a structured template.
   final TextEditingController _body = TextEditingController();
@@ -130,11 +136,36 @@ class _NoteEditorState extends State<NoteEditor> {
     return desired;
   }
 
-  /// Ensures a controller exists for every section of [template].
+  /// Ensures a controller and scroll-into-view key exist for every section
+  /// of [template].
   void _ensureControllers(NoteTemplate template) {
     for (final s in template.sections) {
       _section.putIfAbsent(s.key, () => TextEditingController());
+      _stepKeys.putIfAbsent(s.key, () => GlobalKey());
     }
+  }
+
+  /// Moves to step [index] and scrolls that step's content into view once the
+  /// Stepper's own expand/collapse transition has settled. The Stepper
+  /// animates each step's content height over [kThemeAnimationDuration], so
+  /// scrolling on the next post-frame callback (before that animation
+  /// finishes) measures a layout that's still mid-collapse — the scroll lands
+  /// on a stale position and the active step ends up hidden under the fixed
+  /// app bar above. Waiting for the animation to finish before measuring
+  /// fixes that.
+  Future<void> _goToStep(int index) async {
+    setState(() => _currentStep = index);
+    await Future<void>.delayed(kThemeAnimationDuration);
+    if (!mounted) return;
+    final key = _stepKeys[_template.sections[index].key];
+    final stepContext = key?.currentContext;
+    if (stepContext == null || !stepContext.mounted) return;
+    await Scrollable.ensureVisible(
+      stepContext,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      alignment: 0.0,
+    );
   }
 
   void _fillSections(Map<String, String> values) {
@@ -322,12 +353,12 @@ class _NoteEditorState extends State<NoteEditor> {
       child: Stepper(
         currentStep: _currentStep.clamp(0, sections.length - 1),
         physics: const NeverScrollableScrollPhysics(),
-        onStepTapped: (i) => setState(() => _currentStep = i),
+        onStepTapped: _goToStep,
         onStepContinue: _currentStep < sections.length - 1
-            ? () => setState(() => _currentStep++)
+            ? () => _goToStep(_currentStep + 1)
             : null,
         onStepCancel: _currentStep > 0
-            ? () => setState(() => _currentStep--)
+            ? () => _goToStep(_currentStep - 1)
             : null,
         controlsBuilder: (context, details) {
           return Padding(
@@ -362,7 +393,15 @@ class _NoteEditorState extends State<NoteEditor> {
     final controller = _section[section.key]!;
     final hasValue = controller.text.trim().isNotEmpty;
     return Step(
-      title: Text(section.isTitle ? 'title' : section.label),
+      // Keyed on the title (not content): ensureVisible aligns this widget's
+      // top to the viewport's top, so keying the title — which Stepper
+      // renders *above* content as the tappable heading — is what keeps the
+      // step's own heading on-screen. Keying content alone scrolled the
+      // heading off the top of the viewport.
+      title: KeyedSubtree(
+        key: _stepKeys[section.key],
+        child: Text(section.isTitle ? 'title' : section.label),
+      ),
       state: hasValue
           ? StepState.complete
           : (index == _currentStep ? StepState.editing : StepState.indexed),
@@ -390,7 +429,7 @@ class _NoteEditorState extends State<NoteEditor> {
                 border: const OutlineInputBorder(),
                 isDense: true,
               ),
-              // Rebuild so the step's completion tick reflects the new value.
+              // Rebuild so the step's completion tick reflects the value.
               onChanged: (_) {
                 setState(() {});
                 _emit();

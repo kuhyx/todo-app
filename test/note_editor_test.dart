@@ -64,9 +64,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Back').hitTestable()); // and back
     await tester.pumpAndSettle();
-    // Jump directly to a step by tapping its header.
+    // Jump directly to a step by tapping its header. _goToStep delays past
+    // the Stepper's own collapse/expand animation before scrolling, so drain
+    // that timer rather than a bare pump — see CLAUDE.md's Timer pitfall.
     await tester.tap(find.text('done'));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
     expect(find.byType(Stepper), findsOneWidget);
   });
 
