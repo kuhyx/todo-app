@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/note.dart';
 import '../data/note_template.dart';
 import 'markdown_view.dart';
 
@@ -31,9 +32,19 @@ enum NoteEditorMode {
 /// Non-conforming or freeform text never enters the guided stepper (we never
 /// force it into the template), so for such text Guided is unavailable and the
 /// editable source stays the raw body, preserving the user's content.
+///
+/// Entering Guided on an empty draft first runs a two-step wizard (priority,
+/// then template) via [onPriorityChanged], since those choices only make
+/// sense once, before there's anything to guide. Guided itself — wizard or
+/// bare stepper — hides the template/mode chrome entirely (just a back arrow
+/// to return to Raw); [onChromeVisibleChanged] tells the parent screen to
+/// hide its own priority/status row in sync.
 class NoteEditor extends StatefulWidget {
   const NoteEditor({
     required this.onChanged,
+    required this.priority,
+    required this.onPriorityChanged,
+    required this.onChromeVisibleChanged,
     this.initialText = '',
     this.initialTemplate,
     this.initialMode = NoteEditorMode.guided,
@@ -43,6 +54,18 @@ class NoteEditor extends StatefulWidget {
 
   /// Called with the freshly assembled note text on every edit.
   final ValueChanged<String> onChanged;
+
+  /// The note's current priority, shown as the wizard's starting selection.
+  final Priority priority;
+
+  /// Called when the priority wizard step is confirmed (Guided "Start").
+  final ValueChanged<Priority> onPriorityChanged;
+
+  /// Called whenever the editor's own chrome (template dropdown, mode
+  /// selector) is shown/hidden, so the parent screen can hide its
+  /// priority/status row in sync while Guided (wizard or bare stepper) is
+  /// active.
+  final ValueChanged<bool> onChromeVisibleChanged;
 
   /// Existing note text to load. Empty for a fresh draft.
   final String initialText;
@@ -75,6 +98,18 @@ class _NoteEditorState extends State<NoteEditor> {
 
   int _currentStep = 0;
 
+  /// Whether the priority+template entry wizard is showing in place of the
+  /// normal chrome. True only between tapping Guided on an empty draft and
+  /// either "Start" (which flips to bare Guided) or "Cancel" (back to Raw).
+  bool _enteringGuided = false;
+
+  /// Which wizard step (0: priority, 1: template) is showing.
+  int _wizardStep = 0;
+
+  /// Working copies of the wizard's two choices, committed on "Start".
+  Priority _wizardPriority = Priority.defaultValue;
+  NoteTemplate _wizardTemplate = NoteTemplate.defaultTemplate;
+
   /// One controller per structured section (keyed by section key).
   final Map<String, TextEditingController> _section = {};
 
@@ -94,14 +129,30 @@ class _NoteEditorState extends State<NoteEditor> {
     final initial = widget.initialTemplate;
     if (initial != null) {
       _template = initial;
-      _loadSource(initial, widget.initialText, preferGuided: true);
+      // Only prefer the guided (sections) source for an empty draft when the
+      // caller actually wants to open in Guided — an empty Raw draft (the new
+      // default) must keep the raw body as its source, or typing into the Raw
+      // field would silently update the (hidden, unused) section controllers
+      // instead of what's emitted via onChanged.
+      _loadSource(
+        initial,
+        widget.initialText,
+        preferGuided: widget.initialMode != NoteEditorMode.raw,
+      );
     } else {
       // Detect: does the text cleanly fit the design-spec template?
       final parsed = parse(NoteTemplate.llmDesignSpec, widget.initialText);
       if (parsed.conforms) {
         _template = NoteTemplate.llmDesignSpec;
-        _rawSource = false;
-        _fillSections(parsed.values);
+        // Same Raw/source consistency rule as above: an explicit Raw request
+        // must keep the raw body as the source even for conforming text.
+        if (widget.initialMode == NoteEditorMode.raw) {
+          _rawSource = true;
+          _body.text = widget.initialText;
+        } else {
+          _rawSource = false;
+          _fillSections(parsed.values);
+        }
       } else {
         // Freeform / legacy / hand-mangled — keep it as a raw body, untouched.
         _template = NoteTemplate.blank;
@@ -244,7 +295,18 @@ class _NoteEditorState extends State<NoteEditor> {
             _rawSource = false;
           }
           _currentStep = 0;
-          _mode = NoteEditorMode.guided;
+          if (_currentText().trim().isEmpty) {
+            // Fresh, empty draft: priority and template are meaningful
+            // choices only once, so ask for them before showing the stepper.
+            _enteringGuided = true;
+            _wizardStep = 0;
+            _wizardPriority = widget.priority;
+            _wizardTemplate = NoteTemplate.defaultTemplate;
+          } else {
+            // Existing content: priority/template are already settled, so
+            // skip straight to the bare stepper rather than re-asking.
+            _mode = NoteEditorMode.guided;
+          }
         case NoteEditorMode.raw:
           if (!_rawSource) {
             // guided -> raw: materialise the assembled text into the body.
@@ -257,65 +319,223 @@ class _NoteEditorState extends State<NoteEditor> {
           _mode = NoteEditorMode.preview;
       }
     });
+    widget.onChromeVisibleChanged(
+      !_enteringGuided && _mode != NoteEditorMode.guided,
+    );
+  }
+
+  /// Commits the wizard's template choice and enters the bare stepper.
+  /// Distinct from [_switchTemplate]: that short-circuits when the template
+  /// is unchanged, which would skip flipping out of the wizard here.
+  void _enterGuidedWithTemplate(NoteTemplate template) {
+    final text = _currentText();
+    setState(() {
+      _template = template;
+      _currentStep = 0;
+      _loadSource(template, text, preferGuided: true);
+      _mode = NoteEditorMode.guided;
+      _enteringGuided = false;
+    });
+    _emit();
+    widget.onChromeVisibleChanged(false);
+  }
+
+  /// Aborts the wizard, returning to Raw with the chrome restored.
+  void _cancelWizard() {
+    setState(() => _enteringGuided = false);
+    widget.onChromeVisibleChanged(true);
+  }
+
+  /// Exits the bare stepper back to Raw, restoring the chrome.
+  void _exitGuided() {
+    setState(() {
+      if (!_rawSource) {
+        _body.text = _currentText();
+        _rawSource = true;
+      }
+      _mode = NoteEditorMode.raw;
+    });
+    widget.onChromeVisibleChanged(true);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (_enteringGuided) return _buildGuidedEntryWizard(theme);
+
+    // Guided (the bare stepper) hides the template/mode chrome entirely —
+    // that's the point of "Guided": just the stepper, no top-bar noise. A
+    // single back arrow is the only way out, restoring the full chrome.
+    final bareGuided = _mode == NoteEditorMode.guided;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DropdownButtonFormField<String>(
-          initialValue: _template.id,
-          isDense: true,
-          decoration: const InputDecoration(
-            labelText: 'Template',
+        if (bareGuided)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'Exit guided',
+              onPressed: _exitGuided,
+            ),
+          )
+        else ...[
+          DropdownButtonFormField<String>(
+            initialValue: _template.id,
             isDense: true,
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
-          items: [
-            for (final t in NoteTemplate.all)
-              DropdownMenuItem(value: t.id, child: Text(t.label)),
-          ],
-          onChanged: (id) {
-            if (id == null) return;
-            _switchTemplate(NoteTemplate.all.firstWhere((t) => t.id == id));
-          },
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: SegmentedButton<NoteEditorMode>(
-            showSelectedIcon: false,
-            segments: [
-              const ButtonSegment(
-                value: NoteEditorMode.preview,
-                icon: Icon(Icons.visibility_outlined),
-                label: Text('View'),
-              ),
-              // Guided is offered for any structured template; switching to it
-              // is blocked at switch time if the raw text no longer conforms.
-              if (!_template.isFreeform)
-                const ButtonSegment(
-                  value: NoteEditorMode.guided,
-                  icon: Icon(Icons.checklist),
-                  label: Text('Guided'),
-                ),
-              const ButtonSegment(
-                value: NoteEditorMode.raw,
-                icon: Icon(Icons.notes),
-                label: Text('Raw'),
-              ),
+            decoration: const InputDecoration(
+              labelText: 'Template',
+              isDense: true,
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: [
+              for (final t in NoteTemplate.all)
+                DropdownMenuItem(value: t.id, child: Text(t.label)),
             ],
-            selected: {_mode},
-            onSelectionChanged: (s) => _setMode(s.first),
+            onChanged: (id) {
+              if (id == null) return;
+              _switchTemplate(NoteTemplate.all.firstWhere((t) => t.id == id));
+            },
           ),
-        ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<NoteEditorMode>(
+              showSelectedIcon: false,
+              segments: [
+                const ButtonSegment(
+                  value: NoteEditorMode.preview,
+                  icon: Icon(Icons.visibility_outlined),
+                  label: Text('View'),
+                ),
+                // Guided is offered for any structured template; tapping it
+                // on an empty draft opens the wizard (see _setMode), and is
+                // blocked at switch time if the raw text no longer conforms.
+                if (!_template.isFreeform)
+                  const ButtonSegment(
+                    value: NoteEditorMode.guided,
+                    icon: Icon(Icons.checklist),
+                    label: Text('Guided'),
+                  ),
+                const ButtonSegment(
+                  value: NoteEditorMode.raw,
+                  icon: Icon(Icons.notes),
+                  label: Text('Raw'),
+                ),
+              ],
+              selected: {_mode},
+              onSelectionChanged: (s) => _setMode(s.first),
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         Expanded(child: _buildBody(theme)),
       ],
     );
+  }
+
+  /// The two-step priority -> template wizard shown before a fresh draft
+  /// enters Guided. Replaces the normal chrome entirely (see [build]).
+  Widget _buildGuidedEntryWizard(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: 'Cancel',
+              onPressed: _cancelWizard,
+            ),
+            Text(
+              'Step ${_wizardStep + 1} of 2',
+              style: theme.textTheme.labelLarge,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_wizardStep == 0)
+          ..._buildWizardPriorityStep()
+        else
+          ..._buildWizardTemplateStep(),
+      ],
+    );
+  }
+
+  List<Widget> _buildWizardPriorityStep() {
+    return [
+      DropdownButtonFormField<Priority>(
+        initialValue: _wizardPriority,
+        isDense: true,
+        decoration: const InputDecoration(
+          labelText: 'Priority',
+          isDense: true,
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        items: [
+          for (final p in Priority.values)
+            DropdownMenuItem(value: p, child: Text(p.label)),
+        ],
+        onChanged: (p) {
+          if (p != null) setState(() => _wizardPriority = p);
+        },
+      ),
+      const SizedBox(height: 12),
+      Align(
+        alignment: Alignment.centerRight,
+        child: FilledButton(
+          onPressed: () => setState(() => _wizardStep = 1),
+          child: const Text('Next'),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildWizardTemplateStep() {
+    final templates = NoteTemplate.all.where((t) => !t.isFreeform).toList();
+    return [
+      DropdownButtonFormField<String>(
+        initialValue: _wizardTemplate.id,
+        isDense: true,
+        decoration: const InputDecoration(
+          labelText: 'Template',
+          isDense: true,
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        items: [
+          for (final t in templates)
+            DropdownMenuItem(value: t.id, child: Text(t.label)),
+        ],
+        onChanged: (id) {
+          if (id == null) return;
+          setState(
+            () => _wizardTemplate = templates.firstWhere((t) => t.id == id),
+          );
+        },
+      ),
+      const SizedBox(height: 12),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: () => setState(() => _wizardStep = 0),
+            child: const Text('Back'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: () {
+              widget.onPriorityChanged(_wizardPriority);
+              _enterGuidedWithTemplate(_wizardTemplate);
+            },
+            child: const Text('Start'),
+          ),
+        ],
+      ),
+    ];
   }
 
   Widget _buildBody(ThemeData theme) {

@@ -28,6 +28,10 @@ class NoteDetailScreen extends StatefulWidget {
 class _NoteDetailScreenState extends State<NoteDetailScreen> {
   late Note _note = widget.note;
 
+  /// Hides the Priority/Status row while the editor's own bare-guided chrome
+  /// (template/mode selectors) is also hidden, so the two stay in lockstep.
+  bool _chromeVisible = true;
+
   Future<void> _persist(Note next) async {
     setState(() => _note = next);
     await widget.repository.upsert(next);
@@ -60,38 +64,46 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _MetaDropdown<Priority>(
-                    label: 'Priority',
-                    value: _note.priority,
-                    values: Priority.values,
-                    labelOf: (p) => p.label,
-                    onChanged: (p) => _persist(
-                      _note.copyWith(priority: p, updatedAt: DateTime.now()),
+            if (_chromeVisible) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _MetaDropdown<Priority>(
+                      label: 'Priority',
+                      value: _note.priority,
+                      values: Priority.values,
+                      labelOf: (p) => p.label,
+                      onChanged: (p) => _persist(
+                        _note.copyWith(priority: p, updatedAt: DateTime.now()),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MetaDropdown<Status>(
-                    label: 'Status',
-                    value: _note.status,
-                    values: Status.values,
-                    labelOf: (s) => s.label,
-                    onChanged: (s) => _persist(
-                      _note.copyWith(status: s, updatedAt: DateTime.now()),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _MetaDropdown<Status>(
+                      label: 'Status',
+                      value: _note.status,
+                      values: Status.values,
+                      labelOf: (s) => s.label,
+                      onChanged: (s) => _persist(
+                        _note.copyWith(status: s, updatedAt: DateTime.now()),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
             Expanded(
               child: NoteEditor(
                 initialText: _note.text,
-                initialMode: NoteEditorMode.preview,
+                initialMode: NoteEditorMode.raw,
+                priority: _note.priority,
+                onPriorityChanged: (p) => _persist(
+                  _note.copyWith(priority: p, updatedAt: DateTime.now()),
+                ),
+                onChromeVisibleChanged: (visible) =>
+                    setState(() => _chromeVisible = visible),
                 onChanged: _onTextChanged,
               ),
             ),

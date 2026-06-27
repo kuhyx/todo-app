@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo/data/note.dart';
-import 'package:todo/ui/markdown_view.dart';
 import 'package:todo/ui/note_detail_screen.dart';
 
 import 'fake_note_repository.dart';
@@ -33,14 +32,12 @@ void main() {
     return repo;
   }
 
-  testWidgets('opens in the rendered Markdown view with the title in the bar', (
-    tester,
-  ) async {
+  testWidgets('opens in Raw with the title in the app bar', (tester) async {
     await pumpDetail(tester, seedNote('# My note\n\n## what\n_why_\n\nbody'));
 
-    expect(find.byType(MarkdownView), findsOneWidget);
-    // Title appears both in the app bar and the rendered body.
-    expect(find.text('My note'), findsWidgets);
+    final raw = tester.widget<TextField>(find.byType(TextField));
+    expect(raw.controller!.text, contains('My note'));
+    expect(find.text('My note'), findsOneWidget); // app bar title
   });
 
   testWidgets('changing the priority dropdown persists the note', (
@@ -83,6 +80,34 @@ void main() {
 
     expect((await repo.listNotes()).single.text, contains('new body'));
   });
+
+  testWidgets(
+    'clearing the body then tapping Guided runs the wizard and persists the chosen priority',
+    (tester) async {
+      final repo = await pumpDetail(tester, seedNote('# T\n\n## what\nold'));
+
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pump();
+
+      await tester.tap(find.text('Guided'));
+      await tester.pump();
+      expect(find.text('Step 1 of 2'), findsOneWidget);
+      // Wizard hides the Status dropdown (onChromeVisibleChanged(false)).
+      expect(find.text('Status'), findsNothing);
+
+      await tester.tap(find.byType(DropdownButtonFormField<Priority>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('High').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+
+      expect((await repo.listNotes()).single.priority, Priority.high);
+    },
+  );
 
   testWidgets('the delete action removes the note and pops', (tester) async {
     final repo = await pumpDetail(tester, seedNote('# Bye'));

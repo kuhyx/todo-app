@@ -81,6 +81,10 @@ class _CaptureScreenState extends State<CaptureScreen>
   SyncSettings? _settings;
   bool _syncing = false;
 
+  /// Hides the Priority/Status row while the editor's own bare-guided chrome
+  /// (template/mode selectors) is also hidden, so the two stay in lockstep.
+  bool _chromeVisible = true;
+
   @override
   void initState() {
     super.initState();
@@ -301,6 +305,7 @@ class _CaptureScreenState extends State<CaptureScreen>
       _lastSavedAt = null;
       _draftPriority = Priority.defaultValue;
       _draftStatus = Status.todo;
+      _chromeVisible = true;
     });
     if (saved) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -359,35 +364,44 @@ class _CaptureScreenState extends State<CaptureScreen>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Pickers sit above the editor so the bottom-right Save FAB
-            // never overlaps them.
-            Row(
-              children: [
-                Expanded(
-                  child: _MetaDropdown<Priority>(
-                    label: 'Priority',
-                    value: _draftPriority,
-                    values: Priority.values,
-                    labelOf: (p) => p.label,
-                    onChanged: _setPriority,
+            // never overlaps them. Hidden together with the editor's own
+            // chrome while the bare guided stepper or its entry wizard is up,
+            // so the top of the screen stays free of noise.
+            if (_chromeVisible) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _MetaDropdown<Priority>(
+                      label: 'Priority',
+                      value: _draftPriority,
+                      values: Priority.values,
+                      labelOf: (p) => p.label,
+                      onChanged: _setPriority,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MetaDropdown<Status>(
-                    label: 'Status',
-                    value: _draftStatus,
-                    values: Status.values,
-                    labelOf: (s) => s.label,
-                    onChanged: _setStatus,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _MetaDropdown<Status>(
+                      label: 'Status',
+                      value: _draftStatus,
+                      values: Status.values,
+                      labelOf: (s) => s.label,
+                      onChanged: _setStatus,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
             Expanded(
               child: NoteEditor(
                 key: ValueKey(_editorGeneration),
                 initialTemplate: NoteTemplate.defaultTemplate,
+                initialMode: NoteEditorMode.raw,
+                priority: _draftPriority,
+                onPriorityChanged: _setPriority,
+                onChromeVisibleChanged: (visible) =>
+                    setState(() => _chromeVisible = visible),
                 autofocus: true,
                 onChanged: _onChanged,
               ),

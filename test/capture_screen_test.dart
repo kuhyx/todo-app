@@ -63,16 +63,31 @@ void main() {
     'sync.token': 'tok',
   };
 
-  testWidgets('opens the guided editor with section guidance', (tester) async {
+  testWidgets('defaults to Raw, with Guided available via the entry wizard', (
+    tester,
+  ) async {
     await pumpCapture(tester);
 
-    // The guided stepper shows the design-spec sections and the title step's
-    // guidance, with no note persisted yet.
+    // Defaults to Raw: a single text field, no note persisted yet.
+    expect(find.byType(TextField), findsOneWidget);
     expect(find.text('Guided'), findsOneWidget);
+    expect(find.text('0 saved'), findsOneWidget);
+
+    // Tapping Guided on the empty draft opens the priority+template wizard
+    // rather than jumping straight into the stepper.
+    await tester.tap(find.text('Guided'));
+    await tester.pump();
+    expect(find.text('Step 1 of 2'), findsOneWidget);
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.tap(find.text('Start'));
+    await tester.pump();
+
+    // Now in the bare guided stepper, showing the design-spec sections.
     expect(find.textContaining('imperative'), findsOneWidget); // title helper
     expect(find.text('what'), findsOneWidget); // a section step header
     expect(find.text('done'), findsOneWidget);
-    expect(find.text('0 saved'), findsOneWidget);
   });
 
   testWidgets('saving the untouched template creates no note', (tester) async {
@@ -115,8 +130,10 @@ void main() {
     await tester.pump();
 
     expect(await repo.listNotes(), hasLength(1));
-    // The editor reset to a fresh guided template (title guidance shown again).
-    expect(find.textContaining('imperative'), findsOneWidget);
+    // The editor reset to a fresh, empty Raw draft.
+    expect(find.byType(TextField), findsOneWidget);
+    final raw = tester.widget<TextField>(find.byType(TextField));
+    expect(raw.controller!.text, isEmpty);
   });
 
   testWidgets('tapping Sync while unconfigured prompts for a token', (
