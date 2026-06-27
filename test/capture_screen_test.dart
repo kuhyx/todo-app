@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/data/note.dart';
+import 'package:todo/data/note_template.dart';
 import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/ui/capture_screen.dart';
@@ -84,10 +85,13 @@ void main() {
     await tester.tap(find.text('Start'));
     await tester.pump();
 
-    // Now in the bare guided stepper, showing the design-spec sections.
+    // Now on step 1 of the full-screen step page.
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(
+      find.text('1 / ${NoteTemplate.llmDesignSpec.sections.length}'),
+      findsOneWidget,
+    );
     expect(find.textContaining('imperative'), findsOneWidget); // title helper
-    expect(find.text('what'), findsOneWidget); // a section step header
-    expect(find.text('done'), findsOneWidget);
   });
 
   testWidgets('saving the untouched template creates no note', (tester) async {

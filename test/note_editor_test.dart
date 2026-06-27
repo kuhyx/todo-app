@@ -55,28 +55,22 @@ void main() {
     expect(emitted.last, startsWith('# Dark mode'));
   });
 
-  testWidgets('stepper Next/Back and tapping a step header navigate', (
+  testWidgets('step page Next/Back navigate and progress counter updates', (
     tester,
   ) async {
     await pumpEditor(tester, initialTemplate: spec);
 
-    // A vertical Stepper keeps every step's controls in the tree (collapsed),
-    // so the buttons resolve to many identical widgets — they all drive the
-    // same shared continue/cancel callbacks, so tap the first.
-    expect(find.byType(Stepper), findsOneWidget);
-    // Only the current step's controls are hit-testable (others are collapsed
-    // to zero height), so .hitTestable() resolves the single visible button.
-    // Settle the expand/collapse animation so the next step's controls lay out.
-    await tester.tap(find.text('Next').hitTestable()); // advance past the title
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Back').hitTestable()); // and back
-    await tester.pumpAndSettle();
-    // Jump directly to a step by tapping its header. _goToStep delays past
-    // the Stepper's own collapse/expand animation before scrolling, so drain
-    // that timer rather than a bare pump — see CLAUDE.md's Timer pitfall.
-    await tester.tap(find.text('done'));
-    await tester.pump(const Duration(milliseconds: 250));
-    expect(find.byType(Stepper), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('1 / ${spec.sections.length}'), findsOneWidget);
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    expect(find.text('2 / ${spec.sections.length}'), findsOneWidget);
+
+    await tester.tap(find.text('Back'));
+    await tester.pump();
+    expect(find.text('1 / ${spec.sections.length}'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
   testWidgets('switching to View renders the note as Markdown', (tester) async {
@@ -129,7 +123,7 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining("doesn't match the template"), findsOneWidget);
-    expect(find.byType(Stepper), findsNothing); // still raw
+    expect(find.byType(LinearProgressIndicator), findsNothing); // still raw
   });
 
   testWidgets(
@@ -139,19 +133,19 @@ void main() {
       // without typing into collapsed steps), so the assembled body conforms.
       final conforming = assemble(spec, {'title': 'Keep', 'what': 'a body'});
       await pumpEditor(tester, initialTemplate: spec, initialText: conforming);
-      expect(find.byType(Stepper), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
       // Bare guided -> raw via the back arrow makes the (still conforming)
       // body the source…
       await tester.tap(find.byTooltip('Exit guided'));
       await tester.pump();
-      expect(find.byType(Stepper), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
 
       // …then raw -> guided re-parses the conforming body straight back into
       // the bare stepper — no wizard, since the content isn't empty.
       await tester.tap(find.text('Guided'));
       await tester.pump();
-      expect(find.byType(Stepper), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
       expect(find.text('Step 1 of 2'), findsNothing); // wizard was skipped
     },
   );
@@ -193,7 +187,10 @@ void main() {
     final conforming = assemble(spec, {'title': 'Detected', 'what': 'x'});
     await pumpEditor(tester, initialText: conforming);
 
-    expect(find.byType(Stepper), findsOneWidget); // guided by default
+    expect(
+      find.byType(LinearProgressIndicator),
+      findsOneWidget,
+    ); // guided by default
     expect(find.byTooltip('Exit guided'), findsOneWidget);
   });
 
@@ -203,7 +200,7 @@ void main() {
     await pumpEditor(tester, initialText: 'old\n\nwhat — legacy');
 
     // Non-conforming → blank/raw, no guided stepper offered.
-    expect(find.byType(Stepper), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(find.text('Guided'), findsNothing);
   });
 
@@ -249,7 +246,7 @@ void main() {
     );
 
     // Guided was requested but the text does not conform → opened in Raw.
-    expect(find.byType(Stepper), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
     final raw = tester.widget<TextField>(find.byType(TextField));
     expect(raw.controller!.text, 'cannot be guided');
   });
@@ -268,7 +265,7 @@ void main() {
 
       expect(find.text('Step 1 of 2'), findsOneWidget);
       expect(find.byType(DropdownButtonFormField<Priority>), findsOneWidget);
-      expect(find.byType(Stepper), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
     },
   );
 
@@ -341,7 +338,7 @@ void main() {
       await tester.pump();
 
       expect(committed, Priority.high);
-      expect(find.byType(Stepper), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
       expect(find.byTooltip('Exit guided'), findsOneWidget);
     },
   );
@@ -364,7 +361,7 @@ void main() {
     await tester.pump();
 
     expect(chromeVisible.last, true);
-    expect(find.byType(Stepper), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(find.text('Raw'), findsOneWidget); // chrome's mode selector is back
   });
 
@@ -379,12 +376,48 @@ void main() {
       initialText: conforming,
       onChromeVisibleChanged: chromeVisible.add,
     );
-    expect(find.byType(Stepper), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
     await tester.tap(find.byTooltip('Exit guided'));
     await tester.pump();
 
     expect(chromeVisible, contains(true));
     expect(find.text('Raw'), findsOneWidget);
+  });
+
+  testWidgets('last step shows Done instead of Next', (tester) async {
+    await pumpEditor(tester, initialTemplate: spec);
+
+    // Navigate to the final step.
+    for (var i = 0; i < spec.sections.length - 1; i++) {
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+    }
+
+    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('Next'), findsNothing);
+    expect(
+      find.text('${spec.sections.length} / ${spec.sections.length}'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Done on last step exits Guided and materialises text into Raw', (
+    tester,
+  ) async {
+    await pumpEditor(tester, initialTemplate: spec);
+    await tester.enterText(find.byType(TextField).first, 'My title');
+    await tester.pump();
+
+    for (var i = 0; i < spec.sections.length - 1; i++) {
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+    }
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    final raw = tester.widget<TextField>(find.byType(TextField));
+    expect(raw.controller!.text, startsWith('# My title'));
   });
 }

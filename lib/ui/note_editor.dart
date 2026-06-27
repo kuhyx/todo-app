@@ -9,7 +9,7 @@ enum NoteEditorMode {
   /// Read-only rendered Markdown (headings, guidance, bullets).
   preview,
 
-  /// Inline [Stepper], one step per template section.
+  /// Full-screen per-step view, one step per template section.
   guided,
 
   /// A single text field showing the assembled Markdown verbatim.
@@ -25,8 +25,8 @@ enum NoteEditorMode {
 ///
 /// Modes (see [NoteEditorMode]):
 ///   * **Preview** — the note rendered as Markdown, read-only.
-///   * **Guided** — an inline [Stepper], one step per template section, each
-///     with guidance on what to write and why the LLM needs it.
+///   * **Guided** — a full-screen per-step view, one step per template
+///     section, with guidance on what to write and why the LLM needs it.
 ///   * **Raw** — a single text field showing the assembled text verbatim.
 ///
 /// Non-conforming or freeform text never enters the guided stepper (we never
@@ -36,7 +36,7 @@ enum NoteEditorMode {
 /// Entering Guided on an empty draft first runs a two-step wizard (priority,
 /// then template) via [onPriorityChanged], since those choices only make
 /// sense once, before there's anything to guide. Guided itself — wizard or
-/// bare stepper — hides the template/mode chrome entirely (just a back arrow
+/// bare step page — hides the template/mode chrome entirely (just a back arrow
 /// to return to Raw); [onChromeVisibleChanged] tells the parent screen to
 /// hide its own priority/status row in sync.
 class NoteEditor extends StatefulWidget {
@@ -113,12 +113,6 @@ class _NoteEditorState extends State<NoteEditor> {
   /// One controller per structured section (keyed by section key).
   final Map<String, TextEditingController> _section = {};
 
-  /// One key per structured section, used to scroll the newly-active step's
-  /// content into view after a step change — the Stepper reflows height
-  /// (other steps collapse/expand) without moving the scroll offset, so
-  /// without this the active step's input can end up hidden off-screen.
-  final Map<String, GlobalKey> _stepKeys = {};
-
   /// Single field used for the freeform [NoteTemplate.blank] body and for raw
   /// mode of a structured template.
   final TextEditingController _body = TextEditingController();
@@ -187,36 +181,17 @@ class _NoteEditorState extends State<NoteEditor> {
     return desired;
   }
 
-  /// Ensures a controller and scroll-into-view key exist for every section
-  /// of [template].
+  /// Ensures a controller exists for every section of [template].
   void _ensureControllers(NoteTemplate template) {
     for (final s in template.sections) {
       _section.putIfAbsent(s.key, () => TextEditingController());
-      _stepKeys.putIfAbsent(s.key, () => GlobalKey());
     }
   }
 
-  /// Moves to step [index] and scrolls that step's content into view once the
-  /// Stepper's own expand/collapse transition has settled. The Stepper
-  /// animates each step's content height over [kThemeAnimationDuration], so
-  /// scrolling on the next post-frame callback (before that animation
-  /// finishes) measures a layout that's still mid-collapse — the scroll lands
-  /// on a stale position and the active step ends up hidden under the fixed
-  /// app bar above. Waiting for the animation to finish before measuring
-  /// fixes that.
-  Future<void> _goToStep(int index) async {
-    setState(() => _currentStep = index);
-    await Future<void>.delayed(kThemeAnimationDuration);
-    if (!mounted) return;
-    final key = _stepKeys[_template.sections[index].key];
-    final stepContext = key?.currentContext;
-    if (stepContext == null || !stepContext.mounted) return;
-    await Scrollable.ensureVisible(
-      stepContext,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
-      alignment: 0.0,
-    );
+  void _goToStep(int index) {
+    setState(() {
+      _currentStep = index.clamp(0, _template.sections.length - 1);
+    });
   }
 
   void _fillSections(Map<String, String> values) {
@@ -545,7 +520,7 @@ class _NoteEditorState extends State<NoteEditor> {
       case NoteEditorMode.raw:
         return _buildRaw(theme);
       case NoteEditorMode.guided:
-        return _buildStepper(theme);
+        return _buildStepPage(theme);
     }
   }
 
@@ -566,98 +541,92 @@ class _NoteEditorState extends State<NoteEditor> {
     );
   }
 
-  Widget _buildStepper(ThemeData theme) {
+  Widget _buildStepPage(ThemeData theme) {
     _ensureControllers(_template);
     final sections = _template.sections;
-    return SingleChildScrollView(
-      child: Stepper(
-        currentStep: _currentStep.clamp(0, sections.length - 1),
-        physics: const NeverScrollableScrollPhysics(),
-        onStepTapped: _goToStep,
-        onStepContinue: _currentStep < sections.length - 1
-            ? () => _goToStep(_currentStep + 1)
-            : null,
-        onStepCancel: _currentStep > 0
-            ? () => _goToStep(_currentStep - 1)
-            : null,
-        controlsBuilder: (context, details) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Row(
+    final idx = _currentStep.clamp(0, sections.length - 1);
+    final section = sections[idx];
+    final total = sections.length;
+    final controller = _section[section.key]!;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Progress bar + step counter
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Row(
+            children: [
+              Text('${idx + 1} / $total', style: theme.textTheme.labelMedium),
+              const SizedBox(width: 8),
+              Expanded(
+                child: LinearProgressIndicator(value: (idx + 1) / total),
+              ),
+            ],
+          ),
+        ),
+        // Section label + helper + text field
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (details.onStepContinue != null)
-                  FilledButton(
-                    onPressed: details.onStepContinue,
-                    child: const Text('Next'),
+                const SizedBox(height: 8),
+                Text(
+                  section.isTitle ? 'title' : section.label,
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  section.helper,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                if (details.onStepCancel != null) ...[
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: details.onStepCancel,
-                    child: const Text('Back'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  autofocus: widget.autofocus && idx == 0,
+                  maxLines: section.inline ? 1 : null,
+                  minLines: section.inline ? 1 : 6,
+                  keyboardType: TextInputType.multiline,
+                  decoration: InputDecoration(
+                    hintText: section.hint,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
                   ),
-                ],
+                  onChanged: (_) {
+                    setState(() {});
+                    _emit();
+                  },
+                ),
               ],
             ),
-          );
-        },
-        steps: [
-          for (var i = 0; i < sections.length; i++)
-            _stepFor(theme, sections[i], i),
-        ],
-      ),
-    );
-  }
-
-  Step _stepFor(ThemeData theme, TemplateSection section, int index) {
-    final controller = _section[section.key]!;
-    final hasValue = controller.text.trim().isNotEmpty;
-    return Step(
-      // Keyed on the title (not content): ensureVisible aligns this widget's
-      // top to the viewport's top, so keying the title — which Stepper
-      // renders *above* content as the tappable heading — is what keeps the
-      // step's own heading on-screen. Keying content alone scrolled the
-      // heading off the top of the viewport.
-      title: KeyedSubtree(
-        key: _stepKeys[section.key],
-        child: Text(section.isTitle ? 'title' : section.label),
-      ),
-      state: hasValue
-          ? StepState.complete
-          : (index == _currentStep ? StepState.editing : StepState.indexed),
-      isActive: index <= _currentStep,
-      content: Align(
-        alignment: Alignment.centerLeft,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              section.helper,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: controller,
-              autofocus: widget.autofocus && index == 0,
-              maxLines: section.inline ? 1 : null,
-              minLines: section.inline ? 1 : 3,
-              keyboardType: TextInputType.multiline,
-              decoration: InputDecoration(
-                hintText: section.hint,
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-              // Rebuild so the step's completion tick reflects the value.
-              onChanged: (_) {
-                setState(() {});
-                _emit();
-              },
-            ),
-          ],
+          ),
         ),
-      ),
+        // Navigation buttons — below Expanded so they stay above the keyboard
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              if (idx > 0)
+                TextButton(
+                  onPressed: () => _goToStep(idx - 1),
+                  child: const Text('Back'),
+                ),
+              const Spacer(),
+              if (idx < total - 1)
+                FilledButton(
+                  onPressed: () => _goToStep(idx + 1),
+                  child: const Text('Next'),
+                )
+              else
+                FilledButton(onPressed: _exitGuided, child: const Text('Done')),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
