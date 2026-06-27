@@ -420,11 +420,13 @@ class _CaptureScreenState extends State<CaptureScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _saveAndReset,
-        icon: const Icon(Icons.check),
-        label: const Text('Save'),
-      ),
+      floatingActionButton: _chromeVisible
+          ? FloatingActionButton.extended(
+              onPressed: _saveAndReset,
+              icon: const Icon(Icons.check),
+              label: const Text('Save'),
+            )
+          : null,
     );
   }
 

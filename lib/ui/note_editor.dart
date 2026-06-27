@@ -338,72 +338,63 @@ class _NoteEditorState extends State<NoteEditor> {
     final theme = Theme.of(context);
     if (_enteringGuided) return _buildGuidedEntryWizard(theme);
 
-    // Guided (the bare stepper) hides the template/mode chrome entirely —
-    // that's the point of "Guided": just the stepper, no top-bar noise. A
-    // single back arrow is the only way out, restoring the full chrome.
-    final bareGuided = _mode == NoteEditorMode.guided;
+    // Guided hides the template/mode chrome entirely. Return the flat step
+    // page directly so the TextField sits in THIS column's Expanded — same
+    // depth as _buildRaw, avoiding the nested-Column/Expanded layout issue
+    // that silently collapses the inner flex space in release builds.
+    if (_mode == NoteEditorMode.guided) return _buildStepPage(theme);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (bareGuided)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              tooltip: 'Exit guided',
-              onPressed: _exitGuided,
-            ),
-          )
-        else ...[
-          DropdownButtonFormField<String>(
-            initialValue: _template.id,
+        DropdownButtonFormField<String>(
+          initialValue: _template.id,
+          isDense: true,
+          decoration: const InputDecoration(
+            labelText: 'Template',
             isDense: true,
-            decoration: const InputDecoration(
-              labelText: 'Template',
-              isDense: true,
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            items: [
-              for (final t in NoteTemplate.all)
-                DropdownMenuItem(value: t.id, child: Text(t.label)),
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          items: [
+            for (final t in NoteTemplate.all)
+              DropdownMenuItem(value: t.id, child: Text(t.label)),
+          ],
+          onChanged: (id) {
+            if (id == null) return;
+            _switchTemplate(NoteTemplate.all.firstWhere((t) => t.id == id));
+          },
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SegmentedButton<NoteEditorMode>(
+            showSelectedIcon: false,
+            segments: [
+              const ButtonSegment(
+                value: NoteEditorMode.preview,
+                icon: Icon(Icons.visibility_outlined),
+                label: Text('View'),
+              ),
+              // Guided is offered for any structured template; tapping it
+              // on an empty draft opens the wizard (see _setMode), and is
+              // blocked at switch time if the raw text no longer conforms.
+              if (!_template.isFreeform)
+                const ButtonSegment(
+                  value: NoteEditorMode.guided,
+                  icon: Icon(Icons.checklist),
+                  label: Text('Guided'),
+                ),
+              const ButtonSegment(
+                value: NoteEditorMode.raw,
+                icon: Icon(Icons.notes),
+                label: Text('Raw'),
+              ),
             ],
-            onChanged: (id) {
-              if (id == null) return;
-              _switchTemplate(NoteTemplate.all.firstWhere((t) => t.id == id));
-            },
+            selected: {_mode},
+            onSelectionChanged: (s) => _setMode(s.first),
           ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SegmentedButton<NoteEditorMode>(
-              showSelectedIcon: false,
-              segments: [
-                const ButtonSegment(
-                  value: NoteEditorMode.preview,
-                  icon: Icon(Icons.visibility_outlined),
-                  label: Text('View'),
-                ),
-                // Guided is offered for any structured template; tapping it
-                // on an empty draft opens the wizard (see _setMode), and is
-                // blocked at switch time if the raw text no longer conforms.
-                if (!_template.isFreeform)
-                  const ButtonSegment(
-                    value: NoteEditorMode.guided,
-                    icon: Icon(Icons.checklist),
-                    label: Text('Guided'),
-                  ),
-                const ButtonSegment(
-                  value: NoteEditorMode.raw,
-                  icon: Icon(Icons.notes),
-                  label: Text('Raw'),
-                ),
-              ],
-              selected: {_mode},
-              onSelectionChanged: (s) => _setMode(s.first),
-            ),
-          ),
-        ],
+        ),
         const SizedBox(height: 12),
         Expanded(child: _buildBody(theme)),
       ],
@@ -520,7 +511,8 @@ class _NoteEditorState extends State<NoteEditor> {
       case NoteEditorMode.raw:
         return _buildRaw(theme);
       case NoteEditorMode.guided:
-        return _buildStepPage(theme);
+        // build() short-circuits to _buildStepPage before reaching here.
+        return _buildRaw(theme);
     }
   }
 
@@ -541,6 +533,10 @@ class _NoteEditorState extends State<NoteEditor> {
     );
   }
 
+  /// Full-screen per-step view returned directly from [build] so the
+  /// [TextField] is a first-level [Expanded] child of THIS column — the same
+  /// depth as [_buildRaw].  Nesting it inside a second Column broke the
+  /// flutter constraint chain in release builds (inner Expanded got 0 height).
   Widget _buildStepPage(ThemeData theme) {
     _ensureControllers(_template);
     final sections = _template.sections;
@@ -552,9 +548,18 @@ class _NoteEditorState extends State<NoteEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Progress bar + step counter
+        // Back arrow — only exit from guided mode.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Exit guided',
+            onPressed: _exitGuided,
+          ),
+        ),
+        // Progress bar + step counter.
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
           child: Row(
             children: [
               Text('${idx + 1} / $total', style: theme.textTheme.labelMedium),
@@ -565,47 +570,52 @@ class _NoteEditorState extends State<NoteEditor> {
             ],
           ),
         ),
-        // Section label + helper + text field
+        // Section label + helper text.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                section.isTitle ? 'title' : section.label,
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                section.helper,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+        // TextField fills all remaining space — directly in this Column's
+        // Expanded, same as _buildRaw, so expands:true works correctly.
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  section.isTitle ? 'title' : section.label,
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  section.helper,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller,
-                  autofocus: widget.autofocus && idx == 0,
-                  maxLines: section.inline ? 1 : null,
-                  minLines: section.inline ? 1 : 6,
-                  keyboardType: TextInputType.multiline,
-                  decoration: InputDecoration(
-                    hintText: section.hint,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: (_) {
-                    setState(() {});
-                    _emit();
-                  },
-                ),
-              ],
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: TextField(
+              controller: controller,
+              autofocus: widget.autofocus && idx == 0,
+              expands: true,
+              maxLines: null,
+              keyboardType: TextInputType.multiline,
+              textAlignVertical: TextAlignVertical.top,
+              decoration: InputDecoration(
+                hintText: section.hint,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (_) {
+                setState(() {});
+                _emit();
+              },
             ),
           ),
         ),
-        // Navigation buttons — below Expanded so they stay above the keyboard
+        // Navigation buttons — sibling of Expanded so keyboard pushes them up.
         Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
