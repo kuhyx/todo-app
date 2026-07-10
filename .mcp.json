@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "todo": {
+      "type": "stdio",
+      "command": "${HOME}/.venvs/todo-mcp/bin/python",
+      "args": ["-m", "todo_mcp._mcp"],
+      "env": {}
+    }
+  }
+}

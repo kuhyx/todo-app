@@ -1,0 +1,134 @@
+[project]
+name = "todo-mcp"
+version = "1.0.0"
+description = "Read-only MCP server over the todo app's exported BACKLOG.md"
+requires-python = ">=3.10"
+dependencies = [
+    # The MCP SDK is the only runtime dependency: FastMCP powers the stdio
+    # server. It lives in a dedicated venv (see scripts/setup_mcp.sh /
+    # ../.mcp.json), kept entirely separate from the Dart/Flutter app.
+    "mcp>=1.9",
+]
+
+# Explicit package discovery so ``pip install -e .`` picks up the package and
+# not the scripts/ dir.
+[tool.setuptools.packages.find]
+include = ["todo_mcp*"]
+
+# ============================================================================
+# RUFF - Fast Python linter and formatter
+# ============================================================================
+[tool.ruff]
+target-version = "py310"
+include = ["*.py", "**/*.py"]
+exclude = [".git", ".venv", "__pycache__", "build", "dist", ".eggs"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",   # conflicts with D211
+    "D213",   # conflicts with D212
+    "COM812", # formatter handles this
+    "ISC001", # formatter may create these
+    "S603",   # prone to false positives
+]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = ["ARG", "D", "PLC0415", "PLR2004", "S101", "SLF001"]
+"**/test_*.py" = ["ARG", "D", "PLC0415", "PLR2004", "S101", "SLF001"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+force-single-line = false
+force-sort-within-sections = true
+known-first-party = ["todo_mcp"]
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "double"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+# ============================================================================
+# MYPY - Static type checker
+# ============================================================================
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+disallow_any_unimported = true
+disallow_any_explicit = false
+disallow_any_generics = true
+disallow_subclassing_any = true
+strict_equality = true
+extra_checks = true
+ignore_missing_imports = true
+show_error_codes = true
+color_output = true
+exclude = [".venv/"]
+
+# ============================================================================
+# PYTEST
+# ============================================================================
+[tool.pytest.ini_options]
+testpaths = ["todo_mcp/tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "--cov=todo_mcp",
+    "--cov-branch",
+    "--cov-report=term-missing",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "default::pytest.PytestUnraisableExceptionWarning",
+]
+
+# ============================================================================
+# COVERAGE
+# ============================================================================
+[tool.coverage.run]
+source = ["todo_mcp"]
+branch = true
+omit = ["*/__pycache__/*", "*/tests/*", "*/.venv/*"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "raise AssertionError",
+    "if TYPE_CHECKING:",
+    'if __name__ == "__main__":',
+]
+partial_branches = ["pragma: no branch"]
