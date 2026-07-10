@@ -43,7 +43,7 @@ void main() {
       {
         'type': 'file',
         'name': otherFile,
-        'path': 'changesets/$otherFile',
+        'path': 'todo-sync/changesets/$otherFile',
         'sha': 'sha-other',
       },
     ]);
@@ -54,7 +54,7 @@ void main() {
         putCount++;
         return http.Response('{}', 200);
       }
-      if (req.url.path.endsWith('/contents/changesets')) {
+      if (req.url.path.endsWith('/contents/todo-sync/changesets')) {
         return http.Response(listResponse, 200); // directory listing
       }
       return http.Response(fileResponse, 200); // the other device's file
@@ -122,7 +122,7 @@ void main() {
       {
         'type': 'file',
         'name': ownFile,
-        'path': 'changesets/$ownFile',
+        'path': 'todo-sync/changesets/$ownFile',
         'sha': 'own-sha-123',
       },
     ]);

@@ -78,7 +78,7 @@ void main() {
     WidgetTester tester, {
     SyncSettings initial = const SyncSettings(
       owner: 'kuhyx',
-      repo: 'todo-sync',
+      repo: 'syncs',
       token: 't',
     ),
     http.Client? httpClient,

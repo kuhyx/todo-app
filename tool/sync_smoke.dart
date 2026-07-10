@@ -24,9 +24,9 @@ Future<void> main() async {
   }
 
   // Throwaway directory so we never pollute the real `changesets/`.
-  const service = SyncService(changesetDir: 'changesets_smoketest');
+  const service = SyncService(changesetDir: 'todo-sync/changesets_smoketest');
   GitHubClient client() =>
-      GitHubClient(owner: 'kuhyx', repo: 'todo-sync', token: token);
+      GitHubClient(owner: 'kuhyx', repo: 'syncs', token: token);
 
   final deviceA = await NoteRepository.openInMemory();
   final deviceB = await NoteRepository.openInMemory();
@@ -59,7 +59,9 @@ Future<void> main() async {
 
   // Cleanup: remove the throwaway changeset files.
   final cleanup = client();
-  for (final f in await cleanup.listDirectory('changesets_smoketest')) {
+  for (final f in await cleanup.listDirectory(
+    'todo-sync/changesets_smoketest',
+  )) {
     await cleanup.deleteFile(f.path, f.sha, message: 'smoke test cleanup');
   }
   stdout.writeln('Cleaned up throwaway changeset files.');

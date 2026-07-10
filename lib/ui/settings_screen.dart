@@ -250,7 +250,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 4),
           Text(
             'Authorize in your browser — no token to paste. Syncs to '
-            'kuhyx/todo-sync by default.',
+            'kuhyx/syncs by default.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),

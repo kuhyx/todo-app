@@ -52,14 +52,24 @@ class SyncSettings {
   /// path on Android and use libsecret on Linux.
   static const _secure = FlutterSecureStorage();
 
-  /// Loads settings, defaulting the repo to `kuhyx/todo-sync` and the client id
+  /// Loads settings, defaulting the repo to `kuhyx/syncs` and the client id
   /// to the baked-in [defaultClientId] so first run (and any reinstall) needs
   /// nothing but a single "Connect GitHub" tap.
+  ///
+  /// A device that already persisted the old standalone `todo-sync` repo
+  /// name (before it was folded into the shared `syncs` monorepo) is
+  /// migrated to `syncs` here and the corrected value is written straight
+  /// back to prefs, so this only ever runs once per device.
   static Future<SyncSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
+    var repo = prefs.getString(_kRepo) ?? 'syncs';
+    if (repo == 'todo-sync') {
+      repo = 'syncs';
+      await prefs.setString(_kRepo, repo);
+    }
     return SyncSettings(
       owner: prefs.getString(_kOwner) ?? 'kuhyx',
-      repo: prefs.getString(_kRepo) ?? 'todo-sync',
+      repo: repo,
       token: await _loadToken(prefs),
       clientId: prefs.getString(_kClientId) ?? defaultClientId,
     );

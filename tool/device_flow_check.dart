@@ -12,7 +12,7 @@ import 'package:http/http.dart' as http;
 const _clientId = 'Ov23li9tF2R46PqzJgch';
 const _scope = 'repo';
 const _owner = 'kuhyx';
-const _repo = 'todo-sync';
+const _repo = 'syncs';
 
 Future<void> main() async {
   final code = await http.post(

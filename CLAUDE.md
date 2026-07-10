@@ -6,8 +6,9 @@ and sync peer-to-peer through a GitHub repo used as dumb storage.
 
 - Package name: `todo` (Dart SDK `^3.12.2`).
 - Git remote: `origin` → `github.com/kuhyx/todo-app`.
-- The note **content** also syncs to a separate private repo `kuhyx/todo-sync`
-  via the in-app GitHub sync (changeset files); that is data, not this codebase.
+- The note **content** also syncs to a separate private repo `kuhyx/syncs`
+  (under `todo-sync/`) via the in-app GitHub sync (changeset files); that is
+  data, not this codebase.
 
 ## Git workflow (repo-specific — overrides global rules)
 
@@ -42,7 +43,8 @@ Three layers under `lib/`, each single-purpose:
     AND-combined), `NoteSort`, `watchNotes`/`watchCount` streams, and
     `importNotes` (safe newer-wins merge by id).
 - `sync/` — GitHub-as-storage sync.
-  - `sync_service.dart`: each device owns one file `changesets/<nodeId>.json`
+  - `sync_service.dart`: each device owns one file
+    `todo-sync/changesets/<nodeId>.json`
     holding its full CRDT changeset. No two devices write the same file ⇒ no
     git merge conflicts; convergence is the CRDT layer's job (pull every other
     device's changeset and `merge()`, which is commutative + idempotent).

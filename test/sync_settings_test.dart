@@ -9,19 +9,26 @@ void main() {
   // binding up first (widget tests get this for free via testWidgets).
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
-    'load returns the kuhyx/todo-sync defaults on a fresh install',
-    () async {
-      SharedPreferences.setMockInitialValues({});
-      installFakeSecureStorage();
-      final s = await SyncSettings.load();
-      expect(s.owner, 'kuhyx');
-      expect(s.repo, 'todo-sync');
-      expect(s.token, '');
-      // Client id defaults to the baked-in OAuth App id (one-tap connect).
-      expect(s.clientId, SyncSettings.defaultClientId);
-    },
-  );
+  test('load returns the kuhyx/syncs defaults on a fresh install', () async {
+    SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
+    final s = await SyncSettings.load();
+    expect(s.owner, 'kuhyx');
+    expect(s.repo, 'syncs');
+    expect(s.token, '');
+    // Client id defaults to the baked-in OAuth App id (one-tap connect).
+    expect(s.clientId, SyncSettings.defaultClientId);
+  });
+
+  test('load migrates a persisted old todo-sync repo value to syncs', () async {
+    SharedPreferences.setMockInitialValues({'sync.repo': 'todo-sync'});
+    installFakeSecureStorage();
+    final s = await SyncSettings.load();
+    expect(s.repo, 'syncs');
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('sync.repo'), 'syncs');
+  });
 
   test('save stores the token in the keystore, not in prefs', () async {
     SharedPreferences.setMockInitialValues({});

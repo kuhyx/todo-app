@@ -22,14 +22,15 @@ class SyncResult {
 
 /// Synchronises a [NoteRepository] with a GitHub repo used as dumb storage.
 ///
-/// Design: each device owns exactly one file, `changesets/<nodeId>.json`,
+/// Design: each device owns exactly one file,
+/// `todo-sync/changesets/<nodeId>.json`,
 /// holding its full CRDT changeset. Because no two devices ever write the
 /// same file, there are **no git-level merge conflicts**. Data convergence
 /// is handled entirely by the CRDT layer: pulling every other device's
 /// changeset and [NoteRepository.merge]-ing it is commutative and
 /// idempotent, so repeated syncs in any order converge to the same state.
 class SyncService {
-  const SyncService({this.changesetDir = 'changesets'});
+  const SyncService({this.changesetDir = 'todo-sync/changesets'});
 
   /// Directory in the repo under which per-device changeset files live.
   final String changesetDir;
