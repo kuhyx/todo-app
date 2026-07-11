@@ -9,7 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/note_repository.dart';
-import '../sync/github_client.dart';
+import 'package:crdt_sync/crdt_sync.dart';
 import '../sync/github_device_auth.dart';
 import '../sync/notes_markdown.dart';
 import '../sync/sync_service.dart';

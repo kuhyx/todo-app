@@ -10,7 +10,7 @@ import 'dart:io';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
-import 'package:todo/sync/github_client.dart';
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:todo/sync/sync_service.dart';
 
 Future<void> main() async {
@@ -56,8 +56,11 @@ Future<void> main() async {
 
   // Cleanup: remove the throwaway log files.
   final cleanup = client();
-  for (final f in await cleanup.listDirectory('todo-sync/notes_smoketest')) {
-    await cleanup.deleteFile(f.path, f.sha, message: 'smoke test cleanup');
+  for (final name in await cleanup.listDirectory('todo-sync/notes_smoketest')) {
+    await cleanup.deleteFile(
+      'todo-sync/notes_smoketest/$name',
+      message: 'smoke test cleanup',
+    );
   }
   stdout.writeln('Cleaned up throwaway log files.');
 

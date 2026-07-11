@@ -207,10 +207,12 @@ void main() {
   testWidgets('Sync with a configured token runs the sync service', (
     tester,
   ) async {
-    // Empty remote directory (404) → the service has nothing to merge and
-    // pushes this device's own changeset (PUT).
+    // Empty remote directory → the service has nothing to merge and pushes
+    // this device's own log (PUT). The bare repo GET (not /contents/) returns
+    // 200 so crdt_sync's client treats the 404 dir as "empty", not missing.
     final mock = MockClient((req) async {
       if (req.method == 'PUT') return http.Response('{}', 200);
+      if (!req.url.path.contains('/contents/')) return http.Response('{}', 200);
       return http.Response('', 404);
     });
     await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
@@ -260,10 +262,12 @@ void main() {
   });
 
   // A MockClient that records request methods and answers the sync flow:
-  // 404 for the (empty) changeset listing, 200 for the device's own PUT.
+  // repo-exists GET (not /contents/) → 200, the (empty) log listing → 404,
+  // and the device's own PUT → 200.
   MockClient recordingMock(List<String> methods) => MockClient((req) async {
     methods.add(req.method);
     if (req.method == 'PUT') return http.Response('{}', 200);
+    if (!req.url.path.contains('/contents/')) return http.Response('{}', 200);
     return http.Response('', 404);
   });
 

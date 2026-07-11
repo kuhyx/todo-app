@@ -1,9 +1,6 @@
-// This service uses todo's own GitHubClient (it tracks SHAs and returns
-// GitHubFile entries); hide crdt_sync's same-named client to disambiguate.
-import 'package:crdt_sync/crdt_sync.dart' hide GitHubClient;
+import 'package:crdt_sync/crdt_sync.dart';
 
 import '../data/note_repository.dart';
-import 'github_client.dart';
 
 /// Outcome of a sync run, for surfacing in the UI.
 class SyncResult {
@@ -44,15 +41,11 @@ class SyncService {
     final ownFileName = '$nodeId.json';
 
     // 1. Pull: list all device log files, merge everyone else's.
-    final files = await github.listDirectory(notesDir);
+    final names = await github.listDirectory(notesDir);
     var merged = 0;
-    String? ownSha;
-    for (final file in files) {
-      if (file.name == ownFileName) {
-        ownSha = file.sha; // Remember our file's SHA so we can update it.
-        continue;
-      }
-      final text = await github.getFileText(file.path);
+    for (final name in names) {
+      if (name == ownFileName) continue; // our own file; skip it.
+      final text = await github.getFileText('$notesDir/$name');
       if (text == null) continue;
       final remote = _decodeLog(text);
       if (remote == null) continue; // Skip a corrupt/foreign file.
@@ -61,10 +54,10 @@ class SyncService {
     }
 
     // 2. Push: upload our own (now-merged) log under our node id.
+    // putFileText resolves our file's current sha itself.
     await github.putFileText(
       '$notesDir/$ownFileName',
       logToJson(repo.exportLog()),
-      sha: ownSha,
       message: 'sync: $nodeId @ ${DateTime.now().toUtc().toIso8601String()}',
     );
 

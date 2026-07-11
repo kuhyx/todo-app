@@ -9,7 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../data/note.dart';
 import '../data/note_repository.dart';
 import '../data/note_template.dart';
-import '../sync/github_client.dart';
+import 'package:crdt_sync/crdt_sync.dart';
 import '../sync/local_backup.dart';
 import '../sync/sync_service.dart';
 import '../sync/sync_settings.dart';

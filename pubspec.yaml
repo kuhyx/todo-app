@@ -39,7 +39,7 @@ dependencies:
   crdt_sync:
     git:
       url: https://github.com/kuhyx/utils
-      ref: crdt_sync_dart-v0.2.0
+      ref: crdt_sync_dart-v0.3.0
       path: crdt_sync_dart
   # Retained only to read the legacy on-device DB during the one-time
   # migration in NoteRepository.open; remove once all devices are migrated.
