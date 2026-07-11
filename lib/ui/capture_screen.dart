@@ -57,7 +57,7 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// Keeps an always-current Markdown backup on local disk and recovers from
   /// it on launch (third durability layer beside sync + Android Auto Backup).
   late final LocalBackup _localBackup;
-  StreamSubscription<List<Note>>? _notesSub;
+  StreamSubscription<void>? _changesSub;
 
   /// Latest assembled text from the editor; persisted on change and re-saved
   /// when only priority/status change.
@@ -70,7 +70,11 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// keystroke of a fresh draft.
   String? _draftId;
   DateTime? _draftCreatedAt;
-  DateTime? _lastSavedAt;
+
+  /// Time of the last local save, shown in the tiny save indicator. A notifier
+  /// (not a `setState` field) so a keystroke updates only that one line of text
+  /// instead of rebuilding the AppBar, dropdowns, and editor every character.
+  final ValueNotifier<DateTime?> _lastSavedAt = ValueNotifier<DateTime?>(null);
 
   /// Priority/status applied to the current draft. Chosen before or during
   /// typing; persisted on the first keystroke and on every later change.
@@ -89,13 +93,19 @@ class _CaptureScreenState extends State<CaptureScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _localBackup = widget.localBackup ?? _platformLocalBackup();
+    _localBackup =
+        widget.localBackup ?? _platformLocalBackup(widget.repository);
     // Recover from the local backup first (covers an empty DB after a wipe),
-    // then keep the backup current as notes change.
+    // then keep the backup current as notes change. The change tick is O(1) per
+    // write; the backup pulls the notes itself only when its debounce fires.
     _recoverFromBackup();
-    _notesSub = widget.repository.watchNotes().listen(
-      _localBackup.scheduleExport,
+    _changesSub = widget.repository.changes.listen(
+      (_) => _localBackup.schedule(),
     );
+    // Also refresh the on-disk backup once on launch (the change tick only
+    // fires on writes), so a deleted/stale BACKLOG.md is regenerated even if
+    // the user makes no edits this session.
+    _localBackup.schedule();
     SyncSettings.load().then((s) {
       if (!mounted) return;
       setState(() => _settings = s);
@@ -106,8 +116,9 @@ class _CaptureScreenState extends State<CaptureScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _notesSub?.cancel();
+    _changesSub?.cancel();
     _localBackup.dispose();
+    _lastSavedAt.dispose();
     super.dispose();
   }
 
@@ -125,7 +136,7 @@ class _CaptureScreenState extends State<CaptureScreen>
   // (the path the user's workflow already reads), or the app documents dir on
   // mobile (which Android Auto Backup includes). Exercised by running the app;
   // tests inject an in-memory LocalBackup instead.
-  static LocalBackup _platformLocalBackup() {
+  static LocalBackup _platformLocalBackup(NoteRepository repository) {
     Future<File> backupFile() async {
       if (Platform.isAndroid || Platform.isIOS) {
         final dir = await getApplicationDocumentsDirectory();
@@ -137,6 +148,7 @@ class _CaptureScreenState extends State<CaptureScreen>
     }
 
     return LocalBackup(
+      fetch: repository.listNotes,
       reader: () async {
         final file = await backupFile();
         return file.existsSync() ? file.readAsString() : null;
@@ -259,7 +271,7 @@ class _CaptureScreenState extends State<CaptureScreen>
         updatedAt: now,
       ),
     );
-    if (mounted) setState(() => _lastSavedAt = now);
+    if (mounted) _lastSavedAt.value = now;
   }
 
   /// Applies a new priority to the draft, persisting immediately if a note
@@ -290,7 +302,7 @@ class _CaptureScreenState extends State<CaptureScreen>
         updatedAt: now,
       ),
     );
-    if (mounted) setState(() => _lastSavedAt = now);
+    if (mounted) _lastSavedAt.value = now;
   }
 
   /// Finalises the current idea and resets the field to a fresh template.
@@ -302,11 +314,11 @@ class _CaptureScreenState extends State<CaptureScreen>
       _draftText = '';
       _draftId = null;
       _draftCreatedAt = null;
-      _lastSavedAt = null;
       _draftPriority = Priority.defaultValue;
       _draftStatus = Status.todo;
       _chromeVisible = true;
     });
+    _lastSavedAt.value = null;
     if (saved) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -410,11 +422,14 @@ class _CaptureScreenState extends State<CaptureScreen>
             // Leave room so the Save FAB doesn't cover the save indicator.
             Padding(
               padding: const EdgeInsets.only(right: 96),
-              child: Text(
-                _lastSavedAt == null
-                    ? 'Autosaves as you type'
-                    : 'Saved locally at ${_formatTime(_lastSavedAt!)}',
-                style: theme.textTheme.bodySmall,
+              child: ValueListenableBuilder<DateTime?>(
+                valueListenable: _lastSavedAt,
+                builder: (context, savedAt, _) => Text(
+                  savedAt == null
+                      ? 'Autosaves as you type'
+                      : 'Saved locally at ${_formatTime(savedAt)}',
+                  style: theme.textTheme.bodySmall,
+                ),
               ),
             ),
           ],

@@ -229,6 +229,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
                   itemCount: notes.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, i) => _NoteTile(
+                    key: ValueKey(notes[i].id),
                     note: notes[i],
                     onTap: () => _openNote(notes[i]),
                     onActions: () => _openNoteActions(notes[i]),
@@ -249,6 +250,7 @@ class _NoteTile extends StatelessWidget {
     required this.note,
     required this.onTap,
     required this.onActions,
+    super.key,
   });
 
   final Note note;

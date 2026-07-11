@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sqlite_crdt/sqlite_crdt.dart';
 
 import 'note.dart';
@@ -37,6 +39,23 @@ class NoteRepository {
   NoteRepository._(this._crdt);
 
   final SqliteCrdt _crdt;
+
+  /// Ticks once (with no payload) after every write, so lightweight listeners
+  /// can react without re-querying the whole table on each keystroke. This is
+  /// deliberately cheaper than [watchNotes]: it carries no rows, so a consumer
+  /// that only needs "something changed" (e.g. the debounced disk backup) pays
+  /// O(1) per write instead of re-parsing every note on every character.
+  final StreamController<void> _changes = StreamController<void>.broadcast();
+
+  /// Fires after each successful write ([upsert], [delete], [merge], and
+  /// transitively [importNotes]). Emits `void` — pull the data on demand.
+  Stream<void> get changes => _changes.stream;
+
+  /// Signals [changes] listeners that the table was written. Guarded so a late
+  /// write during teardown can't add to a closed controller.
+  void _notifyChanged() {
+    if (!_changes.isClosed) _changes.add(null);
+  }
 
   /// Opens (or creates) the database at [path] and ensures the schema.
   ///
@@ -125,12 +144,14 @@ class NoteRepository {
         note.updatedAt.toIso8601String(),
       ],
     );
+    _notifyChanged();
   }
 
   /// Soft-deletes a note. The CRDT keeps a tombstone so the deletion
   /// propagates on the next sync instead of resurrecting the row.
   Future<void> delete(String id) async {
     await _crdt.execute('DELETE FROM notes WHERE id = ?1', [id]);
+    _notifyChanged();
   }
 
   /// Merges [incoming] notes (e.g. from an imported file) into local storage.
@@ -207,10 +228,16 @@ class NoteRepository {
 
   /// Merges a remote changeset into local storage (conflict-free,
   /// last-writer-wins per row via the Hybrid Logical Clock).
-  Future<void> merge(CrdtChangeset changeset) => _crdt.merge(changeset);
+  Future<void> merge(CrdtChangeset changeset) async {
+    await _crdt.merge(changeset);
+    _notifyChanged();
+  }
 
-  /// Closes the underlying database.
-  Future<void> close() => _crdt.close();
+  /// Closes the underlying database and the [changes] stream.
+  Future<void> close() async {
+    await _changes.close();
+    await _crdt.close();
+  }
 
   /// Maps a [NoteSort] to a SQL ORDER BY clause. Centralised so the sort
   /// options used by the live and one-shot queries can never drift apart.

@@ -439,4 +439,53 @@ void main() {
       expect(clone.updatedTo, base.updatedTo);
     });
   });
+
+  // getChangeset() serialises HLCs as String and returns read-only rows;
+  // merge() casts `hlc` to Hlc and mutates, so revive it into fresh mutable
+  // maps with parsed HLCs first (mirrors SyncService._decodeChangeset).
+  CrdtChangeset reviveChangeset(CrdtChangeset raw) => raw.map(
+    (table, records) => MapEntry(
+      table,
+      records.map((r) {
+        final record = Map<String, Object?>.from(r);
+        record['hlc'] = Hlc.parse(record['hlc'] as String);
+        return record;
+      }).toList(),
+    ),
+  );
+
+  group('changes', () {
+    test('ticks once per write across upsert, delete, and merge', () async {
+      final repo = await NoteRepository.openInMemory();
+      addTearDown(repo.close);
+      var ticks = 0;
+      final sub = repo.changes.listen((_) => ticks++);
+      addTearDown(sub.cancel);
+
+      await repo.upsert(note('a', 'x'));
+      await repo.delete('a');
+
+      // A changeset from another device, merged in, must also tick.
+      final other = await NoteRepository.openInMemory();
+      addTearDown(other.close);
+      await other.upsert(note('b', 'from other'));
+      await repo.merge(reviveChangeset(await other.getChangeset()));
+
+      await pumpEventQueue(); // let the broadcast events dispatch
+      expect(ticks, 3);
+    });
+
+    test('importNotes ticks once per note it writes', () async {
+      final repo = await NoteRepository.openInMemory();
+      addTearDown(repo.close);
+      var ticks = 0;
+      final sub = repo.changes.listen((_) => ticks++);
+      addTearDown(sub.cancel);
+
+      await repo.importNotes([note('a', 'x'), note('b', 'y')]);
+
+      await pumpEventQueue();
+      expect(ticks, 2); // two new notes → two upserts → two ticks
+    });
+  });
 }

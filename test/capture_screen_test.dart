@@ -23,6 +23,7 @@ void main() {
     Map<String, Object> prefs = const {},
     http.Client? httpClient,
     List<Note> seed = const [],
+    FakeNoteRepository? repository,
     LocalBackup? localBackup,
   }) async {
     SharedPreferences.setMockInitialValues(prefs);
@@ -33,13 +34,14 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final repo = FakeNoteRepository(seed);
+    final repo = repository ?? FakeNoteRepository(seed);
     addTearDown(repo.close);
     // Default to an in-memory, no-op backup so tests never touch real disk
     // (the production backup writes ~/todo/BACKLOG.md on the Linux test host).
     final backup =
         localBackup ??
         LocalBackup(
+          fetch: repo.listNotes,
           reader: () async => null,
           writer: (_) async {},
           debounce: Duration.zero,
@@ -329,6 +331,7 @@ void main() {
       ),
     ]);
     final backup = LocalBackup(
+      fetch: () async => const <Note>[],
       reader: () async => markdown,
       writer: (_) async {},
       debounce: Duration.zero,
@@ -344,6 +347,7 @@ void main() {
 
   testWidgets('does not recover when the DB already has notes', (tester) async {
     final backup = LocalBackup(
+      fetch: () async => const <Note>[],
       reader: () async => NotesMarkdown.export([
         Note(
           id: 'r1',
@@ -377,15 +381,19 @@ void main() {
 
   testWidgets('writes the local backup as notes change', (tester) async {
     final writes = <String>[];
+    final repo = FakeNoteRepository();
+    // fetch pulls from the repo on write, mirroring production wiring.
     final backup = LocalBackup(
+      fetch: repo.listNotes,
       reader: () async => null,
       writer: (md) async => writes.add(md),
       debounce: Duration.zero,
     );
 
-    await pumpCapture(tester, localBackup: backup);
+    await pumpCapture(tester, repository: repo, localBackup: backup);
     await tester.enterText(find.byType(TextField).first, 'Backed up idea');
-    await tester.pump();
+    await tester
+        .pump(); // let the change tick → schedule → async fetch/write run
 
     expect(writes, isNotEmpty);
     expect(writes.last, contains('Backed up idea'));

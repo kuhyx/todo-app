@@ -19,6 +19,7 @@ class FakeNoteRepository implements NoteRepository {
 
   final List<Note> _notes;
   final _controller = StreamController<List<Note>>.broadcast();
+  final _changesController = StreamController<void>.broadcast();
 
   NoteSort? lastSort;
   NoteFilter? lastFilter;
@@ -32,7 +33,11 @@ class FakeNoteRepository implements NoteRepository {
 
   void _emit() {
     if (!_controller.isClosed) _controller.add(List.unmodifiable(_notes));
+    if (!_changesController.isClosed) _changesController.add(null);
   }
+
+  @override
+  Stream<void> get changes => _changesController.stream;
 
   @override
   Future<void> upsert(Note note) async {
@@ -100,5 +105,6 @@ class FakeNoteRepository implements NoteRepository {
   @override
   Future<void> close() async {
     await _controller.close();
+    await _changesController.close();
   }
 }

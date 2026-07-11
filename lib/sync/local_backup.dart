@@ -12,12 +12,21 @@ import 'notes_markdown.dart';
 /// fully testable; the platform-specific path lives in the caller.
 ///
 /// Writes are debounced so a burst of keystrokes produces a single export.
+///
+/// The note snapshot is pulled lazily via [fetch] only when the debounce
+/// fires — never per keystroke — so serialising every note stays off the
+/// typing hot path and the cost is independent of how fast the user types.
 class LocalBackup {
   LocalBackup({
+    required this.fetch,
     required this.reader,
     required this.writer,
     this.debounce = const Duration(seconds: 2),
   });
+
+  /// Pulls the current notes to export. Invoked once per debounced write, so
+  /// the O(notes) query + serialization happens at most once per idle window.
+  final Future<List<Note>> Function() fetch;
 
   /// Reads the backup file's contents, or null if it does not exist.
   final Future<String?> Function() reader;
@@ -30,17 +39,23 @@ class LocalBackup {
 
   Timer? _timer;
 
-  /// Schedules a debounced export of [notes]. Repeated calls reset the timer,
-  /// so only the latest snapshot is written. A zero [debounce] writes
-  /// immediately (and schedules no timer).
-  void scheduleExport(List<Note> notes) {
+  /// Schedules a debounced backup write. Repeated calls reset the timer, so a
+  /// burst of writes collapses to one export of the latest snapshot. A zero
+  /// [debounce] exports immediately (and schedules no timer).
+  void schedule() {
     _timer?.cancel();
-    final markdown = NotesMarkdown.export(notes);
     if (debounce == Duration.zero) {
-      writer(markdown);
+      unawaited(_export());
     } else {
-      _timer = Timer(debounce, () => writer(markdown));
+      _timer = Timer(debounce, () => unawaited(_export()));
     }
+  }
+
+  /// Pulls the latest notes and writes the Markdown backup. Returned so tests
+  /// (and a zero-debounce caller) can await the write.
+  Future<void> _export() async {
+    final notes = await fetch();
+    await writer(NotesMarkdown.export(notes));
   }
 
   /// Reads the backup file and parses it into notes for recovery. Returns an
