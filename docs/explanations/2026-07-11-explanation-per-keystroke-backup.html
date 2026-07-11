@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Making capture smooth: cutting per-keystroke O(N) work</title>
+<style>
+  :root{
+    --bg:#fbfbfd; --fg:#1a1a1f; --muted:#5b5b6b; --card:#ffffff; --line:#e4e4ec;
+    --accent:#6b4fd6; --accent-soft:#efeaff; --good:#1a7f4b; --good-soft:#e5f5ec;
+    --bad:#c0392b; --bad-soft:#fbe9e7; --code-bg:#f4f4f8; --shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#131318; --fg:#e9e9f0; --muted:#a2a2b4; --card:#1c1c24; --line:#2c2c38;
+      --accent:#a78bfa; --accent-soft:#241f38; --good:#4ade80; --good-soft:#16281d;
+      --bad:#f87171; --bad-soft:#2c1b1a; --code-bg:#20202a; --shadow:0 1px 3px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{width:min(48rem,92vw);margin:0 auto;padding:2.5rem 0 5rem}
+  header.hero{padding:1rem 0 1.4rem;border-bottom:1px solid var(--line);margin-bottom:1.6rem}
+  .kicker{color:var(--accent);font-weight:700;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
+  h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .5rem}
+  h2{font-size:1.35rem;margin:2.6rem 0 .8rem;padding-top:.6rem;scroll-margin-top:1rem}
+  h3{font-size:1.05rem;margin:1.6rem 0 .4rem}
+  p{color:var(--fg)}
+  .lead{color:var(--muted);font-size:1.05rem}
+  a{color:var(--accent)}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.87em;background:var(--code-bg);padding:.1em .35em;border-radius:5px}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word}
+  pre code{background:none;padding:0;font-size:.82rem;line-height:1.55}
+  .del{color:var(--bad)} .add{color:var(--good)} .cmt{color:var(--muted)}
+  nav.toc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;box-shadow:var(--shadow);margin-bottom:1rem}
+  nav.toc strong{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  nav.toc ol{margin:.5rem 0 0;padding-left:1.1rem}
+  nav.toc li{margin:.2rem 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem;box-shadow:var(--shadow);margin:1.1rem 0}
+  .callout{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;padding:.8rem 1rem;margin:1.1rem 0}
+  .flow{display:flex;flex-direction:column;gap:.55rem}
+  .row{display:flex;align-items:stretch;gap:.5rem;flex-wrap:wrap}
+  .node{flex:1 1 120px;min-width:110px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem;font-size:.83rem}
+  .node .t{font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .node.hot{border-color:var(--bad);background:var(--bad-soft)}
+  .node.cool{border-color:var(--good);background:var(--good-soft)}
+  .arrow{align-self:center;color:var(--muted);font-size:1.1rem;padding:0 .1rem}
+  .tag{display:inline-block;font-size:.7rem;font-weight:700;padding:.12rem .45rem;border-radius:999px;vertical-align:middle}
+  .tag.old{background:var(--bad-soft);color:var(--bad)}
+  .tag.new{background:var(--good-soft);color:var(--good)}
+  table{border-collapse:collapse;width:100%;font-size:.9rem;margin:.6rem 0}
+  th,td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left}
+  th{background:var(--code-bg)}
+  /* widget */
+  .sim{display:grid;gap:.9rem}
+  .sim .controls{display:flex;flex-wrap:wrap;gap:1rem;align-items:center}
+  .sim input[type=range]{accent-color:var(--accent);width:180px}
+  .sim input[type=text]{width:100%;padding:.6rem .7rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font-size:1rem}
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+  @media(max-width:520px){.panels{grid-template-columns:1fr}}
+  .panel{border:1px solid var(--line);border-radius:10px;padding:.8rem;background:var(--card)}
+  .panel h4{margin:.1rem 0 .5rem;font-size:.95rem;display:flex;align-items:center;gap:.4rem}
+  .stat{display:flex;justify-content:space-between;font-size:.85rem;padding:.15rem 0}
+  .stat b{font-variant-numeric:tabular-nums}
+  .bar{height:12px;border-radius:6px;background:var(--code-bg);overflow:hidden;margin-top:.5rem}
+  .bar>span{display:block;height:100%;width:0;transition:width .18s ease}
+  .barOld>span{background:var(--bad)} .barNew>span{background:var(--good)}
+  .btn{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:.4rem .8rem;border-radius:8px}
+  .btn:hover{border-color:var(--accent)}
+  .pulse{animation:pf .5s ease}
+  @keyframes pf{0%{background:var(--accent-soft)}100%{background:var(--card)}}
+  /* quiz */
+  .q{margin:1.1rem 0;border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;background:var(--card)}
+  .q .stem{font-weight:600;margin-bottom:.6rem}
+  .opt{display:block;width:100%;text-align:left;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:.55rem .7rem;margin:.35rem 0;cursor:pointer}
+  .opt:hover{border-color:var(--accent)}
+  .opt.correct{border-color:var(--good);background:var(--good-soft)}
+  .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+  .opt:disabled{cursor:default}
+  .rationale{font-size:.86rem;color:var(--muted);margin:.4rem 0 0;display:none}
+  .rationale.show{display:block}
+  #score{font-weight:700}
+  footer{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="kicker">todo · desktop performance</div>
+  <h1>Making capture buttery: cutting the O(<i>notes</i>) work hiding behind every keystroke</h1>
+  <p class="lead">The capture screen quietly did work proportional to your whole backlog on <em>every character you typed</em>. This change makes typing cost the same whether you have 5 notes or 500 — while the on-disk backup stays exactly as fresh.</p>
+</header>
+
+<nav class="toc">
+  <strong>On this page</strong>
+  <ol>
+    <li><a href="#background">Background — what capture and the backup do</a></li>
+    <li><a href="#intuition">Intuition — the waste, and the fix</a></li>
+    <li><a href="#playground">Playground — feel the per-keystroke cost</a></li>
+    <li><a href="#code">Code — the actual changes</a></li>
+    <li><a href="#quiz">Quiz — check your understanding</a></li>
+  </ol>
+</nav>
+
+<section id="background">
+<h2>Background</h2>
+<p><strong>todo</strong> is an offline-first notes app. Its landing screen — the <em>capture screen</em> — is a big always-focused text box. The whole point is speed of capture: your idea is persisted on <em>every keystroke</em>, so nothing is ever lost, even to a crash.</p>
+
+<p>Two durability layers matter here:</p>
+<ul>
+  <li>The <strong>CRDT SQLite database</strong> (<code>NoteRepository</code>). Each keystroke calls <code>upsert(note)</code>, one small write. The repository also offers two ways to read:
+    <ul>
+      <li><code>listNotes()</code> — a <em>one-shot</em> query: run it, get the current notes once.</li>
+      <li><code>watchNotes()</code> — a <em>live stream</em>: it re-runs its <code>SELECT&nbsp;*</code> and re-emits <strong>every time the table changes</strong>, so the UI can stay in sync automatically.</li>
+    </ul>
+  </li>
+  <li>A plain-text <strong>Markdown backup</strong> on disk (<code>~/todo/BACKLOG.md</code>), managed by <code>LocalBackup</code>. It's a human-readable third copy you (or an LLM) can read directly. <code>LocalBackup</code> debounces so a burst of typing produces a single file write.</li>
+</ul>
+
+<p>The subtle part is how those two were wired together. To keep the backup current, the capture screen subscribed to <code>watchNotes()</code> and handed each emission to the backup:</p>
+<pre><code>_notesSub = repository.watchNotes().listen(_localBackup.scheduleExport);</code></pre>
+<p>That one line is the origin of the whole problem — read on.</p>
+</section>
+
+<section id="intuition">
+<h2>Intuition</h2>
+<p>Here's the trap. <code>watchNotes()</code> re-emits on <em>any</em> write to the notes table. But every keystroke <em>is</em> a write (the autosave <code>upsert</code>). So the live stream fired on every character — and each firing did the full pipeline:</p>
+
+<ol>
+  <li>re-run <code>SELECT * FROM notes</code> (the whole table),</li>
+  <li><strong>re-parse every row</strong> into a <code>Note</code> (two <code>DateTime.parse</code> calls each), and</li>
+  <li>hand the list to the backup, which immediately <strong>rebuilt the entire Markdown export string</strong> for all notes — then threw it away until the 2-second debounce fired.</li>
+</ol>
+
+<p>All of that is <span class="tag old">O(notes)</span> work, on the UI thread, <em>per character</em>. With 5 notes it's invisible. With 500, every keystroke re-parses 500 rows and re-serializes a big string. That is the part that would get worse as your backlog grew.</p>
+
+<p><strong>Toy example — type "hello" (5 keys) with 300 notes:</strong></p>
+<div class="row">
+  <div class="node hot"><div class="t">Before</div>5 keys × (300 row-parses + 1 full export) = <b>1,500 parses + 5 exports</b>, all discarded but one</div>
+  <div class="node cool"><div class="t">After</div>5 cheap ticks, then <b>1 fetch + 1 export</b> once you pause — regardless of note count</div>
+</div>
+
+<h3>The fix: signal that something changed, don't ship the data</h3>
+<p>The backup doesn't need the notes on <em>every</em> keystroke — it only needs them once, when it's actually about to write the file. So we split "something changed" from "give me the data":</p>
+
+<div class="card">
+<div class="flow">
+  <div class="t" style="font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Before — live list on every write <span class="tag old">O(notes) / keystroke</span></div>
+  <div class="row">
+    <div class="node">keystroke<br><code>upsert</code></div>
+    <div class="arrow">→</div>
+    <div class="node hot">watchNotes()<br>re-query + parse<br><b>all rows</b></div>
+    <div class="arrow">→</div>
+    <div class="node hot">build full<br>Markdown<br><b>every time</b></div>
+    <div class="arrow">→</div>
+    <div class="node">debounced<br>disk write</div>
+  </div>
+</div>
+</div>
+
+<div class="card">
+<div class="flow">
+  <div class="t" style="font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">After — cheap tick, pull once on write <span class="tag new">O(1) / keystroke</span></div>
+  <div class="row">
+    <div class="node">keystroke<br><code>upsert</code></div>
+    <div class="arrow">→</div>
+    <div class="node cool">changes tick<br><b>void</b> (no data)</div>
+    <div class="arrow">→</div>
+    <div class="node">reset 2s<br>debounce timer</div>
+    <div class="arrow">⏱</div>
+    <div class="node cool">on fire:<br><code>listNotes()</code><br>+ export <b>once</b></div>
+  </div>
+</div>
+</div>
+
+<p>The tick is a payload-free <code>Stream&lt;void&gt;</code>: it just says "a write happened." The expensive query-parse-serialize now runs <strong>at most once per idle window</strong>, not per character.</p>
+
+<div class="callout">
+<strong>Why the backup is still complete.</strong> The old wiring caught <em>all</em> writes because it watched the table — including edits made on the note-detail screen and notes arriving from a device sync merge. The new tick preserves that: every write path (<code>upsert</code>, <code>delete</code>, <code>merge</code>, and <code>importNotes</code> which calls <code>upsert</code>) funnels through the repository and fires the tick. Nothing that changes data escapes it.
+</div>
+
+<h3>Two smaller wins</h3>
+<p><strong>The save indicator.</strong> Typing also fired <code>setState()</code> to update the tiny "Saved locally at 12:04" line — which rebuilt the <em>entire</em> screen (app bar, priority/status dropdowns, the editor) on every keystroke. Now that timestamp lives in a <code>ValueNotifier</code> wrapped by a <code>ValueListenableBuilder</code>, so a keystroke repaints only that one line of text.</p>
+<p><strong>List keys.</strong> Notes-list rows now carry <code>key: ValueKey(note.id)</code>, so when the list reorders (a note bubbles to the top after an edit) Flutter matches rows by identity instead of by position.</p>
+</section>
+
+<section id="playground">
+<h2>Playground — feel the per-keystroke cost</h2>
+<p>Set a backlog size, then type in the box. Each keystroke, watch the <span class="tag old">Before</span> and <span class="tag new">After</span> tallies of main-thread work diverge. Stop typing for two seconds and the <span class="tag new">After</span> side does its single export.</p>
+
+<div class="card sim">
+  <div class="controls">
+    <label>Backlog size: <b id="ncLabel">120</b> notes<br>
+      <input id="nc" type="range" min="10" max="500" value="120" step="10"></label>
+    <button class="btn" id="reset">Reset tallies</button>
+  </div>
+  <input id="typer" type="text" placeholder="Type an idea here…" autocomplete="off" spellcheck="false">
+  <div class="panels">
+    <div class="panel" id="pOld">
+      <h4><span class="tag old">Before</span> watch on every write</h4>
+      <div class="stat"><span>Keystrokes</span><b id="oKeys">0</b></div>
+      <div class="stat"><span>Row-parses (O·n)</span><b id="oParse">0</b></div>
+      <div class="stat"><span>Full exports built</span><b id="oExp">0</b></div>
+      <div class="stat"><span>Whole-screen rebuilds</span><b id="oReb">0</b></div>
+      <div class="bar barOld"><span id="oBar"></span></div>
+    </div>
+    <div class="panel" id="pNew">
+      <h4><span class="tag new">After</span> tick + pull on write</h4>
+      <div class="stat"><span>Keystrokes</span><b id="nKeys">0</b></div>
+      <div class="stat"><span>Row-parses (O·n)</span><b id="nParse">0</b></div>
+      <div class="stat"><span>Full exports built</span><b id="nExp">0</b></div>
+      <div class="stat"><span>Whole-screen rebuilds</span><b id="nReb">0</b></div>
+      <div class="bar barNew"><span id="nBar"></span></div>
+    </div>
+  </div>
+  <p style="font-size:.82rem;color:var(--muted);margin:.2rem 0 0" id="simNote">The bars show cumulative main-thread units of O(<i>notes</i>) work. Pause typing to trigger the After-side export.</p>
+</div>
+</section>
+
+<section id="code">
+<h2>Code</h2>
+<p>Grouped by concern, not by file. Four moves.</p>
+
+<h3>1 · A cheap change-tick in the repository</h3>
+<p>A broadcast <code>Stream&lt;void&gt;</code> that fires once after each write. O(1): no query, no parsing.</p>
+<pre><code><span class="add">+ final StreamController&lt;void&gt; _changes = StreamController&lt;void&gt;.broadcast();</span>
+<span class="add">+ Stream&lt;void&gt; get changes =&gt; _changes.stream;</span>
+<span class="add">+ void _notifyChanged() { if (!_changes.isClosed) _changes.add(null); }</span>
+
+  Future&lt;void&gt; upsert(Note note) async {
+    await _crdt.execute( /* INSERT ... ON CONFLICT ... */ );
+<span class="add">+   _notifyChanged();</span>
+  }
+  // delete() and merge() gain the same one-line tick;
+  // importNotes() is covered because it calls upsert().</code></pre>
+<p><code>close()</code> now also closes the controller so a late write during teardown can't add to a dead stream.</p>
+
+<h3>2 · <code>LocalBackup</code> pulls notes on write, not on keystroke</h3>
+<p>The API changes from "here are the notes, schedule them" to "schedule a write; I'll fetch the notes myself when the timer fires."</p>
+<pre><code>  LocalBackup({
+<span class="add">+   required this.fetch,          // Future&lt;List&lt;Note&gt;&gt; Function()</span>
+    required this.reader, required this.writer,
+    this.debounce = const Duration(seconds: 2),
+  });
+
+<span class="del">- void scheduleExport(List&lt;Note&gt; notes) {</span>
+<span class="del">-   final markdown = NotesMarkdown.export(notes);   // built EVERY call</span>
+<span class="del">-   ... writer(markdown) ...</span>
+<span class="del">- }</span>
+<span class="add">+ void schedule() {                    // just (re)arm the timer — O(1)</span>
+<span class="add">+   _timer?.cancel();</span>
+<span class="add">+   _timer = Timer(debounce, () =&gt; unawaited(_export()));</span>
+<span class="add">+ }</span>
+<span class="add">+ Future&lt;void&gt; _export() async {       // runs at most once per idle window</span>
+<span class="add">+   final notes = await fetch();       // one query, only now</span>
+<span class="add">+   await writer(NotesMarkdown.export(notes));</span>
+<span class="add">+ }</span></code></pre>
+
+<h3>3 · Rewire capture: listen to the tick, not the list</h3>
+<pre><code><span class="del">- _notesSub = repository.watchNotes().listen(_localBackup.scheduleExport);</span>
+<span class="add">+ _changesSub = repository.changes.listen((_) =&gt; _localBackup.schedule());</span>
+<span class="add">+ _localBackup.schedule();   // one refresh on launch (the tick only fires on writes)</span></code></pre>
+<p>The production backup's <code>fetch</code> is wired to <code>repository.listNotes</code>. The launch <code>schedule()</code> replaces a side-effect the old <code>watchNotes()</code> gave for free: it emitted once on subscribe, keeping <code>BACKLOG.md</code> fresh even in a session with no edits.</p>
+
+<h3>4 · Scope the save indicator + key the tiles</h3>
+<pre><code><span class="del">- DateTime? _lastSavedAt;                       // a plain field...</span>
+<span class="del">- if (mounted) setState(() =&gt; _lastSavedAt = now);   // ...rebuilt the whole screen</span>
+<span class="add">+ final ValueNotifier&lt;DateTime?&gt; _lastSavedAt = ValueNotifier(null);</span>
+<span class="add">+ if (mounted) _lastSavedAt.value = now;             // repaints one Text only</span>
+
+  // in build():
+<span class="add">+ ValueListenableBuilder&lt;DateTime?&gt;(valueListenable: _lastSavedAt, builder: ...)</span>
+
+  // notes_list_screen.dart
+<span class="add">+ _NoteTile(key: ValueKey(notes[i].id), ...)</span></code></pre>
+
+<div class="callout">
+<strong>What deliberately did <em>not</em> change:</strong> the per-keystroke <code>upsert</code> itself. Persist-on-every-keystroke is a core promise of the app — we removed the <em>amplification</em> around each write, not the write. Measured on a 4K/144&nbsp;Hz desktop, the UI-thread build time stays ≤&nbsp;3.3&nbsp;ms; the app's 100% test coverage held across all changed files.
+</div>
+</section>
+
+<section id="quiz">
+<h2>Quiz</h2>
+<p>Five questions on the reasoning. Score: <span id="score">0 / 0</span></p>
+<div id="quiz"></div>
+</section>
+
+<footer>
+Generated as an <code>/explain-diff</code> walkthrough of commit <code>0141181</code> — "Cut per-keystroke O(N) work to keep capture smooth at scale". The residual desktop jank you observed is a separate, system-level frame-pacing issue (NVIDIA + X11 + dual&#8209;monitor + no compositor), not addressed by this change.
+</footer>
+
+</div>
+
+<script>
+/* ---------- Playground ---------- */
+(function(){
+  const nc=document.getElementById('nc'), ncLabel=document.getElementById('ncLabel');
+  const typer=document.getElementById('typer');
+  const g=id=>document.getElementById(id);
+  let s={oKeys:0,oParse:0,oExp:0,oReb:0,nKeys:0,nParse:0,nExp:0,nReb:0};
+  let pending=null, lastLen=0;
+  function notes(){return +nc.value;}
+  function render(){
+    for(const k in s) g(k).textContent=s[k].toLocaleString();
+    // bar = cumulative O(n) units; scale to the larger of the two
+    const oUnits=s.oParse + s.oExp*notes();
+    const nUnits=s.nParse + s.nExp*notes();
+    const max=Math.max(oUnits,nUnits,1);
+    g('oBar').style.width=(100*oUnits/max)+'%';
+    g('nBar').style.width=(100*nUnits/max)+'%';
+  }
+  ncLabel.textContent=nc.value;
+  nc.addEventListener('input',()=>{ncLabel.textContent=nc.value;render();});
+  function keystroke(){
+    const n=notes();
+    // BEFORE: watch re-emits -> re-parse all rows + build full export + whole-screen rebuild
+    s.oKeys++; s.oParse+=n; s.oExp++; s.oReb++;
+    // AFTER: cheap tick, reset debounce; export deferred until a pause
+    s.nKeys++;
+    if(pending) clearTimeout(pending);
+    pending=setTimeout(()=>{ s.nParse+=notes(); s.nExp++; pending=null; g('pNew').classList.add('pulse'); setTimeout(()=>g('pNew').classList.remove('pulse'),500); render(); }, 2000);
+    render();
+  }
+  typer.addEventListener('input',()=>{
+    // count only added characters as keystrokes
+    if(typer.value.length>lastLen) keystroke();
+    lastLen=typer.value.length;
+  });
+  g('reset').addEventListener('click',()=>{
+    for(const k in s) s[k]=0; typer.value=''; lastLen=0; if(pending){clearTimeout(pending);pending=null;} render();
+  });
+  render();
+})();
+
+/* ---------- Quiz ---------- */
+(function(){
+  const QS=[
+    {stem:"Why did each keystroke cost work proportional to the total number of stored notes?",
+     opts:[
+       "The autosave rewrote every note row on each keystroke, not only the edited note.",
+       "SQLite had no index, so every write triggered a full-table scan internally.",
+       "The CRDT layer recomputed a fresh clock for all rows on every write.",
+       "The backup listened to watchNotes(), which re-queried and re-parsed all rows."],
+     correct:3,
+     why:"watchNotes() re-emits on any table write, and a keystroke IS a write — so the backup re-ran SELECT* and re-parsed every row per character."},
+    {stem:"What does the new NoteRepository.changes stream emit on each write?",
+     opts:[
+       "The full, freshly-queried list of matching notes.",
+       "Only the single note that was just written.",
+       "A payload-free tick meaning 'a write happened'.",
+       "The current total count of stored notes."],
+     correct:2,
+     why:"It's a Stream<void>: it signals that something changed. Consumers pull the data themselves only if and when they need it."},
+    {stem:"With the new LocalBackup, when is the full Markdown export actually built?",
+     opts:[
+       "Once the 2s debounce fires, after fetching the notes.",
+       "On every keystroke; only the disk write is debounced.",
+       "Immediately for each change tick the backup receives.",
+       "Only when the user taps the Save button in the app."],
+     correct:0,
+     why:"schedule() only re-arms a timer. The query + export happen inside _export(), which runs at most once per idle window — the old code built it every keystroke."},
+    {stem:"Why does the backup stay correct after a detail-screen edit or a sync merge?",
+     opts:[
+       "The detail screen and sync code write the backup file directly themselves.",
+       "Those writes go through repository methods that fire the change tick.",
+       "A background timer re-exports the whole backup every few seconds.",
+       "Merges are skipped by the backup, which is treated as tolerable."],
+     correct:1,
+     why:"upsert, delete, and merge all call _notifyChanged() (and importNotes uses upsert), so every write path — wherever it originates — triggers a debounced re-export."},
+    {stem:"What did wrapping the save indicator in a ValueListenableBuilder achieve?",
+     opts:[
+       "A keystroke updates just that line, not the whole capture subtree.",
+       "It debounces the database write so persistence happens less often.",
+       "It formats the timestamp on a separate background isolate thread.",
+       "It stops the text cursor from losing focus during frame rebuilds."],
+     correct:0,
+     why:"The old setState() rebuilt the entire screen (app bar, dropdowns, editor) just to refresh one timestamp; the notifier repaints only the wrapped Text."}
+  ];
+  let answered=0, right=0;
+  const host=document.getElementById('quiz'), scoreEl=document.getElementById('score');
+  QS.forEach((q,qi)=>{
+    const card=document.createElement('div'); card.className='q';
+    const stem=document.createElement('div'); stem.className='stem'; stem.textContent=(qi+1)+'. '+q.stem; card.appendChild(stem);
+    const btns=[];
+    q.opts.forEach((text,oi)=>{
+      const b=document.createElement('button'); b.className='opt'; b.textContent=text;
+      b.addEventListener('click',()=>{
+        if(b.disabled) return;
+        btns.forEach(x=>x.disabled=true);
+        answered++;
+        if(oi===q.correct){b.classList.add('correct');right++;}
+        else{b.classList.add('wrong');btns[q.correct].classList.add('correct');}
+        rat.classList.add('show');
+        scoreEl.textContent=right+' / '+answered;
+      });
+      btns.push(b); card.appendChild(b);
+    });
+    const rat=document.createElement('p'); rat.className='rationale'; rat.textContent='Why: '+q.why; card.appendChild(rat);
+    host.appendChild(card);
+  });
+})();
+</script>
+</body>
+</html>
