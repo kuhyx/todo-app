@@ -1,8 +1,12 @@
 import 'dart:io';
 
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqlite_crdt/sqlite_crdt.dart';
+// SqliteCrdt is needed to seed the legacy DB in migration tests; hide its Hlc
+// so the crdt_sync Hlc/Record are unambiguous.
+import 'package:sqlite_crdt/sqlite_crdt.dart' hide Hlc;
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 
@@ -51,11 +55,9 @@ void main() {
     expect(notes, hasLength(1));
     expect(notes.single.text, 'keep me');
 
-    // The tombstone must survive in the changeset so the deletion syncs.
-    final changeset = await repo.getChangeset();
-    final rows = changeset['notes']!;
-    final deleted = rows.firstWhere((r) => r['id'] == 'b');
-    expect(deleted['is_deleted'], 1);
+    // The tombstone must survive in the exported log so the deletion syncs.
+    final log = repo.exportLog();
+    expect(log['b']!.deleted, isTrue);
   });
 
   test('priority sort orders highest first', () async {
@@ -68,6 +70,21 @@ void main() {
     final notes = await repo.listNotes(sort: NoteSort.priorityDesc);
     expect(notes.first.text, 'high');
     expect(notes.last.text, 'low');
+  });
+
+  test('priority sort breaks ties by most-recently-updated', () async {
+    final repo = await NoteRepository.openInMemory();
+    addTearDown(repo.close);
+
+    await repo.upsert(
+      note('a', 'older', priority: Priority.high, updatedAt: DateTime(2026)),
+    );
+    await repo.upsert(
+      note('b', 'newer', priority: Priority.high, updatedAt: DateTime(2026, 6)),
+    );
+
+    final notes = await repo.listNotes(sort: NoteSort.priorityDesc);
+    expect(notes.map((n) => n.text), ['newer', 'older']);
   });
 
   group('text search', () {
@@ -273,6 +290,7 @@ void main() {
   });
 
   test('v2→v3 migration backfills priority 0 to medium', () async {
+    SharedPreferences.setMockInitialValues({});
     final dir = await Directory.systemTemp.createTemp('todo_migration');
     final path = '${dir.path}/notes.db';
     addTearDown(() => dir.delete(recursive: true));
@@ -314,6 +332,7 @@ void main() {
   });
 
   test('v1→v2 migration adds the status column with a default', () async {
+    SharedPreferences.setMockInitialValues({});
     final dir = await Directory.systemTemp.createTemp('todo_migration_v1');
     final path = '${dir.path}/notes.db';
     addTearDown(() => dir.delete(recursive: true));
@@ -377,37 +396,181 @@ void main() {
     });
   });
 
-  test('nodeId, changeset merge and close', () async {
-    // Use file-backed DBs: two openInMemory repos would share one `:memory:`
-    // connection, so they cannot model two independent devices.
-    final dir = await Directory.systemTemp.createTemp('todo_merge');
-    addTearDown(() => dir.delete(recursive: true));
-    final source = await NoteRepository.open('${dir.path}/source.db');
-    final target = await NoteRepository.open('${dir.path}/target.db');
+  test('nodeId, log export/import merge and close', () async {
+    // Each openInMemory repo owns its own in-memory log, so two of them model
+    // two independent devices directly.
+    final source = await NoteRepository.openInMemory(nodeId: 'source');
+    final target = await NoteRepository.openInMemory(nodeId: 'target');
     addTearDown(target.close);
 
-    expect(source.nodeId, isNotEmpty);
+    expect(source.nodeId, 'source');
     await source.upsert(note('a', 'shared idea'));
-    final changeset = await source.getChangeset();
+    final log = source.exportLog();
     await source.close();
 
-    // getChangeset serialises hlc/modified as Strings and returns read-only
-    // rows; merge expects mutable maps with Hlc objects. Rebuild them the
-    // way the sync layer does after its JSON round-trip.
-    final revived = {
-      for (final entry in changeset.entries)
-        entry.key: [
-          for (final record in entry.value)
-            {
-              ...record,
-              'hlc': Hlc.parse(record['hlc'] as String),
-              'modified': Hlc.parse(record['modified'] as String),
-            },
-        ],
-    };
-    await target.merge(revived);
+    await target.importLog(log);
     final merged = await target.listNotes();
     expect(merged.single.text, 'shared idea');
+  });
+
+  group('migration from a legacy sqlite_crdt database', () {
+    // Writes a v3 legacy DB at [path] with one live note and one tombstone,
+    // exactly as the pre-crdt_sync app would have left it.
+    Future<String> seedLegacyDb(String dir) async {
+      final path = '$dir/todo.db';
+      final legacy = await SqliteCrdt.open(
+        path,
+        version: 3,
+        onCreate: (db, _) async {
+          await db.execute('''
+            CREATE TABLE notes (
+              id TEXT NOT NULL,
+              text TEXT NOT NULL DEFAULT '',
+              priority INTEGER NOT NULL DEFAULT 2,
+              status INTEGER NOT NULL DEFAULT 0,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              PRIMARY KEY (id)
+            )
+          ''');
+        },
+      );
+      Future<void> insert(String id, String text, int status) => legacy.execute(
+        'INSERT INTO notes (id, text, priority, status, created_at, '
+        'updated_at) VALUES (?1, ?2, 3, ?3, ?4, ?4)',
+        [id, text, status, '2026-01-01T00:00:00.000'],
+      );
+      await insert('live', 'kept idea', Status.inProgress.value);
+      await insert('gone', 'deleted idea', Status.todo.value);
+      await legacy.execute('DELETE FROM notes WHERE id = ?1', ['gone']);
+      await legacy.close();
+      return path;
+    }
+
+    test('imports live notes and preserves tombstones, once', () async {
+      SharedPreferences.setMockInitialValues({});
+      final dir = await Directory.systemTemp.createTemp('todo_migrate');
+      addTearDown(() => dir.delete(recursive: true));
+      final path = await seedLegacyDb(dir.path);
+
+      final repo = await NoteRepository.open(path);
+      addTearDown(repo.close);
+
+      // The live note migrated with its fields intact...
+      final notes = await repo.listNotes();
+      expect(notes.map((n) => n.text), ['kept idea']);
+      expect(notes.single.priority, Priority.high);
+      expect(notes.single.status, Status.inProgress);
+      // ...and the deletion carried over as a sticky tombstone.
+      expect(repo.exportLog()['gone']!.deleted, isTrue);
+      expect(repo.nodeId, isNotEmpty);
+
+      // Reopening does not re-run migration: a note added after the first open
+      // survives, and the (still-present) legacy DB is not re-imported.
+      await repo.upsert(note('new', 'added post-migration'));
+      await repo.close();
+      final reopened = await NoteRepository.open(path);
+      addTearDown(reopened.close);
+      final texts = (await reopened.listNotes()).map((n) => n.text).toSet();
+      expect(texts, {'kept idea', 'added post-migration'});
+    });
+
+    test('a fresh install with no legacy DB starts empty', () async {
+      SharedPreferences.setMockInitialValues({});
+      final dir = await Directory.systemTemp.createTemp('todo_fresh');
+      addTearDown(() => dir.delete(recursive: true));
+
+      final repo = await NoteRepository.open('${dir.path}/todo.db');
+      addTearDown(repo.close);
+
+      expect(await repo.listNotes(), isEmpty);
+      expect(repo.nodeId, isNotEmpty);
+    });
+  });
+
+  test('watchNotes emits the seed then re-emits after each change', () async {
+    final repo = await NoteRepository.openInMemory();
+    addTearDown(repo.close);
+    final lengths = <int>[];
+    final sub = repo.watchNotes().listen((notes) => lengths.add(notes.length));
+
+    await repo.upsert(note('a', 'first'));
+    await repo.upsert(note('b', 'second'));
+    await pumpEventQueue();
+    await sub.cancel();
+
+    expect(lengths.first, 0); // seed
+    expect(lengths.last, 2); // after both writes
+  });
+
+  test('watchCount emits the seed then re-emits after a change', () async {
+    final repo = await NoteRepository.openInMemory();
+    addTearDown(repo.close);
+    final counts = <int>[];
+    final sub = repo.watchCount().listen(counts.add);
+
+    await repo.upsert(note('a', 'x'));
+    await pumpEventQueue();
+    await sub.cancel();
+
+    expect(counts.first, 0);
+    expect(counts.last, 1);
+  });
+
+  test('a foreign record missing timestamps falls back to the epoch', () async {
+    // A note this app writes always has both timestamps; this guards a
+    // malformed record arriving from another device via importLog.
+    final repo = await NoteRepository.openInMemory();
+    addTearDown(repo.close);
+    await repo.importLog({
+      'partial': Record(
+        id: 'partial',
+        fields: {'text': ('no dates', Hlc.newTick('other'))},
+      ),
+    });
+
+    final only = (await repo.listNotes()).single;
+    expect(only.text, 'no dates');
+    final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+    expect(only.createdAt, epoch);
+    expect(only.updatedAt, epoch);
+  });
+
+  test('date-range filters bound by whole calendar days', () async {
+    final repo = await NoteRepository.openInMemory();
+    addTearDown(repo.close);
+    await repo.upsert(
+      note(
+        'jan',
+        'january idea',
+        createdAt: DateTime(2026, 1, 10),
+        updatedAt: DateTime(2026, 1, 10),
+      ),
+    );
+    await repo.upsert(
+      note(
+        'mar',
+        'march idea',
+        createdAt: DateTime(2026, 3, 10),
+        updatedAt: DateTime(2026, 3, 10),
+      ),
+    );
+
+    final byCreated = await repo.listNotes(
+      filter: NoteFilter(
+        createdFrom: DateTime(2026, 2, 1),
+        createdTo: DateTime(2026, 4, 1),
+      ),
+    );
+    expect(byCreated.map((n) => n.text), ['march idea']);
+
+    final byUpdated = await repo.listNotes(
+      filter: NoteFilter(
+        updatedFrom: DateTime(2026, 1, 1),
+        updatedTo: DateTime(2026, 1, 31),
+      ),
+    );
+    expect(byUpdated.map((n) => n.text), ['january idea']);
   });
 
   group('NoteFilter', () {
@@ -440,20 +603,6 @@ void main() {
     });
   });
 
-  // getChangeset() serialises HLCs as String and returns read-only rows;
-  // merge() casts `hlc` to Hlc and mutates, so revive it into fresh mutable
-  // maps with parsed HLCs first (mirrors SyncService._decodeChangeset).
-  CrdtChangeset reviveChangeset(CrdtChangeset raw) => raw.map(
-    (table, records) => MapEntry(
-      table,
-      records.map((r) {
-        final record = Map<String, Object?>.from(r);
-        record['hlc'] = Hlc.parse(record['hlc'] as String);
-        return record;
-      }).toList(),
-    ),
-  );
-
   group('changes', () {
     test('ticks once per write across upsert, delete, and merge', () async {
       final repo = await NoteRepository.openInMemory();
@@ -465,11 +614,11 @@ void main() {
       await repo.upsert(note('a', 'x'));
       await repo.delete('a');
 
-      // A changeset from another device, merged in, must also tick.
-      final other = await NoteRepository.openInMemory();
+      // A log from another device, merged in, must also tick.
+      final other = await NoteRepository.openInMemory(nodeId: 'other');
       addTearDown(other.close);
       await other.upsert(note('b', 'from other'));
-      await repo.merge(reviveChangeset(await other.getChangeset()));
+      await repo.importLog(other.exportLog());
 
       await pumpEventQueue(); // let the broadcast events dispatch
       expect(ticks, 3);

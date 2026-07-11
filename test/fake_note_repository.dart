@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:sqlite_crdt/sqlite_crdt.dart';
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 
@@ -97,10 +97,10 @@ class FakeNoteRepository implements NoteRepository {
   String get nodeId => 'fake-node';
 
   @override
-  Future<CrdtChangeset> getChangeset() async => {};
+  Log exportLog() => <String, Record>{};
 
   @override
-  Future<void> merge(CrdtChangeset changeset) async {}
+  Future<void> importLog(Log remote) async {}
 
   @override
   Future<void> close() async {

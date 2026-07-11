@@ -2,29 +2,26 @@
 //
 // Simulates two devices (A and B), each creating a note offline, then syncs
 // them through the repo and asserts both devices converge to both notes.
-// Cleans up its throwaway changeset files afterwards so the real
-// `changesets/` directory is never touched.
+// Cleans up its throwaway log files afterwards so the real `notes/` directory
+// is never touched.
 //
 // Run:  GH_TOKEN=$(gh auth token) dart run tool/sync_smoke.dart
 import 'dart:io';
 
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/github_client.dart';
 import 'package:todo/sync/sync_service.dart';
 
 Future<void> main() async {
-  sqfliteFfiInit();
-
   final token = Platform.environment['GH_TOKEN'];
   if (token == null || token.isEmpty) {
     stderr.writeln('Set GH_TOKEN (e.g. GH_TOKEN=\$(gh auth token)).');
     exit(2);
   }
 
-  // Throwaway directory so we never pollute the real `changesets/`.
-  const service = SyncService(changesetDir: 'todo-sync/changesets_smoketest');
+  // Throwaway directory so we never pollute the real `notes/`.
+  const service = SyncService(notesDir: 'todo-sync/notes_smoketest');
   GitHubClient client() =>
       GitHubClient(owner: 'kuhyx', repo: 'syncs', token: token);
 
@@ -57,14 +54,12 @@ Future<void> main() async {
   final converged =
       aNotes.containsAll(expected) && bNotes.containsAll(expected);
 
-  // Cleanup: remove the throwaway changeset files.
+  // Cleanup: remove the throwaway log files.
   final cleanup = client();
-  for (final f in await cleanup.listDirectory(
-    'todo-sync/changesets_smoketest',
-  )) {
+  for (final f in await cleanup.listDirectory('todo-sync/notes_smoketest')) {
     await cleanup.deleteFile(f.path, f.sha, message: 'smoke test cleanup');
   }
-  stdout.writeln('Cleaned up throwaway changeset files.');
+  stdout.writeln('Cleaned up throwaway log files.');
 
   ghA.close();
   ghB.close();

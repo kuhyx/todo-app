@@ -34,6 +34,15 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  # Shared CRDT sync (LogStore + Record/Log merge + GitHub transport). The
+  # primary store since the migration off sqlite_crdt.
+  crdt_sync:
+    git:
+      url: https://github.com/kuhyx/utils
+      ref: crdt_sync_dart-v0.2.0
+      path: crdt_sync_dart
+  # Retained only to read the legacy on-device DB during the one-time
+  # migration in NoteRepository.open; remove once all devices are migrated.
   sqlite_crdt: ^3.0.4
   path_provider: ^2.1.5
   path: ^1.9.1

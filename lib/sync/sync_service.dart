@@ -1,6 +1,6 @@
-import 'dart:convert';
-
-import 'package:sqlite_crdt/sqlite_crdt.dart';
+// This service uses todo's own GitHubClient (it tracks SHAs and returns
+// GitHubFile entries); hide crdt_sync's same-named client to disambiguate.
+import 'package:crdt_sync/crdt_sync.dart' hide GitHubClient;
 
 import '../data/note_repository.dart';
 import 'github_client.dart';
@@ -9,10 +9,10 @@ import 'github_client.dart';
 class SyncResult {
   const SyncResult({required this.mergedDevices, required this.pushed});
 
-  /// How many other devices' changesets were pulled and merged.
+  /// How many other devices' logs were pulled and merged.
   final int mergedDevices;
 
-  /// Whether this device pushed its own changeset.
+  /// Whether this device pushed its own log.
   final bool pushed;
 
   @override
@@ -22,26 +22,29 @@ class SyncResult {
 
 /// Synchronises a [NoteRepository] with a GitHub repo used as dumb storage.
 ///
-/// Design: each device owns exactly one file,
-/// `todo-sync/changesets/<nodeId>.json`,
-/// holding its full CRDT changeset. Because no two devices ever write the
-/// same file, there are **no git-level merge conflicts**. Data convergence
-/// is handled entirely by the CRDT layer: pulling every other device's
-/// changeset and [NoteRepository.merge]-ing it is commutative and
-/// idempotent, so repeated syncs in any order converge to the same state.
+/// Design: each device owns exactly one file, `todo-sync/notes/<nodeId>.json`,
+/// holding its full crdt_sync note [Log]. Because no two devices ever write the
+/// same file, there are **no git-level merge conflicts**; convergence is the
+/// CRDT layer's job — pulling every other device's log and [NoteRepository]
+/// merging it via `mergeLogs` is commutative and idempotent, so repeated syncs
+/// in any order converge to the same state.
+///
+/// The directory is `notes/` (not the legacy `changesets/`): the on-the-wire
+/// format changed from a `sqlite_crdt` changeset to a crdt_sync `Log`, so the
+/// two never share a path and an old client can't misread a new file.
 class SyncService {
-  const SyncService({this.changesetDir = 'todo-sync/changesets'});
+  const SyncService({this.notesDir = 'todo-sync/notes'});
 
-  /// Directory in the repo under which per-device changeset files live.
-  final String changesetDir;
+  /// Directory in the repo under which per-device note-log files live.
+  final String notesDir;
 
   /// Runs a full pull-merge-push cycle. Safe to call repeatedly.
   Future<SyncResult> sync(NoteRepository repo, GitHubClient github) async {
     final nodeId = repo.nodeId;
     final ownFileName = '$nodeId.json';
 
-    // 1. Pull: list all device changeset files, merge everyone else's.
-    final files = await github.listDirectory(changesetDir);
+    // 1. Pull: list all device log files, merge everyone else's.
+    final files = await github.listDirectory(notesDir);
     var merged = 0;
     String? ownSha;
     for (final file in files) {
@@ -51,15 +54,16 @@ class SyncService {
       }
       final text = await github.getFileText(file.path);
       if (text == null) continue;
-      await repo.merge(_decodeChangeset(text));
+      final remote = _decodeLog(text);
+      if (remote == null) continue; // Skip a corrupt/foreign file.
+      await repo.importLog(remote);
       merged++;
     }
 
-    // 2. Push: upload our own (now-merged) changeset under our node id.
-    final changeset = await repo.getChangeset();
+    // 2. Push: upload our own (now-merged) log under our node id.
     await github.putFileText(
-      '$changesetDir/$ownFileName',
-      _encodeChangeset(changeset),
+      '$notesDir/$ownFileName',
+      logToJson(repo.exportLog()),
       sha: ownSha,
       message: 'sync: $nodeId @ ${DateTime.now().toUtc().toIso8601String()}',
     );
@@ -67,28 +71,15 @@ class SyncService {
     return SyncResult(mergedDevices: merged, pushed: true);
   }
 
-  /// Serialises a changeset to pretty JSON. All values are already
-  /// primitives (hlc/modified are stored as TEXT), so no custom encoding
-  /// is needed.
-  String _encodeChangeset(CrdtChangeset changeset) =>
-      const JsonEncoder.withIndent('  ').convert(changeset);
-
-  /// Parses a JSON changeset back into the typed shape that
-  /// [NoteRepository.merge] expects.
-  ///
-  /// The `hlc` field must be revived from its string form into an [Hlc]
-  /// object, because `validateChangeset` casts it directly to [Hlc].
-  CrdtChangeset _decodeChangeset(String text) {
-    final raw = jsonDecode(text) as Map<String, dynamic>;
-    return raw.map(
-      (table, records) => MapEntry(
-        table,
-        (records as List).map((r) {
-          final record = (r as Map).cast<String, Object?>();
-          record['hlc'] = Hlc.parse(record['hlc'] as String);
-          return record;
-        }).toList(),
-      ),
-    );
+  /// Parses a remote note log, returning `null` for a corrupt or wrong-shape
+  /// payload so one bad device file never aborts the whole sync.
+  Log? _decodeLog(String text) {
+    try {
+      return logFromJson(text);
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null;
+    }
   }
 }

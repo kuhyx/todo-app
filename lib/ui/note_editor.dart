@@ -510,9 +510,12 @@ class _NoteEditorState extends State<NoteEditor> {
         return MarkdownView(text: _currentText());
       case NoteEditorMode.raw:
         return _buildRaw(theme);
+      // coverage:ignore-start
+      // Unreachable: build() short-circuits to _buildStepPage before reaching
+      // here, so this arm only exists to make the switch exhaustive.
       case NoteEditorMode.guided:
-        // build() short-circuits to _buildStepPage before reaching here.
         return _buildRaw(theme);
+      // coverage:ignore-end
     }
   }
 
