@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surface sync outcomes so devices can't silently diverge</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1e2430; --muted: #5c6675; --line: #dde2ea;
+    --accent: #4a5ac8; --accent-soft: #eef0fb;
+    --ok: #1a7f4b; --ok-soft: #e7f5ec;
+    --bad: #b3261e; --bad-soft: #fbeceb;
+    --code-bg: #f5f7fa; --card: #fafbfd;
+    --add: #e7f5ec; --del: #fbeceb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161c; --fg: #e6e9f0; --muted: #9aa3b2; --line: #2c313c;
+      --accent: #93a0f5; --accent-soft: #232840;
+      --ok: #5fd39a; --ok-soft: #16301f;
+      --bad: #ff8f87; --bad-soft: #3a1d1b;
+      --code-bg: #1c2027; --card: #191c23;
+      --add: #16301f; --del: #3a1d1b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 1.2rem 1rem 4rem;
+    max-width: min(48rem, 92vw);
+    background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  h1 { font-size: 1.55rem; line-height: 1.3; margin: .4rem 0 .2rem; }
+  h2 { font-size: 1.25rem; margin-top: 2.4rem; border-bottom: 2px solid var(--line); padding-bottom: .3rem; }
+  h3 { font-size: 1.02rem; margin-top: 1.6rem; }
+  p.meta { color: var(--muted); font-size: .85rem; margin-top: 0; }
+  nav.toc {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+    padding: .45rem 0; margin-bottom: 1rem;
+    display: flex; gap: .9rem; flex-wrap: wrap; font-size: .9rem;
+  }
+  nav.toc a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  nav.toc a:hover { text-decoration: underline; }
+  a { color: var(--accent); }
+  code { font-family: ui-monospace, "Cascadia Code", Menlo, monospace; font-size: .86em;
+         background: var(--code-bg); padding: .1em .3em; border-radius: 4px; }
+  .codeblock {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: .7rem .9rem; margin: .8rem 0; overflow-x: auto;
+  }
+  .codeblock pre { margin: 0; white-space: pre-wrap; font-size: .82rem;
+                   font-family: ui-monospace, "Cascadia Code", Menlo, monospace; }
+  .codeblock .add { background: var(--add); display: block; }
+  .codeblock .del { background: var(--del); display: block; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: .9rem 1rem; margin: 1rem 0;
+  }
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: .4rem; margin: 1rem 0; }
+  .flow .node {
+    flex: 1 1 9rem; border: 1.5px solid var(--line); border-radius: 8px;
+    padding: .5rem .6rem; font-size: .82rem; background: var(--card); min-width: 8.5rem;
+  }
+  .flow .node b { display: block; font-size: .84rem; }
+  .flow .arrow { align-self: center; color: var(--muted); font-size: 1.1rem; }
+  .node.badnode { border-color: var(--bad); background: var(--bad-soft); }
+  .node.oknode { border-color: var(--ok); background: var(--ok-soft); }
+  .pill { display: inline-block; border-radius: 999px; padding: .05rem .55rem;
+          font-size: .74rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .statusline { font-size: .84rem; border: 1px dashed var(--line); border-radius: 8px;
+                padding: .45rem .7rem; margin: .4rem 0; background: var(--card); }
+  .statusline.err { color: var(--bad); border-color: var(--bad); }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; margin: .8rem 0; }
+  th, td { border: 1px solid var(--line); padding: .4rem .6rem; text-align: left; }
+  th { background: var(--card); }
+  /* widgets */
+  .widget { border: 1.5px solid var(--accent); border-radius: 12px; padding: 1rem; margin: 1.2rem 0;
+            background: var(--accent-soft); }
+  .widget h4 { margin: 0 0 .5rem; font-size: .95rem; }
+  .widget button {
+    font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 8px; padding: .35rem .7rem;
+    background: var(--bg); color: var(--fg); margin: .15rem .2rem .15rem 0;
+  }
+  .widget button:hover { border-color: var(--accent); }
+  .widget button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .simlog { background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+            padding: .5rem .7rem; margin-top: .6rem; font-size: .8rem; min-height: 5.5rem;
+            font-family: ui-monospace, Menlo, monospace; max-height: 12rem; overflow-y: auto; }
+  .simstate { font-size: .82rem; margin-top: .5rem; }
+  .simstate b { color: var(--accent); }
+  select { font: inherit; font-size: .84rem; padding: .2rem .3rem; border-radius: 6px;
+           border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  /* quiz */
+  .q { border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; margin: 1rem 0; background: var(--card); }
+  .q p.stem { font-weight: 600; margin: 0 0 .6rem; }
+  .q .opt { display: block; width: 100%; text-align: left; font: inherit; font-size: .87rem;
+            border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg);
+            padding: .45rem .7rem; margin: .3rem 0; cursor: pointer; }
+  .q .opt:hover { border-color: var(--accent); }
+  .q .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+  .q .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .q .why { font-size: .82rem; color: var(--muted); margin-top: .5rem; display: none; }
+  #score { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>Surface sync outcomes so devices can't silently diverge</h1>
+<p class="meta">Commit <code>7564a65</code> · 2026-07-16 · <code>lib/sync/sync_service.dart</code>, <code>lib/ui/capture_screen.dart</code> + tests</p>
+
+<nav class="toc">
+  <a href="#background">1 · Background</a>
+  <a href="#intuition">2 · Intuition</a>
+  <a href="#code">3 · Code</a>
+  <a href="#quiz">4 · Quiz</a>
+</nav>
+
+<h2 id="background">1 · Background</h2>
+
+<p>The todo app is an offline-first notes app that runs on two devices — a Linux
+desktop and an Android phone — and keeps them in sync through a private GitHub
+repo used as dumb storage. There is no server: each device owns exactly one
+file, <code>todo-sync/notes/&lt;nodeId&gt;.json</code>, holding its full CRDT
+log of notes. A sync is a pull-merge-push cycle: list the directory, merge
+every <em>other</em> device's file into the local store, then upload your own
+merged log. Because merging is commutative and idempotent, any two devices that
+both complete a sync end up with the same notes.</p>
+
+<p>That last sentence carries a hidden assumption: <em>that syncs actually
+complete, and that you'd know if they didn't.</em> Before this change, the
+capture screen triggered sync in three places:</p>
+
+<ul>
+  <li>a pull on launch,</li>
+  <li>an automatic push when the app lifecycle hit <code>paused</code>,</li>
+  <li>the manual Sync button — the <em>only</em> path that reported anything to the user.</li>
+</ul>
+
+<p>Three separate silences hid failures:</p>
+
+<ol>
+  <li><code>_autoSync()</code> wrapped the whole cycle in <code>catch (_)</code>
+      — every automatic failure (offline, bad token, GitHub error) vanished.</li>
+  <li>Inside <code>SyncService.sync()</code>, a peer file that failed to fetch or
+      parse was skipped with a bare <code>continue</code>. The sync then
+      <em>succeeded</em> from the caller's point of view — it just quietly merged
+      nothing from that device.</li>
+  <li>On Linux desktop, Flutter rarely delivers the <code>paused</code> lifecycle
+      event at all, so the desktop effectively only synced at launch or on a
+      manual button press.</li>
+</ol>
+
+<p>These silences had just produced a real incident: after the July 11 storage
+migration (which moved the sync location to a new, incompatible directory), the
+phone got the new build but the desktop kept running a bundle built two hours
+before the migration commit. For five days each device synced happily into a
+directory the other never read — desktop showed 39 notes, phone 30 — and no
+pixel anywhere said anything was wrong.</p>
+
+<h2 id="intuition">2 · Intuition</h2>
+
+<p>The fix is not smarter syncing — the CRDT merge was never the problem. The
+fix is <strong>making every sync outcome observable</strong>, and making sure
+the desktop actually gets chances to sync. One sentence: <em>a sync system that
+can fail silently will eventually diverge silently; a status line is the
+cheapest possible alarm.</em></p>
+
+<p>Concretely, imagine the sync repo contains your own file plus two peers, one
+of them corrupt:</p>
+
+<div class="flow">
+  <div class="node oknode"><b>phone.json</b>valid log · 42 notes<br><span class="pill ok">merged</span></div>
+  <div class="node badnode"><b>tablet.json</b><code>{not a log</code><br><span class="pill bad">undecodable</span></div>
+  <div class="node"><b>desktop.json</b>(your own file)<br><span class="pill ok">pushed</span></div>
+</div>
+
+<p>Before the change both outcomes below rendered identically as
+"<code>Synced: merged 1 device(s)</code>" — you could not tell a healthy fleet
+from one silently losing a device. Now the same run reports:</p>
+
+<div class="statusline">Synced at 18:00:35 · merged 1 device(s), skipped 1 unreadable file(s)</div>
+
+<p>and an automatic sync that fails outright no longer disappears into
+<code>catch (_)</code> — it lands in a small persistent status line under the
+editor, in the error color:</p>
+
+<div class="statusline err">Sync failed at 07:12:03 · GitHubSyncError: GET todo-sync/notes failed: 401</div>
+
+<p>The status is also written to <code>SharedPreferences</code>, so a failure
+that happened just before the app closed is still visible the next morning.
+Had this line existed on July 11, the desktop would have shown a stale
+"Synced at …" timestamp days old — the divergence would have been visible on
+day one instead of day five.</p>
+
+<h3>The second half: the desktop never got a turn</h3>
+
+<p>Reporting outcomes only helps if syncs actually run. On Android,
+<code>paused</code> fires reliably when you switch apps. On Linux desktop it
+rarely fires — but <code>inactive</code> and <code>hidden</code> (focus loss)
+do. The catch: focus flickers constantly on a desktop (alt-tab, clicking
+another window), and firing a GitHub round-trip per flicker would be abusive.
+So the new trigger is <strong>debounced</strong>: focus must stay lost for 5
+seconds before a sync fires, and every new lifecycle event resets the timer.
+<code>paused</code> still syncs immediately — Android may kill a paused app
+before any timer fires, so waiting would risk losing the push.</p>
+
+<div class="widget" id="lifecycle-sim">
+  <h4>Micro-world: the new lifecycle trigger</h4>
+  <p style="font-size:.83rem; margin:.2rem 0 .5rem;">Fire lifecycle events and step time
+  forward one second at a time. This mirrors the real
+  <code>didChangeAppLifecycleState</code> logic: <code>paused</code> syncs now;
+  <code>inactive</code>/<code>hidden</code> arm (or reset) a 5-second timer;
+  <code>resumed</code> does nothing — a timer already armed still fires.</p>
+  <div>
+    <button class="primary" onclick="simEvent('paused')">paused</button>
+    <button class="primary" onclick="simEvent('inactive')">inactive</button>
+    <button class="primary" onclick="simEvent('hidden')">hidden</button>
+    <button class="primary" onclick="simEvent('resumed')">resumed</button>
+    <button onclick="simTick()">advance 1 s</button>
+    <button onclick="simReset()">reset</button>
+  </div>
+  <div class="simstate">t = <b id="sim-t">0</b> s ·
+    debounce timer: <b id="sim-timer">none</b> ·
+    syncs fired: <b id="sim-count">0</b></div>
+  <div class="simlog" id="sim-log">— try: inactive → inactive → advance ×5 (timer resets, then fires once)</div>
+</div>
+
+<div class="widget" id="msg-sim">
+  <h4>Micro-world: what the sync message reports</h4>
+  <p style="font-size:.83rem; margin:.2rem 0 .5rem;">Set each peer file's condition and
+  see the exact message the snackbar and status line build (the real
+  <code>_describe()</code> logic over <code>SyncResult</code>).</p>
+  <div style="font-size:.85rem;">
+    <label>phone.json <select id="peer1" onchange="msgSim()">
+      <option value="ok">valid log</option><option value="corrupt">corrupt JSON</option><option value="missing">listed but GET 404s</option>
+    </select></label><br>
+    <label>tablet.json <select id="peer2" onchange="msgSim()">
+      <option value="ok">valid log</option><option value="corrupt" selected>corrupt JSON</option><option value="missing">listed but GET 404s</option>
+    </select></label>
+  </div>
+  <div class="statusline" id="msg-out" style="margin-top:.6rem;"></div>
+  <div style="font-size:.78rem; color:var(--muted);" id="msg-note"></div>
+</div>
+
+<h2 id="code">3 · Code</h2>
+
+<h3>Concern 1 — skipped peers become data, not silence (<code>sync_service.dart</code>)</h3>
+
+<p><code>SyncResult</code> gains a <code>skippedFiles</code> list, and the pull
+loop collects instead of discarding. Note the two failure shapes it now covers
+with one expression: a file that was listed but whose GET returned nothing
+(<code>text == null</code>), and one that fetched but didn't parse as a log:</p>
+
+<div class="codeblock"><pre><span class="del">-      final text = await github.getFileText('$notesDir/$name');
+-      if (text == null) continue;
+-      final remote = _decodeLog(text);
+-      if (remote == null) continue; // Skip a corrupt/foreign file.</span><span class="add">+      final text = await github.getFileText('$notesDir/$name');
++      final remote = text == null ? null : _decodeLog(text);
++      if (remote == null) {
++        // A vanished or undecodable peer file must not abort the sync, but
++        // it must not vanish silently either — that's how a device drops
++        // out of sync unnoticed. Report it in the result instead.
++        skipped.add(name);
++        continue;
++      }</span></pre></div>
+
+<p>The tolerance is unchanged — one bad file still never aborts the cycle, and
+the push still happens — but the caller now knows the merge was partial.</p>
+
+<h3>Concern 2 — every outcome lands somewhere visible (<code>capture_screen.dart</code>)</h3>
+
+<p>A tiny <code>SyncStatus</code> value (time, ok, detail) flows into a
+<code>ValueNotifier</code> — the same pattern the screen already used for the
+"Saved locally at…" indicator, so one status change repaints one line of text,
+not the whole screen. <code>_recordSyncStatus()</code> also persists the three
+fields to <code>SharedPreferences</code>, and <code>_restoreSyncStatus()</code>
+reloads them in <code>initState</code>.</p>
+
+<div class="codeblock"><pre>Future&lt;void&gt; _autoSync() async {
+  ...
+  try {
+<span class="del">-    await _syncService.sync(widget.repository, client);
+-  } catch (_) {
+-    // Best-effort: ignore (offline, transient GitHub errors, etc.).</span><span class="add">+    final result = await _syncService.sync(widget.repository, client);
++    await _recordSyncStatus(ok: true, detail: _describe(result));
++  } catch (e) {
++    // Offline or a transient GitHub error: still no snackbar (this path
++    // must never interrupt capture), but the status line shows it.
++    await _recordSyncStatus(ok: false, detail: '$e');</span>
+  } finally { ... }
+}</pre></div>
+
+<p>The design line to notice: auto-sync is still <em>quiet</em> (no snackbar —
+capture must never be interrupted), but it is no longer <em>silent</em>. The
+manual Sync button records the same status and shares the same message builder,
+so the snackbar and the status line can never drift apart:</p>
+
+<div class="codeblock"><pre>static String _describe(SyncResult result) {
+  final skipped = result.skippedFiles.length;
+  return 'merged ${result.mergedDevices} device(s)'
+      '${skipped == 0 ? '' : ', skipped $skipped unreadable file(s)'}';
+}</pre></div>
+
+<h3>Concern 3 — a sync trigger the desktop actually receives</h3>
+
+<div class="codeblock"><pre>if (state == AppLifecycleState.paused) {
+  // Immediate: Android may kill the app before a debounce timer fires.
+  _autoSyncDebounce?.cancel();
+  _autoSync();
+} else if (state == AppLifecycleState.inactive ||
+    state == AppLifecycleState.hidden) {
+  // Focus loss — the only background signal Flutter Linux delivers
+  // reliably (`paused` rarely arrives on desktop). Debounced so alt-tab
+  // flicker doesn't fire a request per focus change.
+  _autoSyncDebounce?.cancel();
+  _autoSyncDebounce = Timer(CaptureScreen.autoSyncDebounce, _autoSync);
+}</pre></div>
+
+<p>The timer is cancelled in <code>dispose()</code>, and the existing
+single-flight guard (<code>_autoSyncing</code>) still prevents overlapping
+cycles if a debounced sync lands while another is running. The 5-second
+constant lives on the public widget class so tests can pump exactly past it.</p>
+
+<h3>Concern 4 — tests</h3>
+
+<p>The suite grew from 173 to 174 tests, still at 100% line coverage. The old
+test "auto-sync failure is silent (no snackbar)" flipped meaning: it now
+asserts <em>no snackbar but a visible error status line</em>. New tests cover
+the skipped-file message, restoring a persisted failure on launch, and the
+debounce (two focus events reset the timer; the sync fires once, only after
+the full window elapses).</p>
+
+<h2 id="quiz">4 · Quiz</h2>
+<p>Five questions, click an answer to check it. Score: <span id="score">0 / 0</span></p>
+
+<div class="q" data-correct="0">
+  <p class="stem">1. Why did the desktop/phone divergence stay invisible for five days?</p>
+  <button class="opt">Auto-sync swallowed every error and unreadable peers were skipped with no UI signal at all</button>
+  <button class="opt">The CRDT merge silently dropped notes whose HLC timestamps collided across the two devices</button>
+  <button class="opt">GitHub rate-limiting made pushes succeed while pulls kept returning stale directory listings</button>
+  <button class="opt">The "N saved" counter cached its value at launch and never refreshed after later merges ran</button>
+  <p class="why"></p>
+</div>
+
+<div class="q" data-correct="2">
+  <p class="stem">2. A peer file appears in the directory listing but its GET returns 404. What does the new sync do?</p>
+  <button class="opt">Aborts the whole cycle immediately so the user can retry once the repository is consistent</button>
+  <button class="opt">Retries the fetch a few times with backoff before giving up on that peer for this cycle</button>
+  <button class="opt">Adds it to <code>skippedFiles</code>, merges the remaining peers, and still pushes its own log</button>
+  <button class="opt">Deletes the stale directory entry from the repo so the next listing comes back clean</button>
+  <p class="why"></p>
+</div>
+
+<div class="q" data-correct="1">
+  <p class="stem">3. Why does <code>paused</code> sync immediately while <code>inactive</code>/<code>hidden</code> are debounced?</p>
+  <button class="opt"><code>paused</code> fires only once per app session, so a debounce there would never accomplish anything</button>
+  <button class="opt">Android may kill a paused app before a timer fires; focus flicker would otherwise spam GitHub</button>
+  <button class="opt"><code>inactive</code> never occurs on Android, so it needs rate-limiting purely for the desktop's sake</button>
+  <button class="opt">Debouncing <code>paused</code> would leave a pending timer that hangs the widget tests' fake clock</button>
+  <p class="why"></p>
+</div>
+
+<div class="q" data-correct="3">
+  <p class="stem">4. Right after a fresh app launch, before any sync runs, where does the status line's content come from?</p>
+  <button class="opt">The app replays the most recent sync commit from the GitHub repository's history</button>
+  <button class="opt">Nowhere — the line always stays empty until the first sync of this session completes</button>
+  <button class="opt">A hardcoded "never synced" placeholder that the first completed sync then overwrites</button>
+  <button class="opt">SharedPreferences — the last run persisted its outcome; launch restores it</button>
+  <p class="why"></p>
+</div>
+
+<div class="q" data-correct="0">
+  <p class="stem">5. Manual Sync reports "merged 1 device(s), skipped 1 unreadable file(s)". What should you conclude?</p>
+  <button class="opt">A listed device's file couldn't be read, so the fleet may not be converged</button>
+  <button class="opt">One peer merged and the other was merely offline this cycle, so nothing needs any attention</button>
+  <button class="opt">The skipped entry was this device's own log file, which every sync skips over by design</button>
+  <button class="opt">The corrupt peer was repaired automatically and will merge normally on the next sync run</button>
+  <p class="why"></p>
+</div>
+
+<script>
+// ---------- lifecycle debounce simulator ----------
+const DEBOUNCE = 5;
+let simT = 0, simTimer = null, simSyncs = 0, simBusy = false;
+function simRender() {
+  document.getElementById('sim-t').textContent = simT;
+  document.getElementById('sim-timer').textContent =
+    simTimer === null ? 'none' : simTimer + ' s left';
+  document.getElementById('sim-count').textContent = simSyncs;
+}
+function simLog(msg, cls) {
+  const log = document.getElementById('sim-log');
+  const line = document.createElement('div');
+  line.textContent = 't=' + simT + 's  ' + msg;
+  if (cls) line.style.color = 'var(--' + cls + ')';
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+function simSync(reason) {
+  simSyncs++;
+  simLog('SYNC fires (' + reason + ') → pull-merge-push', 'ok');
+}
+function simEvent(state) {
+  if (state === 'paused') {
+    if (simTimer !== null) { simTimer = null; simLog('pending timer cancelled'); }
+    simLog('lifecycle: paused → immediate sync');
+    simSync('paused');
+  } else if (state === 'inactive' || state === 'hidden') {
+    simLog('lifecycle: ' + state + ' → debounce timer (re)set to ' + DEBOUNCE + ' s');
+    simTimer = DEBOUNCE;
+  } else {
+    simLog('lifecycle: resumed → no-op (an armed timer keeps running)');
+  }
+  simRender();
+}
+function simTick() {
+  simT++;
+  if (simTimer !== null) {
+    simTimer--;
+    if (simTimer <= 0) { simTimer = null; simSync('debounce elapsed'); }
+  }
+  simRender();
+}
+function simReset() {
+  simT = 0; simTimer = null; simSyncs = 0;
+  document.getElementById('sim-log').textContent = '';
+  simRender();
+}
+simRender();
+
+// ---------- sync message builder ----------
+function msgSim() {
+  const states = [document.getElementById('peer1').value,
+                  document.getElementById('peer2').value];
+  const merged = states.filter(s => s === 'ok').length;
+  const skipped = states.filter(s => s !== 'ok').length;
+  let msg = 'merged ' + merged + ' device(s)';
+  if (skipped > 0) msg += ', skipped ' + skipped + ' unreadable file(s)';
+  document.getElementById('msg-out').textContent = 'Synced at 18:00:35 · ' + msg;
+  document.getElementById('msg-note').textContent = skipped > 0
+    ? 'Before this change the message would have claimed plain "merged ' + merged +
+      ' device(s)" — indistinguishable from a healthy fleet.'
+    : 'All peers decoded — nothing skipped, nothing to warn about.';
+}
+msgSim();
+
+// ---------- quiz ----------
+const RATIONALE = [
+  'All three silences were UI-level: catch (_) in _autoSync, a bare continue for bad peer files, and no reliable desktop trigger. The merge itself was fine.',
+  'Tolerance is unchanged — one bad file never aborts the cycle — but the skip is now reported in SyncResult.skippedFiles instead of vanishing.',
+  'paused is the "about to be killed" signal on Android, so it pushes at once; inactive/hidden fire on every focus flicker, hence the 5 s debounce.',
+  '_recordSyncStatus writes sync.lastTime/lastOk/lastDetail to SharedPreferences; _restoreSyncStatus reloads them in initState, so a pre-shutdown failure survives.',
+  'A skipped file means a listed device was left out of the merge — exactly the condition that caused the 39-vs-30 split, now made visible.'
+];
+let answered = 0, correct = 0;
+document.querySelectorAll('.q').forEach((q, qi) => {
+  const right = parseInt(q.dataset.correct, 10);
+  const opts = q.querySelectorAll('.opt');
+  opts.forEach((opt, oi) => {
+    opt.addEventListener('click', () => {
+      if (q.dataset.done) return;
+      q.dataset.done = '1';
+      answered++;
+      if (oi === right) { opt.classList.add('right'); correct++; }
+      else { opt.classList.add('wrong'); opts[right].classList.add('right'); }
+      const why = q.querySelector('.why');
+      why.textContent = RATIONALE[qi];
+      why.style.display = 'block';
+      document.getElementById('score').textContent = correct + ' / ' + answered;
+    });
+  });
+});
+</script>
+</body>
+</html>
