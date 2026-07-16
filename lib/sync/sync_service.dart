@@ -4,7 +4,11 @@ import '../data/note_repository.dart';
 
 /// Outcome of a sync run, for surfacing in the UI.
 class SyncResult {
-  const SyncResult({required this.mergedDevices, required this.pushed});
+  const SyncResult({
+    required this.mergedDevices,
+    required this.pushed,
+    this.skippedFiles = const [],
+  });
 
   /// How many other devices' logs were pulled and merged.
   final int mergedDevices;
@@ -12,9 +16,15 @@ class SyncResult {
   /// Whether this device pushed its own log.
   final bool pushed;
 
+  /// Peer files that were listed but could not be fetched or decoded
+  /// (vanished, corrupt, or foreign format) and were left out of the merge.
+  /// Surfaced so a device silently dropping out of sync is visible.
+  final List<String> skippedFiles;
+
   @override
   String toString() =>
-      'SyncResult(mergedDevices: $mergedDevices, pushed: $pushed)';
+      'SyncResult(mergedDevices: $mergedDevices, pushed: $pushed, '
+      'skippedFiles: $skippedFiles)';
 }
 
 /// Synchronises a [NoteRepository] with a GitHub repo used as dumb storage.
@@ -43,12 +53,18 @@ class SyncService {
     // 1. Pull: list all device log files, merge everyone else's.
     final names = await github.listDirectory(notesDir);
     var merged = 0;
+    final skipped = <String>[];
     for (final name in names) {
       if (name == ownFileName) continue; // our own file; skip it.
       final text = await github.getFileText('$notesDir/$name');
-      if (text == null) continue;
-      final remote = _decodeLog(text);
-      if (remote == null) continue; // Skip a corrupt/foreign file.
+      final remote = text == null ? null : _decodeLog(text);
+      if (remote == null) {
+        // A vanished or undecodable peer file must not abort the sync, but
+        // it must not vanish silently either — that's how a device drops
+        // out of sync unnoticed. Report it in the result instead.
+        skipped.add(name);
+        continue;
+      }
       await repo.importLog(remote);
       merged++;
     }
@@ -61,7 +77,11 @@ class SyncService {
       message: 'sync: $nodeId @ ${DateTime.now().toUtc().toIso8601String()}',
     );
 
-    return SyncResult(mergedDevices: merged, pushed: true);
+    return SyncResult(
+      mergedDevices: merged,
+      pushed: true,
+      skippedFiles: skipped,
+    );
   }
 
   /// Parses a remote note log, returning `null` for a corrupt or wrong-shape

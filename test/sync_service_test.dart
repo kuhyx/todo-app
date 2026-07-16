@@ -128,5 +128,28 @@ void main() {
     final result = await const SyncService().sync(local, _github(httpClient));
     expect(result.mergedDevices, 0); // both bad files skipped
     expect(putCalls, hasLength(1));
+    // The skips are reported, not silent: that's how a peer device dropping
+    // out of the merge becomes visible in the UI.
+    expect(result.skippedFiles, ['bad1.json', 'bad2.json']);
+    expect(result.toString(), contains('bad1.json'));
+  });
+
+  test('a listed-but-unfetchable peer file is reported as skipped', () async {
+    // The file appears in the directory listing but its GET 404s (deleted
+    // between list and fetch, or contents unavailable).
+    final (:httpClient, :putCalls) = _mockGitHub(
+      contentResponses: {
+        'todo-sync/notes': _response(200, [
+          {'name': 'gone.json'},
+        ]),
+      },
+    );
+    final local = await NoteRepository.openInMemory(nodeId: 'localNode');
+    addTearDown(local.close);
+
+    final result = await const SyncService().sync(local, _github(httpClient));
+    expect(result.mergedDevices, 0);
+    expect(result.skippedFiles, ['gone.json']);
+    expect(putCalls, hasLength(1)); // the push still happened
   });
 }

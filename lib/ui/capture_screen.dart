@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/note.dart';
@@ -42,6 +43,10 @@ class CaptureScreen extends StatefulWidget {
   /// Injectable local-disk backup. Production leaves this null (a platform
   /// file-backed instance is created); tests pass a fake with in-memory IO.
   final LocalBackup? localBackup;
+
+  /// How long focus must stay lost before a background sync fires. Public so
+  /// tests can pump exactly past it.
+  static const autoSyncDebounce = Duration(seconds: 5);
 
   @override
   State<CaptureScreen> createState() => _CaptureScreenState();
@@ -85,6 +90,19 @@ class _CaptureScreenState extends State<CaptureScreen>
   SyncSettings? _settings;
   bool _syncing = false;
 
+  /// Outcome of the most recent sync attempt (manual or automatic), driving
+  /// the tiny status line under the editor. Persisted so a failure that
+  /// happened just before the app closed is still visible on next launch.
+  final ValueNotifier<SyncStatus?> _lastSync = ValueNotifier<SyncStatus?>(null);
+
+  /// Debounces focus-loss sync triggers so desktop alt-tab flicker doesn't
+  /// hammer GitHub with a request per focus change.
+  Timer? _autoSyncDebounce;
+
+  static const _kLastSyncTime = 'sync.lastTime';
+  static const _kLastSyncOk = 'sync.lastOk';
+  static const _kLastSyncDetail = 'sync.lastDetail';
+
   /// Hides the Priority/Status row while the editor's own bare-guided chrome
   /// (template/mode selectors) is also hidden, so the two stay in lockstep.
   bool _chromeVisible = true;
@@ -106,6 +124,7 @@ class _CaptureScreenState extends State<CaptureScreen>
     // fires on writes), so a deleted/stale BACKLOG.md is regenerated even if
     // the user makes no edits this session.
     _localBackup.schedule();
+    _restoreSyncStatus();
     SyncSettings.load().then((s) {
       if (!mounted) return;
       setState(() => _settings = s);
@@ -116,10 +135,47 @@ class _CaptureScreenState extends State<CaptureScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _autoSyncDebounce?.cancel();
     _changesSub?.cancel();
     _localBackup.dispose();
     _lastSavedAt.dispose();
+    _lastSync.dispose();
     super.dispose();
+  }
+
+  /// Reloads the persisted last-sync outcome so the status line survives a
+  /// restart (a failure just before closing must not disappear).
+  Future<void> _restoreSyncStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final time = DateTime.tryParse(prefs.getString(_kLastSyncTime) ?? '');
+    if (!mounted || time == null || _lastSync.value != null) return;
+    _lastSync.value = SyncStatus(
+      time: time,
+      ok: prefs.getBool(_kLastSyncOk) ?? true,
+      detail: prefs.getString(_kLastSyncDetail) ?? '',
+    );
+  }
+
+  /// Records a sync outcome in the UI notifier and persists it.
+  Future<void> _recordSyncStatus({
+    required bool ok,
+    required String detail,
+  }) async {
+    final status = SyncStatus(time: DateTime.now(), ok: ok, detail: detail);
+    if (mounted) _lastSync.value = status;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kLastSyncTime, status.time.toIso8601String());
+    await prefs.setBool(_kLastSyncOk, ok);
+    await prefs.setString(_kLastSyncDetail, detail);
+  }
+
+  /// Human-readable one-liner for a sync outcome, shared by the snackbar and
+  /// the status line. Skipped files are called out so a peer device silently
+  /// dropping out of the merge is visible.
+  static String _describe(SyncResult result) {
+    final skipped = result.skippedFiles.length;
+    return 'merged ${result.mergedDevices} device(s)'
+        '${skipped == 0 ? '' : ', skipped $skipped unreadable file(s)'}';
   }
 
   /// Restores notes from the local backup file, but only into an empty DB so a
@@ -161,12 +217,23 @@ class _CaptureScreenState extends State<CaptureScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Push on background so the remote (the durable store) stays near-current.
-    if (state == AppLifecycleState.paused) _autoSync();
+    if (state == AppLifecycleState.paused) {
+      // Immediate: Android may kill the app before a debounce timer fires.
+      _autoSyncDebounce?.cancel();
+      _autoSync();
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      // Focus loss — the only background signal Flutter Linux delivers
+      // reliably (`paused` rarely arrives on desktop). Debounced so alt-tab
+      // flicker doesn't fire a request per focus change.
+      _autoSyncDebounce?.cancel();
+      _autoSyncDebounce = Timer(CaptureScreen.autoSyncDebounce, _autoSync);
+    }
   }
 
-  /// Best-effort background sync: silent, skips when unconfigured, and never
-  /// overlaps itself. Failures are swallowed — the manual Sync button is the
-  /// place that surfaces errors.
+  /// Best-effort background sync: no snackbar, skips when unconfigured, and
+  /// never overlaps itself. Failures are not swallowed silently — the outcome
+  /// lands in the status line so drift can't go unnoticed for days.
   Future<void> _autoSync() async {
     final settings = _settings;
     if (_autoSyncing || settings == null || !settings.isConfigured) return;
@@ -178,9 +245,12 @@ class _CaptureScreenState extends State<CaptureScreen>
       httpClient: widget.httpClient,
     );
     try {
-      await _syncService.sync(widget.repository, client);
-    } catch (_) {
-      // Best-effort: ignore (offline, transient GitHub errors, etc.).
+      final result = await _syncService.sync(widget.repository, client);
+      await _recordSyncStatus(ok: true, detail: _describe(result));
+    } catch (e) {
+      // Offline or a transient GitHub error: still no snackbar (this path
+      // must never interrupt capture), but the status line shows it.
+      await _recordSyncStatus(ok: false, detail: '$e');
     } finally {
       client.close();
       _autoSyncing = false;
@@ -233,8 +303,11 @@ class _CaptureScreenState extends State<CaptureScreen>
     );
     try {
       final result = await _syncService.sync(widget.repository, client);
-      _showSnack('Synced: merged ${result.mergedDevices} device(s)');
+      final detail = _describe(result);
+      await _recordSyncStatus(ok: true, detail: detail);
+      _showSnack('Synced: $detail');
     } catch (e) {
+      await _recordSyncStatus(ok: false, detail: '$e');
       _showSnack('Sync failed: $e');
     } finally {
       client.close();
@@ -419,17 +492,37 @@ class _CaptureScreenState extends State<CaptureScreen>
               ),
             ),
             const SizedBox(height: 8),
-            // Leave room so the Save FAB doesn't cover the save indicator.
+            // Leave room so the Save FAB doesn't cover the indicators.
             Padding(
               padding: const EdgeInsets.only(right: 96),
-              child: ValueListenableBuilder<DateTime?>(
-                valueListenable: _lastSavedAt,
-                builder: (context, savedAt, _) => Text(
-                  savedAt == null
-                      ? 'Autosaves as you type'
-                      : 'Saved locally at ${_formatTime(savedAt)}',
-                  style: theme.textTheme.bodySmall,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ValueListenableBuilder<DateTime?>(
+                    valueListenable: _lastSavedAt,
+                    builder: (context, savedAt, _) => Text(
+                      savedAt == null
+                          ? 'Autosaves as you type'
+                          : 'Saved locally at ${_formatTime(savedAt)}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  ValueListenableBuilder<SyncStatus?>(
+                    valueListenable: _lastSync,
+                    builder: (context, status, _) {
+                      if (status == null) return const SizedBox.shrink();
+                      return Text(
+                        '${status.ok ? 'Synced' : 'Sync failed'} at '
+                        '${_formatTime(status.time)} · ${status.detail}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: status.ok ? null : theme.colorScheme.error,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -450,6 +543,24 @@ class _CaptureScreenState extends State<CaptureScreen>
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
   }
+}
+
+/// Outcome of a sync attempt, shown in the capture screen's status line.
+class SyncStatus {
+  const SyncStatus({
+    required this.time,
+    required this.ok,
+    required this.detail,
+  });
+
+  /// When the attempt finished.
+  final DateTime time;
+
+  /// Whether the sync succeeded.
+  final bool ok;
+
+  /// One-line summary: merged/skipped counts on success, the error otherwise.
+  final String detail;
 }
 
 /// A compact labelled dropdown for picking an enum value (priority/status).

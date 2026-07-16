@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -234,7 +236,40 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Sync failed'), findsOneWidget);
+    // 'Sync failed:' is the snackbar; the status line says 'Sync failed at'.
+    expect(find.textContaining('Sync failed:'), findsOneWidget);
+    expect(find.textContaining('Sync failed at'), findsOneWidget);
+  });
+
+  testWidgets('manual sync reports peer files it could not decode', (
+    tester,
+  ) async {
+    // One peer file exists but holds garbage → merged 0, skipped 1.
+    final mock = MockClient((req) async {
+      if (req.method == 'PUT') return http.Response('{}', 200);
+      if (!req.url.path.contains('/contents/')) return http.Response('{}', 200);
+      if (req.url.path.endsWith('/todo-sync/notes')) {
+        return http.Response('[{"name": "bad.json"}]', 200);
+      }
+      if (req.url.path.endsWith('/bad.json')) {
+        return http.Response(
+          '{"content": "${base64Encode(utf8.encode('{not a log'))}"}',
+          200,
+        );
+      }
+      return http.Response('', 404); // own-file sha probe → create fresh
+    });
+    await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
+
+    await tester.tap(find.byTooltip('Sync'));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.textContaining('skipped 1 unreadable file(s)'),
+      findsWidgets, // snackbar and status line both call it out
+    );
   });
 
   testWidgets('returning from settings adopts the saved configuration', (
@@ -311,14 +346,79 @@ void main() {
     expect(methods, contains('PUT'));
   });
 
-  testWidgets('auto-sync failure is silent (no snackbar)', (tester) async {
+  testWidgets('auto-sync failure shows no snackbar but flags the status line', (
+    tester,
+  ) async {
     final mock = MockClient((_) async => throw Exception('offline'));
     await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Sync failed'), findsNothing);
-    expect(find.textContaining('Synced'), findsNothing);
+    // Capture must never be interrupted by a snackbar…
+    expect(find.byType(SnackBar), findsNothing);
+    // …but the failure is no longer swallowed: the status line shows it.
+    expect(find.textContaining('Sync failed at'), findsOneWidget);
+    expect(find.textContaining('offline'), findsOneWidget);
+  });
+
+  testWidgets('auto-sync success shows when and what was merged', (
+    tester,
+  ) async {
+    final methods = <String>[];
+    await pumpCapture(
+      tester,
+      prefs: configuredPrefs,
+      httpClient: recordingMock(methods),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('Synced at'), findsOneWidget);
+    expect(find.textContaining('merged 0 device(s)'), findsOneWidget);
+  });
+
+  testWidgets('restores the last sync outcome on launch', (tester) async {
+    // Unconfigured (no token) so no launch auto-sync overwrites the restored
+    // status. A failure recorded on a previous run must still be visible.
+    await pumpCapture(
+      tester,
+      prefs: {
+        'sync.lastTime': DateTime(2026, 7, 16, 12).toIso8601String(),
+        'sync.lastOk': false,
+        'sync.lastDetail': 'Exception: rate limited',
+      },
+    );
+    await tester.pump();
+
+    expect(find.textContaining('Sync failed at 12:00:00'), findsOneWidget);
+    expect(find.textContaining('rate limited'), findsOneWidget);
+  });
+
+  testWidgets('losing focus triggers a debounced auto-sync', (tester) async {
+    final methods = <String>[];
+    await pumpCapture(
+      tester,
+      prefs: configuredPrefs,
+      httpClient: recordingMock(methods),
+    );
+    await tester.pump();
+    await tester.pump();
+    methods.clear();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    // A second signal (hidden also counts as focus loss) resets the debounce
+    // instead of double-firing.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    await tester.pump(
+      CaptureScreen.autoSyncDebounce - const Duration(seconds: 1),
+    );
+    expect(methods, isEmpty); // still inside the debounce window
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    await tester.pump();
+
+    expect(methods, contains('PUT'));
   });
 
   testWidgets('recovers notes from the local backup into an empty DB', (
