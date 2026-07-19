@@ -36,6 +36,11 @@ license=('custom')
 depends=('gtk3')
 conflicts=('todo')
 replaces=('todo')
+# Flutter release binaries are already stripped/AOT-compiled with no
+# extractable DWARF debug info, so a split -debug package is pointless here
+# and gdb-add-index just fails noisily on every binary. Skip it, overriding
+# the system-wide 'debug' OPTIONS setting.
+options=('!debug')
 
 package() {
     install -dm755 "\$pkgdir/opt/todo"
