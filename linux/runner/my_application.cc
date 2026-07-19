@@ -54,6 +54,11 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1280, 720);
 
+  // Resolved from the hicolor icon theme, which linux/install_desktop_entry.sh
+  // populates from linux/icons/. Without this the GTK runner shows a generic
+  // placeholder in the taskbar, since Flutter never sets a window icon itself.
+  gtk_window_set_icon_name(window, "todo");
+
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
