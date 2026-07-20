@@ -42,7 +42,7 @@ class LegacySqliteMigration {
     final log = <String, Record>{};
     for (final row in rows) {
       final note = Note.fromRow(row);
-      log[note.id] = NoteRepository.legacyRecordFor(
+      log[note.id] = NoteRepository.recordAtNoteTime(
         note,
         nodeId,
         deleted: (row['is_deleted'] as int? ?? 0) != 0,

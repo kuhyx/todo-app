@@ -243,6 +243,29 @@ void main() {
   });
 
   group('importNotes (safe merge)', () {
+    test('restores at the note\'s own edit time, not "now"', () async {
+      // Regression guard. Recovery used to stamp fresh clocks on every
+      // restored note, so a device that recovered from a backup outranked
+      // every other device under per-field last-writer-wins and silently
+      // overwrote newer edits made elsewhere. Observed for real: a restored
+      // desktop rewrote 245 of 330 field clocks to "now".
+      final repo = await NoteRepository.openInMemory();
+      addTearDown(repo.close);
+      final edited = DateTime(2026, 3, 4, 5, 6, 7);
+
+      await repo.importNotes([
+        note('restored', 'from a backup', createdAt: edited, updatedAt: edited),
+      ]);
+
+      final field = repo.exportLog()['restored']!.fields['text']!;
+      expect(
+        field.$2.wallTimeMs,
+        edited.millisecondsSinceEpoch,
+        reason: 'clock must come from updatedAt so a restore cannot outrank '
+            'genuinely newer data on another device',
+      );
+    });
+
     test('adds notes whose id is not present locally', () async {
       final repo = await NoteRepository.openInMemory();
       addTearDown(repo.close);

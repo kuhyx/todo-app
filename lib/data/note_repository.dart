@@ -115,14 +115,20 @@ class NoteRepository {
     return NoteRepository._(store, nodeId);
   }
 
-  /// Builds the record for one migrated legacy note, tombstones included.
+  /// Builds a record whose field clocks come from the note's own `updatedAt`
+  /// rather than from "now".
   ///
-  /// Each note's field clocks are seeded from its own `updated_at`, not "now",
-  /// so that when two devices migrate independently, a pre-cutover edit still
-  /// wins by real edit time under per-field last-writer-wins instead of being
-  /// resolved arbitrarily. Public because the migration that calls it lives in
-  /// the io-only library, which cannot reach private members here.
-  static Record legacyRecordFor(
+  /// Used by every path that *restores* notes the user already had — the
+  /// legacy sqlite migration, backup recovery, and file import. Stamping "now"
+  /// there is actively harmful: under per-field last-writer-wins, a restored
+  /// copy would outrank the same note on every other device, so a device that
+  /// recovered from a backup would silently overwrite newer edits made
+  /// elsewhere. Seeding from real edit time makes a restore lose to genuinely
+  /// newer data, which is what a restore should do.
+  ///
+  /// Public because the legacy migration lives in an io-only library that
+  /// cannot reach private members here.
+  static Record recordAtNoteTime(
     Note note,
     String nodeId, {
     bool deleted = false,
@@ -169,11 +175,15 @@ class NoteRepository {
     var skipped = 0;
     for (final note in incoming) {
       final local = existing[note.id];
+      // Restore at the note's own edit time, never "now" — see
+      // [recordAtNoteTime]. The freshness check above is what decides whether
+      // the import wins locally; the clock decides whether it wins on *other*
+      // devices, and an import must not win there simply by being recent.
       if (local == null) {
-        await upsert(note);
+        await _store.upsert(recordAtNoteTime(note, _nodeId));
         added++;
       } else if (note.updatedAt.isAfter(local.updatedAt)) {
-        await upsert(note);
+        await _store.upsert(recordAtNoteTime(note, _nodeId));
         updated++;
       } else {
         skipped++;
