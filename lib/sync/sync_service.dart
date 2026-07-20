@@ -1,9 +1,10 @@
 import 'package:crdt_sync/crdt_sync.dart';
 
-import '../data/note_repository.dart';
+import 'package:todo/data/note_repository.dart';
 
 /// Outcome of a sync run, for surfacing in the UI.
 class SyncResult {
+  /// Creates a [SyncResult] from a completed sync run's outcome.
   const SyncResult({
     required this.mergedDevices,
     required this.pushed,
@@ -40,6 +41,7 @@ class SyncResult {
 /// format changed from a `sqlite_crdt` changeset to a crdt_sync `Log`, so the
 /// two never share a path and an old client can't misread a new file.
 class SyncService {
+  /// Creates a [SyncService], optionally overriding [notesDir].
   const SyncService({this.notesDir = 'todo-sync/notes'});
 
   /// Directory in the repo under which per-device note-log files live.
@@ -91,7 +93,13 @@ class SyncService {
       return logFromJson(text);
     } on FormatException {
       return null;
-    } on TypeError {
+    }
+    // crdt_sync's logFromJson throws a raw TypeError (not a custom
+    // exception) for a wrong-shape JSON payload from an untrusted peer
+    // file; must be caught too so one bad device file never aborts the
+    // whole sync (see doc comment above).
+    // ignore: avoid_catching_errors
+    on TypeError {
       return null;
     }
   }

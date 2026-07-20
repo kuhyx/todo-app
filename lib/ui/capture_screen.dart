@@ -1,22 +1,21 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo/data/note.dart';
+import 'package:todo/data/note_repository.dart';
+import 'package:todo/data/note_template.dart';
+import 'package:todo/sync/local_backup.dart';
+import 'package:todo/sync/sync_service.dart';
+import 'package:todo/sync/sync_settings.dart';
+import 'package:todo/ui/note_editor.dart';
+import 'package:todo/ui/notes_list_screen.dart';
+import 'package:todo/ui/settings_screen.dart';
 import 'package:uuid/uuid.dart';
-
-import '../data/note.dart';
-import '../data/note_repository.dart';
-import '../data/note_template.dart';
-import 'package:crdt_sync/crdt_sync.dart';
-import '../sync/local_backup.dart';
-import '../sync/sync_service.dart';
-import '../sync/sync_settings.dart';
-import 'note_editor.dart';
-import 'notes_list_screen.dart';
-import 'settings_screen.dart';
 
 /// The landing screen: an always-focused text box for jotting an idea.
 ///
@@ -26,6 +25,7 @@ import 'settings_screen.dart';
 /// action finalises the current idea and clears the field for the next
 /// one (remote sync will hook in here later).
 class CaptureScreen extends StatefulWidget {
+  /// Creates a [CaptureScreen] backed by [repository].
   const CaptureScreen({
     required this.repository,
     this.httpClient,
@@ -33,6 +33,7 @@ class CaptureScreen extends StatefulWidget {
     super.key,
   });
 
+  /// The store the captured note is persisted to on every keystroke.
   final NoteRepository repository;
 
   /// Injectable HTTP client for the sync path. Production leaves this null
@@ -116,7 +117,7 @@ class _CaptureScreenState extends State<CaptureScreen>
     // Recover from the local backup first (covers an empty DB after a wipe),
     // then keep the backup current as notes change. The change tick is O(1) per
     // write; the backup pulls the notes itself only when its debounce fires.
-    _recoverFromBackup();
+    unawaited(_recoverFromBackup());
     _changesSub = widget.repository.changes.listen(
       (_) => _localBackup.schedule(),
     );
@@ -124,19 +125,22 @@ class _CaptureScreenState extends State<CaptureScreen>
     // fires on writes), so a deleted/stale BACKLOG.md is regenerated even if
     // the user makes no edits this session.
     _localBackup.schedule();
-    _restoreSyncStatus();
-    SyncSettings.load().then((s) {
-      if (!mounted) return;
-      setState(() => _settings = s);
-      _autoSync(); // pull on launch so a reinstalled device recovers its notes
-    });
+    unawaited(_restoreSyncStatus());
+    unawaited(
+      SyncSettings.load().then((s) {
+        if (!mounted) return;
+        setState(() => _settings = s);
+        // Pull on launch so a reinstalled device recovers its notes.
+        unawaited(_autoSync());
+      }),
+    );
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _autoSyncDebounce?.cancel();
-    _changesSub?.cancel();
+    unawaited(_changesSub?.cancel());
     _localBackup.dispose();
     _lastSavedAt.dispose();
     _lastSync.dispose();
@@ -220,7 +224,7 @@ class _CaptureScreenState extends State<CaptureScreen>
     if (state == AppLifecycleState.paused) {
       // Immediate: Android may kill the app before a debounce timer fires.
       _autoSyncDebounce?.cancel();
-      _autoSync();
+      unawaited(_autoSync());
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
       // Focus loss — the only background signal Flutter Linux delivers
@@ -247,7 +251,7 @@ class _CaptureScreenState extends State<CaptureScreen>
     try {
       final result = await _syncService.sync(widget.repository, client);
       await _recordSyncStatus(ok: true, detail: _describe(result));
-    } catch (e) {
+    } on Exception catch (e) {
       // Offline or a transient GitHub error: still no snackbar (this path
       // must never interrupt capture), but the status line shows it.
       await _recordSyncStatus(ok: false, detail: '$e');
@@ -279,9 +283,11 @@ class _CaptureScreenState extends State<CaptureScreen>
   }
 
   void _openList() {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => NotesListScreen(repository: widget.repository),
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => NotesListScreen(repository: widget.repository),
+        ),
       ),
     );
   }
@@ -306,7 +312,7 @@ class _CaptureScreenState extends State<CaptureScreen>
       final detail = _describe(result);
       await _recordSyncStatus(ok: true, detail: detail);
       _showSnack('Synced: $detail');
-    } catch (e) {
+    } on Exception catch (e) {
       await _recordSyncStatus(ok: false, detail: '$e');
       _showSnack('Sync failed: $e');
     } finally {
@@ -547,6 +553,7 @@ class _CaptureScreenState extends State<CaptureScreen>
 
 /// Outcome of a sync attempt, shown in the capture screen's status line.
 class SyncStatus {
+  /// Creates a [SyncStatus] from a completed sync attempt's outcome.
   const SyncStatus({
     required this.time,
     required this.ok,

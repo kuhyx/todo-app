@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../data/note.dart';
-import '../data/note_template.dart';
-import 'markdown_view.dart';
+import 'package:todo/data/note.dart';
+import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/markdown_view.dart';
 
 /// Which view of the note the editor is currently showing.
 enum NoteEditorMode {
@@ -40,6 +40,7 @@ enum NoteEditorMode {
 /// to return to Raw); [onChromeVisibleChanged] tells the parent screen to
 /// hide its own priority/status row in sync.
 class NoteEditor extends StatefulWidget {
+  /// Creates a [NoteEditor] with the given callbacks and initial state.
   const NoteEditor({
     required this.onChanged,
     required this.priority,
@@ -184,7 +185,7 @@ class _NoteEditorState extends State<NoteEditor> {
   /// Ensures a controller exists for every section of [template].
   void _ensureControllers(NoteTemplate template) {
     for (final s in template.sections) {
-      _section.putIfAbsent(s.key, () => TextEditingController());
+      _section.putIfAbsent(s.key, TextEditingController.new);
     }
   }
 
@@ -349,7 +350,6 @@ class _NoteEditorState extends State<NoteEditor> {
       children: [
         DropdownButtonFormField<String>(
           initialValue: _template.id,
-          isDense: true,
           decoration: const InputDecoration(
             labelText: 'Template',
             isDense: true,
@@ -434,7 +434,6 @@ class _NoteEditorState extends State<NoteEditor> {
     return [
       DropdownButtonFormField<Priority>(
         initialValue: _wizardPriority,
-        isDense: true,
         decoration: const InputDecoration(
           labelText: 'Priority',
           isDense: true,
@@ -465,7 +464,6 @@ class _NoteEditorState extends State<NoteEditor> {
     return [
       DropdownButtonFormField<String>(
         initialValue: _wizardTemplate.id,
-        isDense: true,
         decoration: const InputDecoration(
           labelText: 'Template',
           isDense: true,

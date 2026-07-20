@@ -25,10 +25,11 @@ Future<void> main() async {
     exit(1);
   }
   final dc = jsonDecode(code.body) as Map<String, dynamic>;
-  stdout.writeln(
-    '>>> Open ${dc['verification_uri']} and enter: ${dc['user_code']}',
-  );
-  stdout.writeln('Polling for the token...');
+  stdout
+    ..writeln(
+      '>>> Open ${dc['verification_uri']} and enter: ${dc['user_code']}',
+    )
+    ..writeln('Polling for the token...');
 
   final deviceCode = dc['device_code'] as String;
   var interval = (dc['interval'] as int?) ?? 5;
@@ -59,12 +60,13 @@ Future<void> main() async {
           'User-Agent': 'todo-app-sync',
         },
       );
-      stdout.writeln('repo $_owner/$_repo access status: ${repo.statusCode}');
-      stdout.writeln(
-        repo.statusCode == 200
-            ? 'CHAIN OK — device flow + token + repo access all work.'
-            : 'TOKEN CANNOT READ REPO: ${repo.body}',
-      );
+      stdout
+        ..writeln('repo $_owner/$_repo access status: ${repo.statusCode}')
+        ..writeln(
+          repo.statusCode == 200
+              ? 'CHAIN OK — device flow + token + repo access all work.'
+              : 'TOKEN CANNOT READ REPO: ${repo.body}',
+        );
       exit(repo.statusCode == 200 ? 0 : 2);
     }
     switch (body['error'] as String?) {

@@ -9,8 +9,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'data/note_repository.dart';
-import 'ui/capture_screen.dart';
+import 'package:todo/data/note_repository.dart';
+import 'package:todo/ui/capture_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,8 +31,10 @@ Future<void> main() async {
 /// Root widget. Holds the single [NoteRepository] instance and hands it
 /// to the screens that need it.
 class TodoApp extends StatelessWidget {
+  /// Creates a [TodoApp] wrapping the given [repository].
   const TodoApp({required this.repository, super.key});
 
+  /// The single, app-wide note store, injected into every screen.
   final NoteRepository repository;
 
   @override

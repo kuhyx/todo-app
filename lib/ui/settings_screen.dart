@@ -1,19 +1,19 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:todo/data/note_repository.dart';
+import 'package:todo/sync/github_device_auth.dart';
+import 'package:todo/sync/notes_markdown.dart';
+import 'package:todo/sync/sync_service.dart';
+import 'package:todo/sync/sync_settings.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import '../data/note_repository.dart';
-import 'package:crdt_sync/crdt_sync.dart';
-import '../sync/github_device_auth.dart';
-import '../sync/notes_markdown.dart';
-import '../sync/sync_service.dart';
-import '../sync/sync_settings.dart';
 
 /// Settings screen for GitHub sync configuration and note backup.
 ///
@@ -22,6 +22,7 @@ import '../sync/sync_settings.dart';
 /// remains as a fallback. The Backup section exports/imports all notes as a
 /// single Markdown file (see [NotesMarkdown]).
 class SettingsScreen extends StatefulWidget {
+  /// Creates a [SettingsScreen] pre-filled with [initial] settings.
   const SettingsScreen({
     required this.initial,
     required this.repository,
@@ -29,7 +30,10 @@ class SettingsScreen extends StatefulWidget {
     super.key,
   });
 
+  /// The sync settings loaded when this screen was opened.
   final SyncSettings initial;
+
+  /// The store backup export/import reads from and writes to.
   final NoteRepository repository;
 
   /// Optional HTTP client for the GitHub calls (test-connection and device
@@ -100,7 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await _current.save();
         await _syncAfterConnect();
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (mounted) setState(() => _status = 'Could not start device flow: $e');
     } finally {
       auth.close();
@@ -126,7 +130,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'device(s)). Your notes are up to date.',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (mounted) setState(() => _status = 'Connected, but sync failed: $e');
     } finally {
       client.close();
@@ -152,7 +156,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? 'Connected — repo is reachable.'
             : 'Could not access ${s.owner}/${s.repo}. Check token scope.',
       );
-    } catch (e) {
+    } on Exception catch (e) {
       setState(() => _status = 'Error: $e');
     } finally {
       client.close();
@@ -201,7 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           );
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (mounted) setState(() => _status = 'Export failed: $e');
     }
   }
@@ -231,7 +235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               '${outcome.updated} updated, ${outcome.skipped} unchanged',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       if (mounted) setState(() => _status = 'Import failed: $e');
     }
   }
@@ -382,14 +386,14 @@ class _DeviceCodeDialogState extends State<_DeviceCodeDialog> {
   @override
   void initState() {
     super.initState();
-    _poll();
+    unawaited(_poll());
   }
 
   Future<void> _poll() async {
     try {
       final token = await widget.auth.pollForToken(widget.device);
       if (mounted) Navigator.of(context).pop(token);
-    } catch (e) {
+    } on Exception catch (e) {
       if (mounted) setState(() => _error = '$e');
     }
   }

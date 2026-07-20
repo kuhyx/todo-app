@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../data/note.dart';
-import '../data/note_repository.dart';
-import '../data/note_template.dart';
-import 'note_editor.dart';
+import 'package:todo/data/note.dart';
+import 'package:todo/data/note_repository.dart';
+import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/note_editor.dart';
 
 /// Full-screen view of a single note: read it in full, edit its body through
 /// the guided [NoteEditor], change its priority/status, or delete it.
@@ -12,13 +12,17 @@ import 'note_editor.dart';
 /// there is no explicit save button. The template is detected from the note's
 /// text, falling back to a raw editor for freeform/legacy notes.
 class NoteDetailScreen extends StatefulWidget {
+  /// Creates a [NoteDetailScreen] editing [note].
   const NoteDetailScreen({
     required this.note,
     required this.repository,
     super.key,
   });
 
+  /// The note being viewed/edited.
   final Note note;
+
+  /// The store edits persist to.
   final NoteRepository repository;
 
   @override
@@ -134,7 +138,6 @@ class _MetaDropdown<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
       initialValue: value,
-      isDense: true,
       decoration: InputDecoration(
         labelText: label,
         isDense: true,

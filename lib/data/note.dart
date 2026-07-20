@@ -11,8 +11,13 @@ library;
 /// Every note always has a priority (there is no "none"); [medium] is the
 /// default. Stored as the integer [value] so ordering is trivial in SQL.
 enum Priority {
+  /// Lowest priority tier.
   low(1, 'Low'),
+
+  /// Default priority tier for a new note.
   medium(2, 'Medium'),
+
+  /// Highest priority tier.
   high(3, 'High');
 
   const Priority(this.value, this.label);
@@ -42,9 +47,16 @@ enum Priority {
 /// Stored as the integer [value]. [todo] is the default (0) so existing
 /// notes created before this field existed read back as "to do".
 enum Status {
+  /// Default status for a new or legacy note.
   todo(0, 'To do'),
+
+  /// Actively being worked on.
   inProgress(1, 'In progress'),
+
+  /// Finished.
   done(2, 'Done'),
+
+  /// Deliberately dropped, not finished.
   abandoned(3, 'Abandoned');
 
   const Status(this.value, this.label);
@@ -67,6 +79,7 @@ enum Status {
 
 /// An immutable idea/note record.
 class Note {
+  /// Creates a [Note] from its stored fields.
   const Note({
     required this.id,
     required this.text,
@@ -75,6 +88,21 @@ class Note {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  /// Builds a [Note] from a raw CRDT query row.
+  ///
+  /// Timestamps are stored as ISO-8601 strings for human-readable,
+  /// lexicographically sortable values.
+  factory Note.fromRow(Map<String, Object?> row) {
+    return Note(
+      id: row['id']! as String,
+      text: (row['text'] as String?) ?? '',
+      priority: Priority.fromValue(row['priority'] as int?),
+      status: Status.fromValue(row['status'] as int?),
+      createdAt: DateTime.parse(row['created_at']! as String),
+      updatedAt: DateTime.parse(row['updated_at']! as String),
+    );
+  }
 
   /// Stable unique id (UUID v4). Also the CRDT primary key.
   final String id;
@@ -93,21 +121,6 @@ class Note {
 
   /// When the note's content was last modified locally.
   final DateTime updatedAt;
-
-  /// Builds a [Note] from a raw CRDT query row.
-  ///
-  /// Timestamps are stored as ISO-8601 strings for human-readable,
-  /// lexicographically sortable values.
-  factory Note.fromRow(Map<String, Object?> row) {
-    return Note(
-      id: row['id'] as String,
-      text: (row['text'] as String?) ?? '',
-      priority: Priority.fromValue(row['priority'] as int?),
-      status: Status.fromValue(row['status'] as int?),
-      createdAt: DateTime.parse(row['created_at'] as String),
-      updatedAt: DateTime.parse(row['updated_at'] as String),
-    );
-  }
 
   /// Returns a copy with selected fields replaced.
   Note copyWith({

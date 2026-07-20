@@ -1,6 +1,5 @@
+import 'package:todo/data/note.dart';
 import 'package:uuid/uuid.dart';
-
-import '../data/note.dart';
 
 /// Serialises notes to (and parses them back from) a single Markdown file.
 ///

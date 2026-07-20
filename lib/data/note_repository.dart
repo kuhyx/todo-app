@@ -8,15 +8,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Only SqliteCrdt/CrdtTableExecutor are needed for the legacy-DB migration;
 // hide its Hlc so the crdt_sync Hlc (the store's clock type) is unambiguous.
 import 'package:sqlite_crdt/sqlite_crdt.dart' hide Hlc;
+import 'package:todo/data/note.dart';
 import 'package:uuid/uuid.dart';
 
-import 'note.dart';
-
 /// How the history list should be ordered.
-enum NoteSort { createdDesc, modifiedDesc, alphabetical, priorityDesc }
+enum NoteSort {
+  /// Newest created first.
+  createdDesc,
+
+  /// Most recently modified first.
+  modifiedDesc,
+
+  /// A-Z by note text.
+  alphabetical,
+
+  /// Highest [Priority] first.
+  priorityDesc,
+}
 
 /// Summary of an [NoteRepository.importNotes] run, for user feedback.
 class ImportOutcome {
+  /// Creates an [ImportOutcome] from its per-category counts.
   const ImportOutcome({
     required this.added,
     required this.updated,
@@ -391,6 +403,7 @@ class _MemoryPersistence implements LogPersistence {
 /// constraint. Lives in the data layer so the filtering it drives never leaks
 /// into the UI. Construct copies with [copyWith] when toggling one facet.
 class NoteFilter {
+  /// Creates a [NoteFilter] from its constraint fields.
   const NoteFilter({
     this.query = '',
     this.priorities = const {},
@@ -410,12 +423,16 @@ class NoteFilter {
   /// Notes must have one of these statuses. Empty means "any status".
   final Set<Status> statuses;
 
-  /// Inclusive lower/upper bounds (by calendar day) on the creation date.
+  /// Inclusive lower bound (by calendar day) on the creation date.
   final DateTime? createdFrom;
+
+  /// Inclusive upper bound (by calendar day) on the creation date.
   final DateTime? createdTo;
 
-  /// Inclusive lower/upper bounds (by calendar day) on the last-updated date.
+  /// Inclusive lower bound (by calendar day) on the last-updated date.
   final DateTime? updatedFrom;
+
+  /// Inclusive upper bound (by calendar day) on the last-updated date.
   final DateTime? updatedTo;
 
   /// True when no constraint is active (the unfiltered, full list).

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 /// First-stage response of the GitHub OAuth Device Flow: the code the user
 /// types on github.com and the URL to type it into.
 class DeviceCodeResponse {
+  /// Creates a [DeviceCodeResponse] from its stored fields.
   const DeviceCodeResponse({
     required this.deviceCode,
     required this.userCode,
@@ -13,6 +14,17 @@ class DeviceCodeResponse {
     required this.interval,
     required this.expiresIn,
   });
+
+  /// Builds a [DeviceCodeResponse] from GitHub's device-code JSON response.
+  factory DeviceCodeResponse.fromJson(Map<String, dynamic> json) {
+    return DeviceCodeResponse(
+      deviceCode: json['device_code'] as String,
+      userCode: json['user_code'] as String,
+      verificationUri: json['verification_uri'] as String,
+      interval: (json['interval'] as int?) ?? 5,
+      expiresIn: (json['expires_in'] as int?) ?? 900,
+    );
+  }
 
   /// Opaque code the client polls with (not shown to the user).
   final String deviceCode;
@@ -28,24 +40,17 @@ class DeviceCodeResponse {
 
   /// Seconds until [deviceCode] expires.
   final int expiresIn;
-
-  factory DeviceCodeResponse.fromJson(Map<String, dynamic> json) {
-    return DeviceCodeResponse(
-      deviceCode: json['device_code'] as String,
-      userCode: json['user_code'] as String,
-      verificationUri: json['verification_uri'] as String,
-      interval: (json['interval'] as int?) ?? 5,
-      expiresIn: (json['expires_in'] as int?) ?? 900,
-    );
-  }
 }
 
 /// Raised when the device-flow authorization fails or is declined.
 class DeviceAuthException implements Exception {
+  /// Creates a [DeviceAuthException] from GitHub's [code] and [message].
   DeviceAuthException(this.code, this.message);
 
   /// GitHub error code, e.g. `access_denied`, `expired_token`.
   final String code;
+
+  /// Human-readable description of [code].
   final String message;
 
   @override
@@ -63,6 +68,7 @@ class DeviceAuthException implements Exception {
 /// - POST https://github.com/login/device/code
 /// - POST https://github.com/login/oauth/access_token
 class GitHubDeviceAuth {
+  /// Creates a [GitHubDeviceAuth] for the given OAuth App [clientId].
   GitHubDeviceAuth({
     required this.clientId,
     this.scope = 'repo',
@@ -72,6 +78,7 @@ class GitHubDeviceAuth {
        // Indirection so tests can skip real waiting between polls.
        _delay = delay ?? Future<void>.delayed;
 
+  /// The GitHub OAuth App's public client id.
   final String clientId;
 
   /// OAuth scope requested. `repo` is required for private-repo contents.
@@ -142,5 +149,6 @@ class GitHubDeviceAuth {
     throw DeviceAuthException('expired_token', 'Device code expired.');
   }
 
+  /// Closes the underlying HTTP client. Call once when done polling.
   void close() => _http.close();
 }

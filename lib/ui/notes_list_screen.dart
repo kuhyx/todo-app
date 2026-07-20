@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../data/note.dart';
-import '../data/note_repository.dart';
-import '../data/note_template.dart';
-import 'note_detail_screen.dart';
+import 'package:todo/data/note.dart';
+import 'package:todo/data/note_repository.dart';
+import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/note_detail_screen.dart';
 
 /// The default status selection: hide completed/dropped work. This is the
 /// app's notion of "unfiltered", so it does not count towards the filter
@@ -19,8 +19,10 @@ const Set<Status> kDefaultStatuses = {Status.todo, Status.inProgress};
 /// the watch stream when that state changes. The stream is memoised so a
 /// rebuild (e.g. a search keystroke) does not churn a new DB subscription.
 class NotesListScreen extends StatefulWidget {
+  /// Creates a [NotesListScreen] backed by [repository].
   const NotesListScreen({required this.repository, super.key});
 
+  /// The store this screen searches/filters/sorts.
   final NoteRepository repository;
 
   @override
@@ -351,7 +353,7 @@ class _NoteActionsSheetState extends State<_NoteActionsSheet> {
               labelOf: (s) => s.label,
               onSelected: (s) {
                 setState(() => _status = s);
-                _persist();
+                unawaited(_persist());
               },
             ),
             const SizedBox(height: 12),
@@ -362,7 +364,7 @@ class _NoteActionsSheetState extends State<_NoteActionsSheet> {
               labelOf: (p) => p.label,
               onSelected: (p) {
                 setState(() => _priority = p);
-                _persist();
+                unawaited(_persist());
               },
             ),
             const SizedBox(height: 16),

@@ -8,15 +8,15 @@
 // Run:  GH_TOKEN=$(gh auth token) dart run tool/sync_smoke.dart
 import 'dart:io';
 
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
-import 'package:crdt_sync/crdt_sync.dart';
 import 'package:todo/sync/sync_service.dart';
 
 Future<void> main() async {
   final token = Platform.environment['GH_TOKEN'];
   if (token == null || token.isEmpty) {
-    stderr.writeln('Set GH_TOKEN (e.g. GH_TOKEN=\$(gh auth token)).');
+    stderr.writeln(r'Set GH_TOKEN (e.g. GH_TOKEN=$(gh auth token)).');
     exit(2);
   }
 
@@ -32,20 +32,26 @@ Future<void> main() async {
   await _insert(deviceA, 'Idea from device A @ $stamp');
   await _insert(deviceB, 'Idea from device B @ $stamp');
 
-  stdout.writeln('Device A nodeId: ${deviceA.nodeId}');
-  stdout.writeln('Device B nodeId: ${deviceB.nodeId}');
+  stdout
+    ..writeln('Device A nodeId: ${deviceA.nodeId}')
+    ..writeln('Device B nodeId: ${deviceB.nodeId}');
 
   // Sync order: A pushes, B pulls A + pushes, A pulls B. Both converge.
   final ghA = client();
   final ghB = client();
-  stdout.writeln('A.sync(): ${await service.sync(deviceA, ghA)}');
-  stdout.writeln('B.sync(): ${await service.sync(deviceB, ghB)}');
-  stdout.writeln('A.sync(): ${await service.sync(deviceA, ghA)}');
+  final aFirstSync = await service.sync(deviceA, ghA);
+  final bSync = await service.sync(deviceB, ghB);
+  final aSecondSync = await service.sync(deviceA, ghA);
+  stdout
+    ..writeln('A.sync(): $aFirstSync')
+    ..writeln('B.sync(): $bSync')
+    ..writeln('A.sync(): $aSecondSync');
 
   final aNotes = (await deviceA.listNotes()).map((n) => n.text).toSet();
   final bNotes = (await deviceB.listNotes()).map((n) => n.text).toSet();
-  stdout.writeln('\nDevice A sees: $aNotes');
-  stdout.writeln('Device B sees: $bNotes');
+  stdout
+    ..writeln('\nDevice A sees: $aNotes')
+    ..writeln('Device B sees: $bNotes');
 
   final expected = {
     'Idea from device A @ $stamp',

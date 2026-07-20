@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import '../data/note.dart';
-import 'notes_markdown.dart';
+import 'package:todo/data/note.dart';
+import 'package:todo/sync/notes_markdown.dart';
 
 /// Keeps an always-current Markdown backup of all notes on local disk, and
 /// recovers from it on launch.
@@ -17,6 +17,7 @@ import 'notes_markdown.dart';
 /// fires — never per keystroke — so serialising every note stays off the
 /// typing hot path and the cost is independent of how fast the user types.
 class LocalBackup {
+  /// Creates a [LocalBackup] wiring the note [fetch]/[reader]/[writer].
   LocalBackup({
     required this.fetch,
     required this.reader,

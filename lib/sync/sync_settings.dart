@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// until a secure write is confirmed (so we degrade to — never below — the old
 /// behaviour when no secret service is available).
 class SyncSettings {
+  /// Creates a [SyncSettings] from its stored fields.
   const SyncSettings({
     required this.owner,
     required this.repo,
@@ -17,8 +18,13 @@ class SyncSettings {
     this.clientId = '',
   });
 
+  /// GitHub account or org that owns [repo].
   final String owner;
+
+  /// GitHub repository name notes sync to.
   final String repo;
+
+  /// GitHub token used to read/write [repo] (kept in the OS keystore).
   final String token;
 
   /// GitHub OAuth App client id used by the device-flow "Connect" button.
@@ -82,7 +88,7 @@ class SyncSettings {
     String? secure;
     try {
       secure = await _secure.read(key: _secureToken);
-    } catch (_) {
+    } on Exception {
       // No secret service available — fall back to the legacy plaintext copy.
       secure = null;
     }
@@ -95,6 +101,7 @@ class SyncSettings {
     return legacy;
   }
 
+  /// Persists these settings, writing [token] to the OS keystore.
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kOwner, owner);
@@ -119,11 +126,12 @@ class SyncSettings {
         await _secure.write(key: _secureToken, value: token);
       }
       return true;
-    } catch (_) {
+    } on Exception {
       return false;
     }
   }
 
+  /// Returns a copy with the given fields replaced, others unchanged.
   SyncSettings copyWith({
     String? owner,
     String? repo,

@@ -25,6 +25,7 @@ library;
 
 /// One field of a structured template.
 class TemplateSection {
+  /// Creates a [TemplateSection] from its field/label/helper text.
   const TemplateSection({
     required this.key,
     required this.label,
@@ -62,6 +63,7 @@ class TemplateSection {
 /// A named template: an ordered list of [sections]. A template with no
 /// sections is *freeform* (a single plain-text body, no structure).
 class NoteTemplate {
+  /// Creates a [NoteTemplate] from its id, label, and [sections].
   const NoteTemplate({
     required this.id,
     required this.label,
@@ -105,7 +107,7 @@ class NoteTemplate {
         label: 'where',
         hint: 'repo + files/paths, or new app: <name>',
         helper:
-            "Repo + target files/paths (not terminal dumps), or "
+            'Repo + target files/paths (not terminal dumps), or '
             "'new app: <name>', and platform(s).",
       ),
       TemplateSection(
@@ -202,6 +204,7 @@ class NoteTemplate {
 
 /// Result of parsing stored text against a template.
 class ParsedNote {
+  /// Creates a [ParsedNote] from its parsed [values] and [conforms] flag.
   const ParsedNote({required this.values, required this.conforms});
 
   /// Section-key -> value (trimmed). Sections absent from the text map to ''.

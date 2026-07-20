@@ -11,8 +11,10 @@ import 'package:flutter/material.dart';
 /// The whole rendered note is wrapped in a [SelectionArea] so it can be copied
 /// out in one go (the note is meant to be pasted into an LLM).
 class MarkdownView extends StatelessWidget {
+  /// Creates a [MarkdownView] rendering [text].
   const MarkdownView({required this.text, super.key});
 
+  /// The raw markdown source to render.
   final String text;
 
   @override
