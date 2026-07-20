@@ -10,10 +10,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/frame_stats.dart';
 import 'package:todo/ui/capture_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  installFrameStats();
 
   // Desktop platforms need the FFI sqlite implementation initialised
   // before any database is opened; mobile uses the bundled library.

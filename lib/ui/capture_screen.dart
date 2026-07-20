@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/frame_stats.dart';
 import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/sync_service.dart';
 import 'package:todo/sync/sync_settings.dart';
@@ -415,6 +416,22 @@ class _CaptureScreenState extends State<CaptureScreen>
       appBar: AppBar(
         title: const Text('Capture'),
         actions: [
+          // TEMPORARY: forces continuous frame production so raster cost can
+          // be sampled at each window size. Armed by TODO_FRAME_STATS=1, which
+          // is never set under the test runner, so the branch is unreachable.
+          // coverage:ignore-start
+          if (frameStatsEnabled)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          // coverage:ignore-end
           // Live count of stored notes, proving local persistence.
           StreamBuilder<int>(
             stream: widget.repository.watchCount(),
