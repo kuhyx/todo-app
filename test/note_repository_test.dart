@@ -7,8 +7,10 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 // SqliteCrdt is needed to seed the legacy DB in migration tests; hide its Hlc
 // so the crdt_sync Hlc/Record are unambiguous.
 import 'package:sqlite_crdt/sqlite_crdt.dart' hide Hlc;
+import 'package:path/path.dart' as p;
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/data/repository_factory_io.dart';
 
 void main() {
   setUpAll(sqfliteFfiInit);
@@ -292,7 +294,7 @@ void main() {
   test('v2→v3 migration backfills priority 0 to medium', () async {
     SharedPreferences.setMockInitialValues({});
     final dir = await Directory.systemTemp.createTemp('todo_migration');
-    final path = '${dir.path}/notes.db';
+    final path = '${dir.path}/todo.db';
     addTearDown(() => dir.delete(recursive: true));
 
     // Build a v2 database (status column present, no priority backfill) and
@@ -323,7 +325,7 @@ void main() {
     await v2.close();
 
     // Reopening through the repository runs onUpgrade to v3.
-    final repo = await NoteRepository.open(path);
+    final repo = await openRepositoryIn(p.dirname(path));
     addTearDown(repo.close);
     final notes = await repo.listNotes();
 
@@ -334,7 +336,7 @@ void main() {
   test('v1→v2 migration adds the status column with a default', () async {
     SharedPreferences.setMockInitialValues({});
     final dir = await Directory.systemTemp.createTemp('todo_migration_v1');
-    final path = '${dir.path}/notes.db';
+    final path = '${dir.path}/todo.db';
     addTearDown(() => dir.delete(recursive: true));
 
     // v1 schema predates the status column entirely.
@@ -363,7 +365,7 @@ void main() {
     await v1.close();
 
     // Reopening runs onUpgrade v1→v2 (adds status, default todo) then v2→v3.
-    final repo = await NoteRepository.open(path);
+    final repo = await openRepositoryIn(p.dirname(path));
     addTearDown(repo.close);
     final notes = await repo.listNotes();
     expect(notes.single.id, 'old');
@@ -453,7 +455,7 @@ void main() {
       addTearDown(() => dir.delete(recursive: true));
       final path = await seedLegacyDb(dir.path);
 
-      final repo = await NoteRepository.open(path);
+      final repo = await openRepositoryIn(p.dirname(path));
       addTearDown(repo.close);
 
       // The live note migrated with its fields intact...
@@ -469,7 +471,7 @@ void main() {
       // survives, and the (still-present) legacy DB is not re-imported.
       await repo.upsert(note('new', 'added post-migration'));
       await repo.close();
-      final reopened = await NoteRepository.open(path);
+      final reopened = await openRepositoryIn(p.dirname(path));
       addTearDown(reopened.close);
       final texts = (await reopened.listNotes()).map((n) => n.text).toSet();
       expect(texts, {'kept idea', 'added post-migration'});
@@ -480,7 +482,7 @@ void main() {
       final dir = await Directory.systemTemp.createTemp('todo_fresh');
       addTearDown(() => dir.delete(recursive: true));
 
-      final repo = await NoteRepository.open('${dir.path}/todo.db');
+      final repo = await openRepositoryIn(dir.path);
       addTearDown(repo.close);
 
       expect(await repo.listNotes(), isEmpty);

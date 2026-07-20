@@ -103,6 +103,9 @@ class FakeNoteRepository implements NoteRepository {
   Future<void> importLog(Log remote) async {}
 
   @override
+  Future<void> seedFrom(Log log) async {}
+
+  @override
   Future<void> close() async {
     await _controller.close();
     await _changesController.close();

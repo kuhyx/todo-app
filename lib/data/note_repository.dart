@@ -1,15 +1,13 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:crdt_sync/crdt_sync.dart';
-import 'package:crdt_sync/crdt_sync_io.dart';
-import 'package:path/path.dart' as p;
-import 'package:shared_preferences/shared_preferences.dart';
-// Only SqliteCrdt/CrdtTableExecutor are needed for the legacy-DB migration;
-// hide its Hlc so the crdt_sync Hlc (the store's clock type) is unambiguous.
-import 'package:sqlite_crdt/sqlite_crdt.dart' hide Hlc;
 import 'package:todo/data/note.dart';
-import 'package:uuid/uuid.dart';
+
+// Deliberately free of `dart:io`: the desktop app is a web build, and a single
+// `dart:io` import anywhere in the graph makes the whole app fail to compile
+// for web. Opening a repository for a real platform lives behind the
+// conditional export in `repository_factory.dart`; the legacy sqlite migration
+// lives in the io-only `legacy_sqlite_migration.dart`.
 
 /// How the history list should be ordered.
 enum NoteSort {
@@ -77,50 +75,35 @@ class NoteRepository {
   static const _fCreatedAt = 'created_at';
   static const _fUpdatedAt = 'updated_at';
 
-  static const _kNodeId = 'crdt.nodeId';
-  static const _kMigrated = 'crdt.migratedFromSqlite';
-  static const _logFileName = 'todo_notes.json';
+  /// SharedPreferences key holding this device's stable CRDT node id.
+  static const kNodeId = 'crdt.nodeId';
 
-  /// Opens (or creates) the note log next to the legacy DB at [path].
+  /// SharedPreferences key recording that the legacy sqlite import already ran.
+  static const kMigrated = 'crdt.migratedFromSqlite';
+
+  /// File name of the persisted log, used by the io factory.
+  static const logFileName = 'todo_notes.json';
+
+  /// Opens (or creates) the note log backed by [persistence].
   ///
-  /// On first launch after the crdt_sync migration this performs a one-time,
-  /// idempotent import of the existing `sqlite_crdt` database at [path] into
-  /// the new log (guarded by a persisted "migrated" flag), so no backlog is
-  /// lost. The legacy DB file is left untouched as a safety net.
-  static Future<NoteRepository> open(String path) async {
-    final prefs = await SharedPreferences.getInstance();
-    final logFile = File(p.join(p.dirname(path), _logFileName));
-    final persistence = FileLogPersistence(logFile);
-
-    final migrated = prefs.getBool(_kMigrated) ?? false;
-    var nodeId = prefs.getString(_kNodeId) ?? '';
-
-    if (!migrated && File(path).existsSync()) {
-      final legacy = await SqliteCrdt.open(
-        path,
-        version: _legacyVersion,
-        onCreate: _legacyOnCreate,
-        onUpgrade: _legacyOnUpgrade,
-      );
-      // Reuse the legacy CRDT node id so a device that already synced keeps
-      // the same devices/<id> identity across the cutover.
-      if (nodeId.isEmpty) nodeId = legacy.nodeId;
-      final store = LogStore(persistence: persistence, nodeId: nodeId);
-      await store.load();
-      await _seedFromLegacy(legacy, store, nodeId);
-      await legacy.close();
-      await prefs.setString(_kNodeId, nodeId);
-      await prefs.setBool(_kMigrated, true);
-      return NoteRepository._(store, nodeId);
-    }
-
-    if (nodeId.isEmpty) {
-      nodeId = const Uuid().v4();
-      await prefs.setString(_kNodeId, nodeId);
-    }
+  /// Platform wiring — where the log lives, and the one-time legacy sqlite
+  /// import — belongs to the callers in `repository_factory_*.dart`, so that
+  /// this class stays free of `dart:io` and can compile for web.
+  static Future<NoteRepository> openWith({
+    required LogPersistence persistence,
+    required String nodeId,
+  }) async {
     final store = LogStore(persistence: persistence, nodeId: nodeId);
     await store.load();
     return NoteRepository._(store, nodeId);
+  }
+
+  /// Replaces the whole log, used by the one-time legacy sqlite migration.
+  ///
+  /// Distinct from [importLog], which merges: migration seeds a store that is
+  /// known to be empty and must preserve the records' own clocks verbatim.
+  Future<void> seedFrom(Log log) async {
+    if (log.isNotEmpty) await _store.replaceAll(log);
   }
 
   /// Opens a transient in-memory log; intended for tests.
@@ -132,38 +115,29 @@ class NoteRepository {
     return NoteRepository._(store, nodeId);
   }
 
-  /// Copies every legacy note (tombstones included) into [store] in one write.
+  /// Builds the record for one migrated legacy note, tombstones included.
   ///
   /// Each note's field clocks are seeded from its own `updated_at`, not "now",
   /// so that when two devices migrate independently, a pre-cutover edit still
   /// wins by real edit time under per-field last-writer-wins instead of being
-  /// resolved arbitrarily.
-  static Future<void> _seedFromLegacy(
-    SqliteCrdt legacy,
-    LogStore store,
-    String nodeId,
-  ) async {
-    final rows = await legacy.query(
-      'SELECT id, text, priority, status, created_at, updated_at, is_deleted '
-      'FROM notes',
+  /// resolved arbitrarily. Public because the migration that calls it lives in
+  /// the io-only library, which cannot reach private members here.
+  static Record legacyRecordFor(
+    Note note,
+    String nodeId, {
+    bool deleted = false,
+  }) {
+    final hlc = Hlc(
+      wallTimeMs: note.updatedAt.millisecondsSinceEpoch,
+      counter: 0,
+      nodeId: nodeId,
     );
-    final log = <String, Record>{};
-    for (final row in rows) {
-      final note = Note.fromRow(row);
-      final hlc = Hlc(
-        wallTimeMs: note.updatedAt.millisecondsSinceEpoch,
-        counter: 0,
-        nodeId: nodeId,
-      );
-      final deleted = (row['is_deleted'] as int? ?? 0) != 0;
-      log[note.id] = Record(
-        id: note.id,
-        fields: _fieldsFor(note, hlc),
-        deleted: deleted,
-        deletedHlc: deleted ? hlc : null,
-      );
-    }
-    if (log.isNotEmpty) await store.replaceAll(log);
+    return Record(
+      id: note.id,
+      fields: _fieldsFor(note, hlc),
+      deleted: deleted,
+      deletedHlc: deleted ? hlc : null,
+    );
   }
 
   /// Inserts a new note or updates the existing one with the same [id].
@@ -346,44 +320,6 @@ class NoteRepository {
 
   /// Midnight (local) of [t]'s calendar day.
   static DateTime _startOfDay(DateTime t) => DateTime(t.year, t.month, t.day);
-
-  // --- legacy sqlite_crdt schema, used only to read the DB during migration -
-
-  static const int _legacyVersion = 3;
-
-  // coverage:ignore-start
-  // Unreachable: migration only ever opens a legacy DB that already exists
-  // (guarded by `File(path).existsSync()`), so sqlite never runs onCreate.
-  // Kept because SqliteCrdt.open requires the callback.
-  static Future<void> _legacyOnCreate(CrdtTableExecutor db, int version) async {
-    await db.execute('''
-      CREATE TABLE notes (
-        id TEXT NOT NULL,
-        text TEXT NOT NULL DEFAULT '',
-        priority INTEGER NOT NULL DEFAULT 2,
-        status INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        PRIMARY KEY (id)
-      )
-    ''');
-  }
-  // coverage:ignore-end
-
-  static Future<void> _legacyOnUpgrade(
-    CrdtTableExecutor db,
-    int from,
-    int to,
-  ) async {
-    if (from < 2) {
-      await db.execute(
-        'ALTER TABLE notes ADD COLUMN status INTEGER NOT NULL DEFAULT 0',
-      );
-    }
-    if (from < 3) {
-      await db.execute('UPDATE notes SET priority = 2 WHERE priority = 0');
-    }
-  }
 }
 
 /// In-memory [LogPersistence] for [NoteRepository.openInMemory] (tests).

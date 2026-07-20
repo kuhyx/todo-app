@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/sync/backlog_export.dart';
 import 'package:todo/sync/github_device_auth.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/sync_service.dart';
@@ -178,33 +176,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final notes = await widget.repository.listNotes();
       final markdown = NotesMarkdown.export(notes);
 
-      // coverage:ignore-start
-      // Mobile-only share path: Platform.isAndroid/isIOS are always false on
-      // the Linux test host, so these lines are structurally unreachable in
-      // CI and excluded from the coverage denominator. Verified on-device.
-      if (Platform.isAndroid || Platform.isIOS) {
-        final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/todo-backlog.md');
-        await file.writeAsString(markdown);
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(file.path, mimeType: 'text/markdown')],
-            subject: 'todo backlog (${notes.length} notes)',
-          ),
-        );
-      } else {
-        // coverage:ignore-end
-        final home = Platform.environment['HOME'] ?? Directory.current.path;
-        final dir = Directory('$home/todo');
-        if (!dir.existsSync()) dir.createSync(recursive: true);
-        final file = File('${dir.path}/BACKLOG.md');
-        await file.writeAsString(markdown);
-        if (mounted) {
-          setState(
-            () => _status = 'Exported ${notes.length} notes to ${file.path}',
-          );
-        }
-      }
+      final outcome = await exportBacklog(markdown, notes.length);
+      if (mounted) setState(() => _status = outcome);
     } on Exception catch (e) {
       if (mounted) setState(() => _status = 'Export failed: $e');
     }

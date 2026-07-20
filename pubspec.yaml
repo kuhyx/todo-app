@@ -47,6 +47,7 @@ dependencies:
   # libsecret) instead of plaintext SharedPreferences.
   flutter_secure_storage: ^10.3.1
   http: ^1.6.0
+  idb_shim: ^2.9.6+2
   path: ^1.9.1
   path_provider: ^2.1.5
   share_plus: ^13.1.0

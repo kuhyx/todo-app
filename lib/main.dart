@@ -1,15 +1,10 @@
 // coverage:ignore-file
-// App bootstrap: wires platform DB paths (path_provider) into the repository
-// and calls runApp. Exercised end-to-end by running the app, not unit tests.
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
+// App bootstrap: opens the platform's note store and calls runApp. Exercised
+// end-to-end by running the app, not unit tests.
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/data/repository_factory.dart';
 import 'package:todo/frame_stats.dart';
 import 'package:todo/ui/capture_screen.dart';
 
@@ -17,15 +12,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   installFrameStats();
 
-  // Desktop platforms need the FFI sqlite implementation initialised
-  // before any database is opened; mobile uses the bundled library.
-  if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
-    sqfliteFfiInit();
-  }
-
-  final dir = await getApplicationSupportDirectory();
-  final dbPath = p.join(dir.path, 'todo.db');
-  final repository = await NoteRepository.open(dbPath);
+  // Where the log lives, and whether a legacy sqlite DB needs importing, is
+  // platform-specific and resolved by a conditional import: `dart:io` cannot be
+  // imported at all in a web compile, and the desktop app is now a web build.
+  final repository = await openRepository();
 
   runApp(TodoApp(repository: repository));
 }

@@ -1,16 +1,15 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/frame_stats.dart';
 import 'package:todo/sync/local_backup.dart';
+import 'package:todo/sync/local_backup_factory.dart';
 import 'package:todo/sync/sync_service.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:todo/ui/note_editor.dart';
@@ -197,26 +196,8 @@ class _CaptureScreenState extends State<CaptureScreen>
   // (the path the user's workflow already reads), or the app documents dir on
   // mobile (which Android Auto Backup includes). Exercised by running the app;
   // tests inject an in-memory LocalBackup instead.
-  static LocalBackup _platformLocalBackup(NoteRepository repository) {
-    Future<File> backupFile() async {
-      if (Platform.isAndroid || Platform.isIOS) {
-        final dir = await getApplicationDocumentsDirectory();
-        return File('${dir.path}/todo-backlog.md');
-      }
-      final home = Platform.environment['HOME'] ?? Directory.current.path;
-      final dir = Directory('$home/todo')..createSync(recursive: true);
-      return File('${dir.path}/BACKLOG.md');
-    }
-
-    return LocalBackup(
-      fetch: repository.listNotes,
-      reader: () async {
-        final file = await backupFile();
-        return file.existsSync() ? file.readAsString() : null;
-      },
-      writer: (markdown) async => (await backupFile()).writeAsString(markdown),
-    );
-  }
+  static LocalBackup _platformLocalBackup(NoteRepository repository) =>
+      createLocalBackup(repository);
   // coverage:ignore-end
 
   @override
