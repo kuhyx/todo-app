@@ -28,10 +28,14 @@ Future<void> main(List<String> args) async {
     exit(1);
   }
 
+  // Overridable so a verification run cannot point at the real backlog: an
+  // app that starts with an empty store would export over it.
   final server = WrapperServer(
     webRoot: webRoot,
-    backlogPath: p.join(home, 'todo', 'BACKLOG.md'),
-    logPath: p.join(home, '.local', 'share', 'todo-desktop', 'todo_notes.json'),
+    backlogPath:
+        _argValue(args, '--backlog-path') ?? p.join(home, 'todo', 'BACKLOG.md'),
+    logPath: _argValue(args, '--log-path') ??
+        p.join(home, '.local', 'share', 'todo-desktop', 'todo_notes.json'),
   );
   await server.start(_port);
   stdout.writeln('todo desktop serving on http://localhost:$_port');

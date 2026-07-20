@@ -12,7 +12,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Whether the frame-stats instrument is armed for this build.
-const frameStatsEnabled = bool.fromEnvironment('TODO_FRAME_STATS');
+///
+/// Read as a string rather than `bool.fromEnvironment`, which only accepts the
+/// exact literal `true` — `--dart-define=TODO_FRAME_STATS=1` silently yields
+/// false and the instrument produces nothing at all.
+const String _frameStatsFlag = String.fromEnvironment('TODO_FRAME_STATS');
+
+/// Whether the instrument is armed (`--dart-define=TODO_FRAME_STATS=1`).
+const bool frameStatsEnabled =
+    _frameStatsFlag == '1' || _frameStatsFlag == 'true';
 
 const _slowFrameMs = 8;
 const _probePeriod = Duration(milliseconds: 16);
