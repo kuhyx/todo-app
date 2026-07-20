@@ -119,11 +119,17 @@ main() {
     command -v flutter >/dev/null 2>&1 || { err "flutter still not on PATH after install"; exit 1; }
 
     cd "${SCRIPT_DIR}"
-    flutter config --enable-linux-desktop >/dev/null
+    flutter config --enable-web >/dev/null
     log "fetching pub packages"
     flutter pub get
+
+    # The desktop app is a web build served by the local wrapper: Flutter's
+    # Linux embedder manages only ~20fps at 4K, while the same Dart code in
+    # Chrome sustains ~144fps (docs/desktop-performance-findings.md).
+    log "building the web bundle"
+    flutter build web --release
     log "launching the app"
-    exec flutter run -d linux
+    exec dart run bin/todo_desktop.dart --web-root "${SCRIPT_DIR}/build/web"
 }
 
 main "$@"

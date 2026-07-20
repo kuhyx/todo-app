@@ -3,32 +3,38 @@
 # ============================================================================
 # Install the todo launcher icon and .desktop entry for the Linux desktop.
 #
-# Flutter's GTK runner has no icon of its own: my_application.cc calls
-# gtk_window_set_icon_name("todo"), which resolves through the hicolor icon
-# theme. This script is what puts the icon into that theme, plus a .desktop
-# entry so the app appears in application menus.
+# The desktop app is a Flutter *web* build shown in a Chrome app window (the
+# Linux embedder manages only ~20fps at 4K — see
+# docs/desktop-performance-findings.md), so the launcher starts the wrapper,
+# which serves the build and opens the browser.
 #
-# Icon PNGs are pre-rendered and committed under linux/icons/, so this script
+# Icon PNGs are pre-rendered and committed under desktop/icons/, so this script
 # needs no image tooling at run time. Regenerate them with:
 #   PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons \
-#       generate --app todo --linux-out linux/icons
+#       generate --app todo --linux-out desktop/icons
 # ============================================================================
 
 set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
-LINUX_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_DIR="$(dirname "$LINUX_DIR")"
-readonly SCRIPT_NAME LINUX_DIR REPO_DIR
+DESKTOP_DIR_SRC="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(dirname "$DESKTOP_DIR_SRC")"
+readonly SCRIPT_NAME DESKTOP_DIR_SRC REPO_DIR
 readonly ICON_NAME="todo"
-readonly BINARY_NAME="todo"
-# GTK derives WM_CLASS from the GApplication id in linux/CMakeLists.txt,
-# not from the binary name; verified with xprop on the running window.
-readonly WM_CLASS="dev.kuhy.todo"
-readonly ICON_SRC_DIR="$LINUX_DIR/icons"
+# Chrome sets WM_CLASS from --class, which the wrapper passes explicitly.
+# Without it the window would inherit the browser's own class (e.g.
+# "Google-chrome"), and the taskbar would show a browser icon for the app.
+readonly WM_CLASS="todo"
+readonly ICON_SRC_DIR="$DESKTOP_DIR_SRC/icons"
 readonly ICON_THEME_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor"
 readonly DESKTOP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-readonly BUNDLE_BIN="$REPO_DIR/build/linux/x64/release/bundle/$BINARY_NAME"
+# Prefer the packaged launcher; fall back to running straight from the repo so
+# the entry also works for a development checkout that was never installed.
+LAUNCH_CMD="/usr/bin/todo"
+if [[ ! -x "$LAUNCH_CMD" ]]; then
+    LAUNCH_CMD="$REPO_DIR/run.sh"
+fi
+readonly LAUNCH_CMD
 
 usage() {
     echo "Usage: $SCRIPT_NAME"
@@ -79,7 +85,7 @@ install_desktop_entry() {
 Type=Application
 Name=todo
 Comment=Offline-first, CRDT-synced notes
-Exec=$BUNDLE_BIN
+Exec=$LAUNCH_CMD
 Icon=$ICON_NAME
 Terminal=false
 Categories=Utility;TextEditor;
@@ -97,9 +103,9 @@ main() {
     install_desktop_entry
     echo "Installed $ICON_NAME icon into $ICON_THEME_DIR"
     echo "Installed $DESKTOP_DIR/$ICON_NAME.desktop"
-    if [[ ! -x "$BUNDLE_BIN" ]]; then
-        echo "Note: $BUNDLE_BIN does not exist yet."
-        echo "      Run 'flutter build linux --release' to make the entry launchable."
+    if [[ ! -x "$LAUNCH_CMD" ]]; then
+        echo "Note: $LAUNCH_CMD does not exist yet."
+        echo "      Run ./install_arch.sh to build and install the app."
     fi
 }
 

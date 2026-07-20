@@ -1,6 +1,13 @@
 # CLAUDE.md — todo
 
-Offline-first, CRDT-synced notes app. Flutter, targets **Android + Linux**.
+Offline-first, CRDT-synced notes app. Flutter, targets **Android + web**.
+
+The **desktop app is the web build**, served by a small local wrapper
+(`bin/todo_desktop.dart`) and shown in a Chrome `--app` window. Flutter's Linux
+embedder was removed: it manages only ~20fps at 4K while the same Dart code in
+Chrome sustains ~144fps. See `docs/desktop-performance-findings.md` for the
+measurements. Do not re-add `linux/` — `flutter create --platforms linux` would
+silently bring the slow path back.
 Capture an idea instantly (persisted on every keystroke), browse/filter notes,
 and sync peer-to-peer through a GitHub repo used as dumb storage.
 
@@ -24,7 +31,12 @@ and sync peer-to-peer through a GitHub repo used as dumb storage.
 - Coverage summary: `lcov --list coverage/lcov.info`.
 - Static analysis: `flutter analyze` (must be clean before committing).
 - Format: `dart format lib/ test/`.
-- Run the app: `flutter run` (Linux desktop or a connected Android device).
+- Run the desktop app: `./run.sh` (builds the web bundle, starts the wrapper,
+  opens Chrome). Mobile: `flutter run` with a connected Android device.
+- The wrapper serves on a **fixed** port 8730 with a **fixed** Chrome profile
+  dir. Both must stay fixed: the GitHub token (`localStorage`) and the notes
+  (IndexedDB) are keyed by origin and live in that profile, so changing either
+  silently logs you out and hides your notes.
 - Release APK: `flutter build apk --release` (signs with the debug key; debug
   builds are janky — always measure smoothness on a release build).
 - Sync smoke test (hits real GitHub, needs a token): `dart run tool/sync_smoke.dart`.
