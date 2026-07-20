@@ -18,13 +18,26 @@ import 'package:todo/data/desktop_backup_client.dart';
 /// absent (for instance when the same build is opened in a plain browser tab).
 class WebLogPersistence implements LogPersistence {
   /// Creates a persistence over [database], mirroring writes to [backup].
-  WebLogPersistence({required Database database, this.backup})
-    : _db = database;
+  WebLogPersistence({
+    required Database database,
+    this.backup,
+    this.mirrorDebounce = const Duration(seconds: 2),
+  }) : _db = database;
 
   final Database _db;
 
   /// Wrapper client that mirrors writes to disk, or null when absent.
   final DesktopBackupClient? backup;
+
+  /// How long to coalesce disk mirroring after the last write.
+  ///
+  /// The store persists on *every* keystroke, so mirroring eagerly would mean
+  /// an HTTP request and a whole-log disk write per character. IndexedDB is
+  /// still written synchronously with each keystroke; only the durability copy
+  /// is debounced.
+  final Duration mirrorDebounce;
+
+  Timer? _mirrorTimer;
 
   /// Object store holding a single record: the serialised log.
   static const storeName = 'log';
@@ -64,6 +77,18 @@ class WebLogPersistence implements LogPersistence {
     final txn = _db.transaction(storeName, idbModeReadWrite);
     await txn.objectStore(storeName).put(text, recordKey);
     await txn.completed;
-    unawaited(backup?.writeLog(text) ?? Future<void>.value());
+    _scheduleMirror(text);
   }
+
+  void _scheduleMirror(String text) {
+    final client = backup;
+    if (client == null) return;
+    _mirrorTimer?.cancel();
+    _mirrorTimer = Timer(mirrorDebounce, () {
+      unawaited(client.writeLog(text));
+    });
+  }
+
+  /// Cancels any pending disk mirror. Call when tearing the store down.
+  void dispose() => _mirrorTimer?.cancel();
 }

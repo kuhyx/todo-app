@@ -3,6 +3,14 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+/// Resolves the home directory the desktop export writes under.
+///
+/// Overridable **so the test suite never writes to the real `~/todo`**. This is
+/// not hypothetical: before this seam existed, running `flutter test` exported
+/// a fake note over the user's canonical `~/todo/BACKLOG.md` every time.
+String Function() resolveExportHome =
+    () => Platform.environment['HOME'] ?? Directory.current.path;
+
 /// Writes the Markdown export somewhere the user can get at it, and returns a
 /// human-readable description of where it went.
 ///
@@ -26,7 +34,7 @@ Future<String> exportBacklog(String markdown, int noteCount) async {
     return 'Shared $noteCount notes';
   }
   // coverage:ignore-end
-  final home = Platform.environment['HOME'] ?? Directory.current.path;
+  final home = resolveExportHome();
   final dir = Directory('$home/todo');
   if (!dir.existsSync()) dir.createSync(recursive: true);
   final file = File('${dir.path}/BACKLOG.md');

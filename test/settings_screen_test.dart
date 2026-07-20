@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
@@ -8,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo/sync/backlog_export_io.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/notes_markdown.dart';
@@ -275,7 +277,26 @@ void main() {
     expect(find.textContaining('sync failed'), findsOneWidget);
   });
 
+  test('the default export home is the real HOME', () {
+    // Guards the production default, which every other test overrides so the
+    // suite cannot write to the user's ~/todo.
+    expect(resolveExportHome(), Platform.environment['HOME']);
+  });
+
   testWidgets('Export notes writes the backlog file (desktop)', (tester) async {
+    // Redirect HOME: this test does real file I/O, and without the override it
+    // overwrites the user's canonical ~/todo/BACKLOG.md with the fake note
+    // below on every test run.
+    // Sync creation: awaiting real file I/O under the widget tester's fake
+    // clock never completes.
+    final home = Directory.systemTemp.createTempSync('todo_export_home');
+    resolveExportHome = () => home.path;
+    addTearDown(() {
+      resolveExportHome =
+          () => Platform.environment['HOME'] ?? Directory.current.path;
+      home.deleteSync(recursive: true);
+    });
+
     await pumpSettings(
       tester,
       seed: [
