@@ -18,6 +18,19 @@ ThemeData buildLightTheme() {
     outline: Color(0xFFE0DAD7), // line-light
     primary: Color(0xFFB8862E), // accent
     onPrimary: Color(0xFF211D1B), // on-fill — filled surfaces use dark text
+    // secondary/tertiary — the shared palette has one accent, not a
+    // separate secondary hue, so these mirror primary. Without an explicit
+    // value here, widgets that reach for secondaryContainer (e.g.
+    // SegmentedButton's selected segment) silently fall back to Flutter's
+    // stock Material teal — confirmed live on-device, not just in theory.
+    secondary: Color(0xFFB8862E), // accent
+    onSecondary: Color(0xFF211D1B), // on-fill
+    secondaryContainer: Color(0xFFE0DAD7), // line-light
+    onSecondaryContainer: Color(0xFFB8862E), // accent
+    tertiary: Color(0xFFB8862E), // accent
+    onTertiary: Color(0xFF211D1B), // on-fill
+    tertiaryContainer: Color(0xFFE0DAD7), // line-light
+    onTertiaryContainer: Color(0xFFB8862E), // accent
     error: Color(0xFFE2585F), // danger
     onError: Color(0xFF211D1B), // on-fill
   );
@@ -35,6 +48,14 @@ ThemeData buildDarkTheme() {
     outline: Color(0xFF463E3A), // line-dark
     primary: Color(0xFFB8862E), // accent
     onPrimary: Color(0xFF211D1B), // on-fill
+    secondary: Color(0xFFB8862E), // accent
+    onSecondary: Color(0xFF211D1B), // on-fill
+    secondaryContainer: Color(0xFF463E3A), // line-dark
+    onSecondaryContainer: Color(0xFFB8862E), // accent
+    tertiary: Color(0xFFB8862E), // accent
+    onTertiary: Color(0xFF211D1B), // on-fill
+    tertiaryContainer: Color(0xFF463E3A), // line-dark
+    onTertiaryContainer: Color(0xFFB8862E), // accent
     error: Color(0xFFE2585F), // danger
     onError: Color(0xFF211D1B), // on-fill
   );
