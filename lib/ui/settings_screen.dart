@@ -407,7 +407,10 @@ class _DeviceCodeDialogState extends State<_DeviceCodeDialog> {
               ],
             )
           else
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
         ],
       ),
       actions: [

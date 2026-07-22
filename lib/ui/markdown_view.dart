@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:todo/ui/theme.dart';
+
 /// A lightweight, read-only renderer for the note format.
 ///
 /// The app's notes use a small, known Markdown subset — an `#` title, `##`
@@ -26,13 +28,13 @@ class MarkdownView extends StatelessWidget {
       final trimmed = line.trim();
 
       if (trimmed.isEmpty) {
-        widgets.add(const SizedBox(height: 10));
+        widgets.add(const SizedBox(height: 8));
         continue;
       }
       if (trimmed.startsWith('## ')) {
         widgets.add(
           Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 2),
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
             child: Text(
               trimmed.substring(3).trim(),
               style: theme.textTheme.titleMedium?.copyWith(
@@ -75,7 +77,7 @@ class MarkdownView extends StatelessWidget {
       if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
         widgets.add(
           Padding(
-            padding: const EdgeInsets.only(left: 4, top: 2),
+            padding: const EdgeInsets.only(left: 4, top: 4),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -97,9 +99,17 @@ class MarkdownView extends StatelessWidget {
 
     return SelectionArea(
       child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: widgets,
+        // Caps the reading column at ~70 chars (rule 21) — the desktop
+        // build is an arbitrarily wide Chrome `--app` window, so without
+        // this, body text runs the full viewport width.
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: kProseMaxWidth),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: widgets,
+            ),
+          ),
         ),
       ),
     );

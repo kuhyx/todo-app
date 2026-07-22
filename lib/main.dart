@@ -7,6 +7,7 @@ import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/repository_factory.dart';
 import 'package:todo/frame_stats.dart';
 import 'package:todo/ui/capture_screen.dart';
+import 'package:todo/ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,10 +34,8 @@ class TodoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'todo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: buildLightTheme(),
+      darkTheme: buildDarkTheme(),
       home: CaptureScreen(repository: repository),
     );
   }

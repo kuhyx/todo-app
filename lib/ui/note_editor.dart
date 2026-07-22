@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/markdown_view.dart';
+import 'package:todo/ui/theme.dart';
 
 /// Which view of the note the editor is currently showing.
 enum NoteEditorMode {
@@ -518,19 +519,28 @@ class _NoteEditorState extends State<NoteEditor> {
   }
 
   Widget _buildRaw(ThemeData theme) {
-    return TextField(
-      controller: _body,
-      autofocus: widget.autofocus,
-      maxLines: null,
-      expands: true,
-      textAlignVertical: TextAlignVertical.top,
-      keyboardType: TextInputType.multiline,
-      style: theme.textTheme.bodyLarge,
-      decoration: const InputDecoration(
-        border: InputBorder.none,
-        hintText: 'Write your idea…',
+    // Caps the editing column at ~70 chars (rule 21) on the desktop's
+    // arbitrarily wide Chrome `--app` window. Center/ConstrainedBox only,
+    // no extra Column — nesting a second Column here previously broke the
+    // expands:true constraint chain in release builds (see _buildStepPage).
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: kProseMaxWidth),
+        child: TextField(
+          controller: _body,
+          autofocus: widget.autofocus,
+          maxLines: null,
+          expands: true,
+          textAlignVertical: TextAlignVertical.top,
+          keyboardType: TextInputType.multiline,
+          style: theme.textTheme.bodyLarge,
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            hintText: 'Write your idea…',
+          ),
+          onChanged: (_) => _emit(),
+        ),
       ),
-      onChanged: (_) => _emit(),
     );
   }
 
