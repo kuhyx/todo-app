@@ -292,8 +292,8 @@ void main() {
     final home = Directory.systemTemp.createTempSync('todo_export_home');
     resolveExportHome = () => home.path;
     addTearDown(() {
-      resolveExportHome =
-          () => Platform.environment['HOME'] ?? Directory.current.path;
+      resolveExportHome = () =>
+          Platform.environment['HOME'] ?? Directory.current.path;
       home.deleteSync(recursive: true);
     });
 

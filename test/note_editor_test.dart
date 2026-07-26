@@ -73,6 +73,34 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
+  testWidgets('guided: the stepper walks the seven audited sections', (
+    tester,
+  ) async {
+    // The user-visible contract of the 2026-07 template cut. Walks every step
+    // and asserts the label and its guidance are the ones on screen, so a
+    // section resurrected in note_template.dart cannot land unnoticed.
+    await pumpEditor(tester, initialTemplate: spec);
+
+    for (var i = 0; i < spec.sections.length; i++) {
+      final section = spec.sections[i];
+      expect(find.text('${i + 1} / ${spec.sections.length}'), findsOneWidget);
+      expect(
+        find.text(section.isTitle ? 'title' : section.label),
+        findsWidgets,
+        reason: 'step ${i + 1} should show "${section.label}"',
+      );
+      expect(find.text(section.helper), findsOneWidget);
+      if (i < spec.sections.length - 1) {
+        await tester.tap(find.text('Next'));
+        await tester.pump();
+      }
+    }
+
+    // The last step is `read first`; there is no Next past it.
+    expect(spec.sections.last.label, 'read first');
+    expect(find.text('Next'), findsNothing);
+  });
+
   testWidgets('switching to View renders the note as Markdown', (tester) async {
     await pumpEditor(
       tester,

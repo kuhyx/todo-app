@@ -40,8 +40,8 @@ void installFrameStats() {
 
   SchedulerBinding.instance.addTimingsCallback((timings) {
     for (final t in timings) {
-      final total = t.buildDuration.inMilliseconds +
-          t.rasterDuration.inMilliseconds;
+      final total =
+          t.buildDuration.inMilliseconds + t.rasterDuration.inMilliseconds;
       if (total > _slowFrameMs) {
         debugPrint(
           '[SLOW-FRAME $_at s] total=${total}ms '

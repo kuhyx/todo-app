@@ -8,8 +8,8 @@ import 'package:share_plus/share_plus.dart';
 /// Overridable **so the test suite never writes to the real `~/todo`**. This is
 /// not hypothetical: before this seam existed, running `flutter test` exported
 /// a fake note over the user's canonical `~/todo/BACKLOG.md` every time.
-String Function() resolveExportHome =
-    () => Platform.environment['HOME'] ?? Directory.current.path;
+String Function() resolveExportHome = () =>
+    Platform.environment['HOME'] ?? Directory.current.path;
 
 /// Writes the Markdown export somewhere the user can get at it, and returns a
 /// human-readable description of where it went.

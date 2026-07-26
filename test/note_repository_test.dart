@@ -261,7 +261,8 @@ void main() {
       expect(
         field.$2.wallTimeMs,
         edited.millisecondsSinceEpoch,
-        reason: 'clock must come from updatedAt so a restore cannot outrank '
+        reason:
+            'clock must come from updatedAt so a restore cannot outrank '
             'genuinely newer data on another device',
       );
     });

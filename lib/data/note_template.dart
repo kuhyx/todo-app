@@ -18,9 +18,10 @@
 ///   * `assemble(parse(text))` is idempotent for any text that *conforms* to a
 ///     template, so opening and closing a structured note never mutates it.
 ///   * Text that does **not** conform (freeform notes, the old `what —` format,
-///     hand-mangled raw edits) is reported as such so the UI can fall back to a
-///     raw editor and show it verbatim — we never force non-conforming text
-///     into the guided stepper and never drop a line we couldn't place.
+///     the pre-2026-07 twelve-section spec, hand-mangled raw edits) is reported
+///     as such so the UI can fall back to a raw editor and show it verbatim —
+///     we never force non-conforming text into the guided stepper and never
+///     drop a line we couldn't place.
 library;
 
 /// One field of a structured template.
@@ -51,7 +52,7 @@ class TemplateSection {
   final String hint;
 
   /// Whether the stepper renders a single-line input (title/what/…) versus a
-  /// multi-line input for list-shaped sections (must/nice/out/refs). Purely a
+  /// multi-line input for list-shaped sections (must/read first). Purely a
   /// UI hint; the stored format is the same for both.
   final bool inline;
 
@@ -82,9 +83,17 @@ class NoteTemplate {
   /// Whether this template has no structure (just a plain-text body).
   bool get isFreeform => sections.isEmpty;
 
-  /// The LLM-oriented design-spec template (the default). Mirrors the user's
-  /// backlog format; every section carries a self-documenting guidance line so
-  /// the pasted note tells the LLM how to read it.
+  /// The LLM-oriented design-spec template (the default). Every section carries
+  /// a self-documenting guidance line so the pasted note tells the LLM how to
+  /// read it.
+  ///
+  /// The section set is deliberately small. It was cut from twelve to seven in
+  /// 2026-07 after auditing 514 real sessions: `estimate` was referenced in 1
+  /// of 22 note-driven sessions, `ask` changed the agent's asking behaviour not
+  /// at all (92% ask rate without it vs 100% with), and `tech` lost to the
+  /// agent just opening `pubspec.yaml`. `verify` is the one addition — the
+  /// single most repeated correction in the corpus was "test it yourself, on
+  /// the phone". See `docs/llm-design-spec-audit.md`.
   static const NoteTemplate llmDesignSpec = NoteTemplate(
     id: 'llm-design-spec',
     label: 'LLM design spec',
@@ -105,88 +114,71 @@ class NoteTemplate {
       TemplateSection(
         key: 'where',
         label: 'where',
-        hint: 'repo + files/paths, or new app: <name>',
+        hint: 'repo + files/paths, or new app: <name> + stack',
         helper:
             'Repo + target files/paths (not terminal dumps), or '
-            "'new app: <name>', and platform(s).",
-      ),
-      TemplateSection(
-        key: 'tech',
-        label: 'tech',
-        hint: 'language/framework@version, key libraries',
-        helper:
-            'Tech stack with versions (e.g. Flutter 3.32, Dart 3.8, '
-            'sqlite_crdt 0.5). Tells the agent the exact environment.',
+            "'new app: <name>' with the stack and versions. Name the repo "
+            'that actually owns the fix, even if it is not the obvious one.',
       ),
       TemplateSection(
         key: 'must',
         label: 'must',
         inline: false,
-        hint: '- required behaviour',
+        hint: '- required behaviour / must not: hard stop',
         helper:
-            'Required behaviours the agent should do without asking, '
-            'one per line — hard requirements.',
-      ),
-      TemplateSection(
-        key: 'ask',
-        label: 'ask',
-        inline: false,
-        hint: '- decision needing your approval before proceeding',
-        helper:
-            'High-impact decisions where the agent must stop and confirm '
-            'with you first (e.g. schema changes, deleting data). '
-            'Leave blank if none.',
-      ),
-      TemplateSection(
-        key: 'nice',
-        label: 'nice',
-        inline: false,
-        hint: '- optional behaviour',
-        helper:
-            'Optional behaviours; skipping them is fine. '
-            'Leave blank if none.',
-      ),
-      TemplateSection(
-        key: 'never',
-        label: 'never',
-        inline: false,
-        hint: '- hard stop / explicitly out of scope',
-        helper:
-            'Hard stops and explicitly out-of-scope items — '
-            'agent must not do these. Prevents gold-plating and '
-            'dangerous actions. Leave blank if none.',
+            'Required behaviours the agent does without asking, one per '
+            "line. Prefix a hard stop with 'must not:' and an optional "
+            "extra with 'optional:'.",
       ),
       TemplateSection(
         key: 'done',
         label: 'done',
-        hint: 'I can X and Y happens',
+        hint: 'a threshold, a guarantee, or a check command',
         helper:
-            "Observable success: 'I can X and Y happens' — used to verify "
-            'completion.',
+            'Observable success as a threshold, a guarantee, or a command '
+            "whose output settles it — not a sentence. 'Feels better' is "
+            "not done; '0 dropped frames at 4K' is.",
       ),
       TemplateSection(
-        key: 'depends',
-        label: 'depends',
-        hint: 'prerequisite tasks/notes',
-        helper: 'Prerequisite tasks/notes. Leave blank if none.',
-      ),
-      TemplateSection(
-        key: 'estimate',
-        label: 'estimate',
-        hint: 'S | M | L',
-        helper: 'Rough size: S / M / L.',
+        key: 'verify',
+        label: 'verify',
+        hint: 'phone / desktop, and the exact command',
+        helper:
+            'Where and how this gets checked: which device, the exact '
+            'command, the real deploy path. Blank means desktop, any way '
+            'you like.',
       ),
       TemplateSection(
         key: 'refs',
-        label: 'refs',
+        label: 'read first',
         inline: false,
-        hint: 'links/docs the agent should read',
+        hint: 'links/docs/code/screenshots to read before starting',
         helper:
-            'Links/docs/code the agent should read first, one per line. '
-            'Leave blank if none.',
+            'Links, docs, code and reference screenshots the agent must '
+            'read before starting, one per line. Say whether a screenshot '
+            'is the format to copy or the content. Leave blank if none.',
       ),
     ],
   );
+
+  /// Section labels this template used to have and no longer does.
+  ///
+  /// An unknown `## heading` is normally treated as *content* — the user may
+  /// write subheadings inside a value. A retired label is different: it is a
+  /// section the template once owned, so folding it into the preceding
+  /// section's value and calling the note conforming would let the stepper
+  /// silently swallow it on the next save. Seeing one means "this note was
+  /// written against an older template" → non-conforming → raw editor.
+  static const Set<String> retiredLabels = {
+    'tech',
+    'ask',
+    'nice',
+    'never',
+    'out',
+    'depends',
+    'estimate',
+    'refs',
+  };
 
   /// An empty, structure-free template.
   static const NoteTemplate blank = NoteTemplate(
@@ -279,6 +271,11 @@ ParsedNote parse(NoteTemplate template, String text) {
       blocks[heading.key] = <String>[];
       continue;
     }
+    // A heading the template retired means the note predates the current
+    // section set. Keep the line as content (we never drop one) but refuse to
+    // call the note conforming, so the UI shows it raw instead of letting the
+    // stepper fold the retired section into its neighbour on the next save.
+    if (_isRetiredHeading(line)) conforms = false;
     if (currentKey != null) {
       blocks[currentKey]!.add(line);
       continue;
@@ -325,6 +322,12 @@ TemplateSection? _matchHeading(String line, NoteTemplate template) {
     if (!s.isTitle && s.label == label) return s;
   }
   return null;
+}
+
+/// Whether [line] is a `## heading` naming a section the template retired.
+bool _isRetiredHeading(String line) {
+  if (!line.startsWith('## ')) return false;
+  return NoteTemplate.retiredLabels.contains(line.substring(3).trim());
 }
 
 /// Drops the leading blank lines and the single italic guidance line (if any)

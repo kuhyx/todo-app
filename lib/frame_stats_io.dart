@@ -49,9 +49,9 @@ void _installFrameTimings() {
       final build = t.buildDuration.inMicroseconds;
       final raster = t.rasterDuration.inMicroseconds;
       if (build + raster > _slowFrameUs) {
+        final total = ((build + raster) / 1000).toStringAsFixed(1);
         stdout.writeln(
-          '[FRAME $_at s] total=${((build + raster) / 1000)
-              .toStringAsFixed(1)}ms '
+          '[FRAME $_at s] total=${total}ms '
           '(build=${(build / 1000).toStringAsFixed(1)} '
           'raster=${(raster / 1000).toStringAsFixed(1)})',
         );

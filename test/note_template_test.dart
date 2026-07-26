@@ -22,10 +22,22 @@ void main() {
         expect(text, contains('A theme toggle.'));
         expect(text, contains('## must'));
         // Dropped empty sections leave no heading behind.
-        expect(text, isNot(contains('## nice')));
-        expect(text, isNot(contains('## refs')));
+        expect(text, isNot(contains('## verify')));
+        expect(text, isNot(contains('## read first')));
       },
     );
+
+    test('the multi-word "read first" label round-trips as a heading', () {
+      final text = assemble(spec, {
+        'title': 'T',
+        'refs': '- https://example.com/doc',
+      });
+      expect(text, contains('## read first'));
+
+      final parsed = parse(spec, text);
+      expect(parsed.conforms, isTrue);
+      expect(parsed.values['refs'], '- https://example.com/doc');
+    });
 
     test('omits the title line when the title is blank', () {
       final text = assemble(spec, {'what': 'something'});
@@ -61,6 +73,32 @@ void main() {
       const legacy = 'Shutdown timer\n\nwhat — a timer\nwhere — new app';
       final parsed = parse(spec, legacy);
       expect(parsed.conforms, isFalse);
+    });
+
+    test('the pre-2026-07 twelve-section spec is non-conforming', () {
+      // Notes written before `tech`/`ask`/`nice`/`never`/`depends`/`estimate`
+      // were cut must fall back to the raw editor rather than be silently
+      // stripped of the sections the template no longer knows about.
+      const legacy =
+          '# Old note\n\n## what\na thing\n\n## tech\nFlutter 3.32\n\n'
+          '## must\n- do it\n\n## estimate\nM';
+      final parsed = parse(spec, legacy);
+      expect(parsed.conforms, isFalse);
+      // The dropped sections are not resurrected as values either.
+      expect(parsed.values.containsKey('tech'), isFalse);
+      expect(parsed.values.containsKey('estimate'), isFalse);
+    });
+
+    test('the section set is the audited seven', () {
+      expect(spec.sections.map((s) => s.key), [
+        'title',
+        'what',
+        'where',
+        'must',
+        'done',
+        'verify',
+        'refs',
+      ]);
     });
 
     test('out-of-order / duplicate headings are non-conforming', () {

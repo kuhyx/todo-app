@@ -135,8 +135,7 @@ void main() {
   });
 
   test('contentTypeFor covers the asset kinds the build emits', () {
-    String kind(String name) =>
-        WrapperServer.contentTypeFor(name).mimeType;
+    String kind(String name) => WrapperServer.contentTypeFor(name).mimeType;
 
     expect(kind('a.html'), 'text/html');
     expect(kind('a.json'), 'application/json');
