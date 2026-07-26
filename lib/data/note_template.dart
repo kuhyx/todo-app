@@ -192,6 +192,28 @@ class NoteTemplate {
 
   /// The default template applied to new notes.
   static const NoteTemplate defaultTemplate = llmDesignSpec;
+
+  /// The template a *draft* of [text] should be authored with.
+  ///
+  /// A bare link gets [blank]: a third of the freeform notes in the backlog are
+  /// nothing but a pasted URL, and walking a seven-step spec stepper to file a
+  /// link is pure friction. Everything else keeps [defaultTemplate].
+  static NoteTemplate forDraft(String text) =>
+      isBareLink(text) ? blank : defaultTemplate;
+}
+
+/// Matches a single `http(s)://…` token.
+final RegExp _linkPattern = RegExp(r'^https?://\S+$');
+
+/// Whether [text] is nothing but one or more links.
+///
+/// Deliberately strict: one word of context ("read this https://…") means the
+/// note has prose in it and is no longer a bare link.
+bool isBareLink(String text) {
+  final tokens = text.trim().split(RegExp(r'\s+'))
+    ..removeWhere((t) => t.isEmpty);
+  if (tokens.isEmpty) return false;
+  return tokens.every(_linkPattern.hasMatch);
 }
 
 /// Result of parsing stored text against a template.

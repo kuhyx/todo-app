@@ -115,6 +115,10 @@ class _NoteEditorState extends State<NoteEditor> {
   /// One controller per structured section (keyed by section key).
   final Map<String, TextEditingController> _section = {};
 
+  /// Set once the user picks a template themselves, which stops
+  /// [_retemplateDraft] from overriding that choice as they keep typing.
+  bool _templatePickedByUser = false;
+
   /// Single field used for the freeform [NoteTemplate.blank] body and for raw
   /// mode of a structured template.
   final TextEditingController _body = TextEditingController();
@@ -236,6 +240,24 @@ class _NoteEditorState extends State<NoteEditor> {
 
   void _emit() => widget.onChanged(_currentText());
 
+  /// Re-picks the draft's template from what has been typed so far, unless the
+  /// user has chosen one explicitly.
+  ///
+  /// Only ever runs while the raw body *is* the source, so there are no section
+  /// values to convert and the switch is lossless in both directions: paste a
+  /// link and Guided drops away, write a sentence under it and the spec
+  /// template comes back.
+  void _retemplateDraft() {
+    if (_templatePickedByUser || !_rawSource) return;
+    final next = NoteTemplate.forDraft(_body.text);
+    if (next.id == _template.id) return;
+    setState(() {
+      _template = next;
+      _currentStep = 0;
+      _mode = _resolveMode(_mode);
+    });
+  }
+
   void _switchTemplate(NoteTemplate next) {
     if (next.id == _template.id) return;
     final text = _currentText();
@@ -306,6 +328,8 @@ class _NoteEditorState extends State<NoteEditor> {
   /// is unchanged, which would skip flipping out of the wizard here.
   void _enterGuidedWithTemplate(NoteTemplate template) {
     final text = _currentText();
+    // Choosing a template in the wizard is as explicit as using the dropdown.
+    _templatePickedByUser = true;
     setState(() {
       _template = template;
       _currentStep = 0;
@@ -363,6 +387,7 @@ class _NoteEditorState extends State<NoteEditor> {
           ],
           onChanged: (id) {
             if (id == null) return;
+            _templatePickedByUser = true;
             _switchTemplate(NoteTemplate.all.firstWhere((t) => t.id == id));
           },
         ),
@@ -538,7 +563,10 @@ class _NoteEditorState extends State<NoteEditor> {
             border: InputBorder.none,
             hintText: 'Write your idea…',
           ),
-          onChanged: (_) => _emit(),
+          onChanged: (_) {
+            _retemplateDraft();
+            _emit();
+          },
         ),
       ),
     );

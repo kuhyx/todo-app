@@ -101,6 +101,57 @@ void main() {
     expect(find.text('Next'), findsNothing);
   });
 
+  testWidgets('pasting a bare link drops the draft to the blank template', (
+    tester,
+  ) async {
+    await pumpEditor(
+      tester,
+      initialTemplate: spec,
+      initialMode: NoteEditorMode.raw,
+    );
+    expect(find.text('LLM design spec'), findsOneWidget);
+
+    await tester.enterText(
+      find.byType(TextField).first,
+      'https://example.com/x',
+    );
+    await tester.pump();
+
+    // Freeform now, so there is no seven-step stepper to walk for a link.
+    expect(find.text('Blank'), findsOneWidget);
+    expect(find.text('Guided'), findsNothing);
+
+    // Adding prose puts the spec template back — lossless in both directions.
+    await tester.enterText(
+      find.byType(TextField).first,
+      'https://example.com/x — port this to Dart',
+    );
+    await tester.pump();
+    expect(find.text('LLM design spec'), findsOneWidget);
+    expect(find.text('Guided'), findsOneWidget);
+  });
+
+  testWidgets('an explicit template choice survives further typing', (
+    tester,
+  ) async {
+    await pumpEditor(
+      tester,
+      initialTemplate: spec,
+      initialMode: NoteEditorMode.raw,
+    );
+
+    await tester.tap(find.text('LLM design spec'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Blank').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Blank'), findsOneWidget);
+
+    // Prose would normally re-select the spec template; an explicit pick wins.
+    await tester.enterText(find.byType(TextField).first, 'build a thing');
+    await tester.pump();
+    expect(find.text('Blank'), findsOneWidget);
+  });
+
   testWidgets('switching to View renders the note as Markdown', (tester) async {
     await pumpEditor(
       tester,

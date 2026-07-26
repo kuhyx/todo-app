@@ -186,7 +186,12 @@ the *only* new section and stops there.
 
 The leverage is therefore not at capture time:
 - **Capture stays cheap.** The evidence supports fewer fields, not more. Median
-  opening prompt is 363 chars and that is fine.
+  opening prompt is 363 chars and that is fine. Implemented: a draft that is
+  nothing but a pasted link now selects the freeform `blank` template
+  automatically (`NoteTemplate.forDraft`), so filing a link costs one paste
+  instead of a seven-step stepper — a third of the freeform backlog is exactly
+  that. Typing any prose alongside the link restores the spec template, and an
+  explicit pick from the dropdown or wizard is never overridden.
 - **Per-repo constants belong in that repo's `CLAUDE.md`, written once** — never
   re-typed per note. `verify` exists for the exception, not the rule.
 - **The real cost centre is the turn-24 fork**, which no prompt could have

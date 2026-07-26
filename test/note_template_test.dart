@@ -140,6 +140,29 @@ void main() {
     });
   });
 
+  group('bare-link drafts', () {
+    test('isBareLink accepts only link-only text', () {
+      expect(isBareLink('https://example.com/a'), isTrue);
+      expect(isBareLink('  http://example.com  '), isTrue);
+      // Several pasted links are still just links.
+      expect(isBareLink('https://a.example\nhttps://b.example'), isTrue);
+      // One word of context means the note has prose in it.
+      expect(isBareLink('read this https://example.com'), isFalse);
+      expect(isBareLink('https://example.com — do the thing'), isFalse);
+      expect(isBareLink('just a title'), isFalse);
+      expect(isBareLink(''), isFalse);
+      expect(isBareLink('   \n '), isFalse);
+      // Not a URL scheme we recognise.
+      expect(isBareLink('ftp://example.com/x'), isFalse);
+    });
+
+    test('forDraft picks blank for a link and the spec otherwise', () {
+      expect(NoteTemplate.forDraft('https://example.com').id, 'blank');
+      expect(NoteTemplate.forDraft('build a thing').id, 'llm-design-spec');
+      expect(NoteTemplate.forDraft('').id, 'llm-design-spec');
+    });
+  });
+
   group('noteTitle', () {
     test('strips the leading # from a heading', () {
       expect(noteTitle('# My title\n\n## what\nx'), 'My title');
