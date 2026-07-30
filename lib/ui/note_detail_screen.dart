@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/confirm.dart';
 import 'package:todo/ui/note_editor.dart';
 
 /// Full-screen view of a single note: read it in full, edit its body through
@@ -45,6 +46,12 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       _persist(_note.copyWith(text: text, updatedAt: DateTime.now()));
 
   Future<void> _delete() async {
+    final confirmed = await confirmDestructive(
+      context,
+      title: 'Delete note?',
+      message: 'This cannot be undone.',
+    );
+    if (!confirmed) return;
     await widget.repository.delete(_note.id);
     if (mounted) Navigator.of(context).pop();
   }

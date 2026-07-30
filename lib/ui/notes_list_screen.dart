@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/confirm.dart';
 import 'package:todo/ui/note_detail_screen.dart';
 
 /// The default status selection: hide completed/dropped work. This is the
@@ -125,6 +126,11 @@ class _NotesListScreenState extends State<NotesListScreen> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      // Scroll-controlled so the sheet can exceed the default 9/16 of the
+      // viewport. On a 768px-tall screen that default is only ~432px, and this
+      // sheet's content grows with the note title and its chip rows -- an
+      // unscrollable sheet would clip the Delete action out of reach.
+      isScrollControlled: true,
       builder: (_) => _NoteActionsSheet(
         note: note,
         onChanged: (updated) async {
@@ -375,6 +381,12 @@ class _NoteActionsSheetState extends State<_NoteActionsSheet> {
                 foregroundColor: Theme.of(context).colorScheme.error,
               ),
               onPressed: () async {
+                final confirmed = await confirmDestructive(
+                  context,
+                  title: 'Delete note?',
+                  message: 'This cannot be undone.',
+                );
+                if (!confirmed) return;
                 await widget.onDelete();
                 if (context.mounted) Navigator.of(context).pop();
               },

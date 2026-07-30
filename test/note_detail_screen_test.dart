@@ -115,7 +115,25 @@ void main() {
     await tester.tap(find.byTooltip('Delete note'));
     await tester.pumpAndSettle();
 
+    // Delete is now confirmed. Deleting a note is irreversible and there is no
+    // undo, so a single Return on a focused control must not destroy it.
+    expect(find.text('Delete note?'), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
     expect(await repo.listNotes(), isEmpty);
     expect(find.byType(NoteDetailScreen), findsNothing);
+  });
+
+  testWidgets('cancelling the delete keeps the note', (tester) async {
+    final repo = await pumpDetail(tester, seedNote('# Keep me'));
+
+    await tester.tap(find.byTooltip('Delete note'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(await repo.listNotes(), hasLength(1));
+    expect(find.byType(NoteDetailScreen), findsOneWidget);
   });
 }

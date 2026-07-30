@@ -109,9 +109,29 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300)); // sheet open
     await tester.tap(find.text('Delete note'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+
+    // Delete is now confirmed on this path too: it is irreversible, has no
+    // undo, and is one Tab from a Return in the sheet's chip rows.
+    expect(find.text('Delete note?'), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
 
     expect(await repo.listNotes(), isEmpty);
+  });
+
+  testWidgets('cancelling the sheet delete keeps the note', (tester) async {
+    final repo = await pumpList(tester, seed: [note('a', 'Keep me')]);
+
+    await tester.tap(find.byTooltip('Quick actions'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Delete note'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(await repo.listNotes(), hasLength(1));
   });
 
   testWidgets('per-note sheet changes status via a chip', (tester) async {
