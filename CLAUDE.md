@@ -26,8 +26,8 @@ and sync peer-to-peer through a GitHub repo used as dumb storage.
 
 ## Commands
 
-- Run tests + coverage: `flutter test --coverage` (suite runs in ~5s; keep it
-  that fast — see Testing below).
+- Run tests + coverage: `flutter test --coverage` (suite runs in 1–2min; keep it
+  quick — see Testing below).
 - Coverage summary: `lcov --list coverage/lcov.info`.
 - Static analysis: `flutter analyze` (must be clean before committing).
 - Format: `dart format lib/ test/`.
@@ -36,7 +36,10 @@ and sync peer-to-peer through a GitHub repo used as dumb storage.
 - The wrapper serves on a **fixed** port 8730 with a **fixed** Chrome profile
   dir. Both must stay fixed: the GitHub token (`localStorage`) and the notes
   (IndexedDB) are keyed by origin and live in that profile, so changing either
-  silently logs you out and hides your notes.
+  silently logs you out and hides your notes. Because the port cannot move,
+  `lib/desktop/port_guard.dart` decides what to do when it is already taken:
+  reap a wrapper with no window attached (so an upgrade can't leave you on old
+  code), join one that still has a window, and refuse to touch anything else.
 - Release APK: `flutter build apk --release` (signs with the debug key; debug
   builds are janky — always measure smoothness on a release build).
 - Sync smoke test (hits real GitHub, needs a token): `dart run tool/sync_smoke.dart`.
@@ -97,8 +100,10 @@ migrate → Settings → Import).
 
 ## Testing
 
-- **The suite must stay fast (~5s) and fully green.** It is currently **191
-  tests at 100% line coverage**. Don't regress either.
+- **The suite must stay quick and fully green.** It is currently **238 tests at
+  100% line coverage**, running in 1–2min on this machine. Don't regress either.
+  (The "~5s" figure this file used to quote had drifted well before the port
+  guard was added; measure before quoting a new one.)
 - Widget tests use `test/fake_note_repository.dart` — a `FakeNoteRepository`
   built on `StreamController`s, **not** a real DB. A real `sqlite_crdt` DB
   schedules timers that never drain under the widget tester's fake clock
