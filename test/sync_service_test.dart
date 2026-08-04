@@ -55,6 +55,7 @@ Note _note(String id, String text) => Note(
 );
 
 void main() {
+  _revisionTrackingTests();
   test('pulls and merges another device, then pushes its own', () async {
     final other = await NoteRepository.openInMemory(nodeId: 'otherNode');
     await other.upsert(_note('x', 'from other device'));
@@ -152,4 +153,183 @@ void main() {
     expect(result.skippedFiles, ['gone.json']);
     expect(putCalls, hasLength(1)); // the push still happened
   });
+}
+
+/// An in-memory [RemoteStore] that also serves revision maps in one read,
+/// standing in for Firebase. Counts reads so tests can assert on *traffic*
+/// rather than on the merge result.
+class _FakeRemote implements RemoteStore, BulkMapReader {
+  _FakeRemote(this.files);
+
+  final Map<String, String> files;
+  final List<String> reads = [];
+  final List<String> writes = [];
+
+  @override
+  Future<List<String>> listDirectory(String path) async => files.keys
+      .where((k) => k.startsWith('$path/'))
+      .map((k) => k.substring(path.length + 1).split('/').first)
+      .toSet()
+      .toList();
+
+  @override
+  Future<String?> getFileText(String path) async {
+    reads.add(path);
+    return files[path];
+  }
+
+  @override
+  Future<void> putFileText(
+    String path,
+    String text, {
+    required String message,
+  }) async {
+    writes.add(path);
+    files[path] = text;
+  }
+
+  @override
+  Future<Map<String, String>> getStringMap(String path) async => {
+    for (final e in files.entries)
+      if (e.key.startsWith('$path/')) e.key.substring(path.length + 1): e.value,
+  };
+
+  @override
+  Future<void> deleteFile(String path, {String message = ''}) async =>
+      files.remove(path);
+
+  @override
+  Future<bool> canAccessRemote() async => true;
+
+  @override
+  void close() {}
+}
+
+/// A [RemoteStore] with no bulk-map read, standing in for GitHub.
+///
+/// Delegates rather than extends: a subclass of [_FakeRemote] would inherit
+/// `BulkMapReader`, the very capability this fake exists to lack.
+class _FakeRemoteWithoutBulkRead implements RemoteStore {
+  _FakeRemoteWithoutBulkRead(Map<String, String> files)
+    : _inner = _FakeRemote(files);
+
+  final _FakeRemote _inner;
+
+  List<String> get reads => _inner.reads;
+
+  @override
+  Future<List<String>> listDirectory(String path) => _inner.listDirectory(path);
+
+  @override
+  Future<String?> getFileText(String path) => _inner.getFileText(path);
+
+  @override
+  Future<void> putFileText(
+    String path,
+    String text, {
+    required String message,
+  }) => _inner.putFileText(path, text, message: message);
+
+  @override
+  Future<void> deleteFile(String path, {String message = ''}) =>
+      _inner.deleteFile(path, message: message);
+
+  @override
+  Future<bool> canAccessRemote() => _inner.canAccessRemote();
+
+  @override
+  void close() => _inner.close();
+}
+
+void _revisionTrackingTests() {
+  group('revision tracking', () {
+    late NoteRepository repo;
+
+    setUp(() async {
+      repo = await NoteRepository.openInMemory(nodeId: 'me');
+    });
+
+    tearDown(() async => repo.close());
+
+    test('skips a peer whose revision has not changed', () async {
+      // The saving the free-tier budget depends on: an unchanged ~150 KB peer
+      // log must not be downloaded again.
+      final peerLog = logToJson(await _peerLog());
+      final remote = _FakeRemote({
+        'todo-sync/notes/phone.json': peerLog,
+        'todo-sync/revs/phone': revisionOf(peerLog),
+      });
+      final store = InMemorySyncStateStore();
+
+      await SyncService(stateStore: store).sync(repo, remote);
+      remote.reads.clear();
+      final second = await SyncService(stateStore: store).sync(repo, remote);
+
+      expect(remote.reads, isNot(contains('todo-sync/notes/phone.json')));
+      expect(second.skippedUnchanged, 1);
+      expect(second.mergedDevices, 0);
+    });
+
+    test('downloads again once the peer publishes a new revision', () async {
+      final first = logToJson(await _peerLog());
+      final remote = _FakeRemote({
+        'todo-sync/notes/phone.json': first,
+        'todo-sync/revs/phone': revisionOf(first),
+      });
+      final store = InMemorySyncStateStore();
+      await SyncService(stateStore: store).sync(repo, remote);
+      remote.reads.clear();
+
+      final changed = logToJson(await _peerLog(title: 'changed'));
+      remote.files['todo-sync/notes/phone.json'] = changed;
+      remote.files['todo-sync/revs/phone'] = revisionOf(changed);
+      final second = await SyncService(stateStore: store).sync(repo, remote);
+
+      expect(remote.reads, contains('todo-sync/notes/phone.json'));
+      expect(second.mergedDevices, 1);
+    });
+
+    test('suppresses an unchanged push and publishes a revision', () async {
+      final remote = _FakeRemote({});
+      final store = InMemorySyncStateStore();
+
+      final first = await SyncService(stateStore: store).sync(repo, remote);
+      expect(first.pushed, isTrue);
+      expect(remote.writes, [
+        'todo-sync/notes/me.json',
+        'todo-sync/revs/me',
+      ]);
+      remote.writes.clear();
+
+      final second = await SyncService(stateStore: store).sync(repo, remote);
+
+      expect(second.pushed, isFalse);
+      expect(remote.writes, isEmpty);
+    });
+
+    test('still syncs on a backend without a bulk-map read', () async {
+      // GitHub has no cheap revision map; correctness must not depend on the
+      // optimisation being available.
+      final peerLog = logToJson(await _peerLog());
+      final remote = _FakeRemoteWithoutBulkRead({
+        'todo-sync/notes/phone.json': peerLog,
+      });
+
+      final result = await SyncService(
+        stateStore: InMemorySyncStateStore(),
+      ).sync(repo, remote);
+
+      expect(result.mergedDevices, 1);
+      expect(remote.reads, contains('todo-sync/notes/phone.json'));
+    });
+  });
+}
+
+/// Builds a one-note log as it would arrive from another device.
+Future<Log> _peerLog({String title = 'from phone'}) async {
+  final peer = await NoteRepository.openInMemory(nodeId: 'phone');
+  await peer.upsert(_note('peer-note', title));
+  final log = peer.exportLog();
+  await peer.close();
+  return log;
 }

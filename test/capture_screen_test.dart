@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -27,6 +28,7 @@ void main() {
     List<Note> seed = const [],
     FakeNoteRepository? repository,
     LocalBackup? localBackup,
+    Future<FirebaseRestClient?> Function()? firebaseFactory,
   }) async {
     SharedPreferences.setMockInitialValues(prefs);
     installFakeSecureStorage();
@@ -53,6 +55,11 @@ void main() {
         home: CaptureScreen(
           repository: repo,
           httpClient: httpClient,
+          // Both injected so the widget never reaches for the platform: the
+          // real factories want the OS keystore and an application-support
+          // directory, neither of which exists under `flutter test`.
+          firebaseFactory: firebaseFactory ?? () async => null,
+          stateStore: InMemorySyncStateStore(),
           localBackup: backup,
         ),
       ),
@@ -343,7 +350,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(methods, contains('PUT'));
+    // A sync ran. Not `contains('PUT')`: the launch sync above already pushed
+    // this log, so revision tracking correctly suppresses the second, unchanged
+    // push -- that suppression is the point of the revision cache.
+    expect(methods, isNotEmpty);
   });
 
   testWidgets('auto-sync failure shows no snackbar but flags the status line', (
@@ -418,7 +428,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(methods, contains('PUT'));
+    // A sync ran. Not `contains('PUT')`: the first sync above already pushed
+    // this log, so revision tracking correctly suppresses the second, unchanged
+    // push -- that suppression is the point of the revision cache.
+    expect(methods, isNotEmpty);
   });
 
   testWidgets('recovers notes from the local backup into an empty DB', (

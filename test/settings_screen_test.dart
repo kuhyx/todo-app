@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,6 +105,11 @@ void main() {
           initial: initial,
           repository: repo,
           httpClient: httpClient,
+          // Both injected so the widget never reaches for the platform: the
+          // real factories want the OS keystore and an application-support
+          // directory, neither of which exists under `flutter test`.
+          firebaseFactory: () async => null,
+          stateStore: InMemorySyncStateStore(),
         ),
       ),
     );
@@ -365,6 +371,8 @@ void main() {
                         token: 'tok',
                       ),
                       repository: repo,
+                      firebaseFactory: () async => null,
+                      stateStore: InMemorySyncStateStore(),
                     ),
                   ),
                 ),

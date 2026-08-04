@@ -10,6 +10,7 @@ import 'package:todo/data/note_template.dart';
 import 'package:todo/frame_stats.dart';
 import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/local_backup_factory.dart';
+import 'package:todo/sync/run_sync.dart';
 import 'package:todo/sync/sync_service.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:todo/ui/note_editor.dart';
@@ -30,11 +31,20 @@ class CaptureScreen extends StatefulWidget {
     required this.repository,
     this.httpClient,
     this.localBackup,
+    this.firebaseFactory,
+    this.stateStore,
     super.key,
   });
 
   /// The store the captured note is persisted to on every keystroke.
   final NoteRepository repository;
+
+  /// Builds the Firebase backend. Injected so tests can supply a fake, or
+  /// null to assert the pre-migration GitHub-only path still works.
+  final Future<FirebaseRestClient?> Function()? firebaseFactory;
+
+  /// Revision cache. Injected so tests need no application-support directory.
+  final SyncStateStore? stateStore;
 
   /// Injectable HTTP client for the sync path. Production leaves this null
   /// (the GitHubClient creates its own); tests pass a mock so the configured
@@ -87,7 +97,6 @@ class _CaptureScreenState extends State<CaptureScreen>
   Priority _draftPriority = Priority.defaultValue;
   Status _draftStatus = Status.todo;
 
-  final SyncService _syncService = const SyncService();
   SyncSettings? _settings;
   bool _syncing = false;
 
@@ -224,21 +233,20 @@ class _CaptureScreenState extends State<CaptureScreen>
     final settings = _settings;
     if (_autoSyncing || settings == null || !settings.isConfigured) return;
     _autoSyncing = true;
-    final client = GitHubClient(
-      owner: settings.owner,
-      repo: settings.repo,
-      token: settings.token,
-      httpClient: widget.httpClient,
-    );
     try {
-      final result = await _syncService.sync(widget.repository, client);
+      final result = await runSync(
+        widget.repository,
+        settings,
+        httpClient: widget.httpClient,
+        firebaseFactory: widget.firebaseFactory,
+        stateStore: widget.stateStore,
+      );
       await _recordSyncStatus(ok: true, detail: _describe(result));
     } on Exception catch (e) {
       // Offline or a transient GitHub error: still no snackbar (this path
       // must never interrupt capture), but the status line shows it.
       await _recordSyncStatus(ok: false, detail: '$e');
     } finally {
-      client.close();
       _autoSyncing = false;
     }
   }
@@ -283,14 +291,14 @@ class _CaptureScreenState extends State<CaptureScreen>
       return;
     }
     setState(() => _syncing = true);
-    final client = GitHubClient(
-      owner: settings.owner,
-      repo: settings.repo,
-      token: settings.token,
-      httpClient: widget.httpClient,
-    );
     try {
-      final result = await _syncService.sync(widget.repository, client);
+      final result = await runSync(
+        widget.repository,
+        settings,
+        httpClient: widget.httpClient,
+        firebaseFactory: widget.firebaseFactory,
+        stateStore: widget.stateStore,
+      );
       final detail = _describe(result);
       await _recordSyncStatus(ok: true, detail: detail);
       _showSnack('Synced: $detail');
@@ -298,7 +306,6 @@ class _CaptureScreenState extends State<CaptureScreen>
       await _recordSyncStatus(ok: false, detail: '$e');
       _showSnack('Sync failed: $e');
     } finally {
-      client.close();
       if (mounted) setState(() => _syncing = false);
     }
   }

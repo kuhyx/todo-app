@@ -9,7 +9,7 @@ import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/backlog_export.dart';
 import 'package:todo/sync/github_device_auth.dart';
 import 'package:todo/sync/notes_markdown.dart';
-import 'package:todo/sync/sync_service.dart';
+import 'package:todo/sync/run_sync.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -25,6 +25,8 @@ class SettingsScreen extends StatefulWidget {
     required this.initial,
     required this.repository,
     this.httpClient,
+    this.firebaseFactory,
+    this.stateStore,
     super.key,
   });
 
@@ -33,6 +35,13 @@ class SettingsScreen extends StatefulWidget {
 
   /// The store backup export/import reads from and writes to.
   final NoteRepository repository;
+
+  /// Builds the Firebase backend. Injected so tests can supply a fake, or
+  /// null to assert the pre-migration GitHub-only path still works.
+  final Future<FirebaseRestClient?> Function()? firebaseFactory;
+
+  /// Revision cache. Injected so tests need no application-support directory.
+  final SyncStateStore? stateStore;
 
   /// Optional HTTP client for the GitHub calls (test-connection and device
   /// flow). Injected by tests; production uses each client's default.
@@ -113,14 +122,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// immediately and they get clear confirmation it worked.
   Future<void> _syncAfterConnect() async {
     final s = _current;
-    final client = GitHubClient(
-      owner: s.owner,
-      repo: s.repo,
-      token: s.token,
-      httpClient: widget.httpClient,
-    );
     try {
-      final result = await const SyncService().sync(widget.repository, client);
+      final result = await runSync(
+        widget.repository,
+        s,
+        httpClient: widget.httpClient,
+        firebaseFactory: widget.firebaseFactory,
+        stateStore: widget.stateStore,
+      );
       if (mounted) {
         setState(
           () => _status =
@@ -130,8 +139,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } on Exception catch (e) {
       if (mounted) setState(() => _status = 'Connected, but sync failed: $e');
-    } finally {
-      client.close();
     }
   }
 
