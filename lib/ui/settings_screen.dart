@@ -7,18 +7,23 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/backlog_export.dart';
+import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/github_device_auth.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/run_sync.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Settings screen for GitHub sync configuration and note backup.
+/// Settings screen for sync configuration and note backup.
 ///
-/// Primary sync path: the "Connect GitHub" button runs the OAuth **device
-/// flow** (authorize in a browser, no token pasting). The manual token field
-/// remains as a fallback. The Backup section exports/imports all notes as a
-/// single Markdown file (see [NotesMarkdown]).
+/// Primary sync path: "Connect Firebase" signs in with the shared sync
+/// account, whose password is kept in the OS keystore. GitHub is only the
+/// cutover mirror, so its device-flow connection, owner/repo and token
+/// fallback all sit under "Advanced (GitHub mirror)" rather than competing
+/// with Firebase as a visible choice.
+///
+/// The Backup section exports/imports all notes as a single Markdown file
+/// (see [NotesMarkdown]).
 class SettingsScreen extends StatefulWidget {
   /// Creates a [SettingsScreen] pre-filled with [initial] settings.
   const SettingsScreen({
@@ -27,6 +32,9 @@ class SettingsScreen extends StatefulWidget {
     this.httpClient,
     this.firebaseFactory,
     this.stateStore,
+    this.accountLoader,
+    this.accountSaver,
+    this.accountClearer,
     super.key,
   });
 
@@ -42,6 +50,18 @@ class SettingsScreen extends StatefulWidget {
 
   /// Revision cache. Injected so tests need no application-support directory.
   final SyncStateStore? stateStore;
+
+  /// Keystore accessors for the Firebase account. Injected as a group so the
+  /// connect/disconnect flows are testable without a platform channel —
+  /// `flutter test` has no binding for one, and the real keystore is the only
+  /// thing standing between these branches and full coverage.
+  final Future<FirebaseAccount?> Function()? accountLoader;
+
+  /// Persists the account. See [accountLoader].
+  final Future<void> Function(FirebaseAccount)? accountSaver;
+
+  /// Forgets the account and any cached session. See [accountLoader].
+  final Future<void> Function()? accountClearer;
 
   /// Optional HTTP client for the GitHub calls (test-connection and device
   /// flow). Injected by tests; production uses each client's default.
@@ -65,8 +85,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     text: widget.initial.clientId,
   );
 
+  final TextEditingController _email = TextEditingController();
+  final TextEditingController _password = TextEditingController();
+
   bool _testing = false;
+  bool _busy = false;
+  bool _firebaseConnected = false;
   String? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadFirebaseAccount());
+  }
+
+  /// Reflects a previously-stored account, so a returning user sees the real
+  /// state instead of an empty form that looks unconfigured.
+  Future<void> _loadFirebaseAccount() async {
+    final account = await (widget.accountLoader ?? loadAccount)();
+    if (!mounted) return;
+    if (account != null) _email.text = account.email;
+    setState(() => _firebaseConnected = account != null);
+  }
+
+  /// Stores the typed account and signs in immediately, so a typo surfaces
+  /// here rather than as a silent background failure on the next sync.
+  ///
+  /// Without this the app could never reach Firebase at all: `openFirebase()`
+  /// reads an account nothing had ever written.
+  Future<void> _connectFirebase() async {
+    final email = _email.text.trim();
+    final password = _password.text;
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _status = 'Enter the sync account email and password.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _status = 'Signing in…';
+    });
+    await (widget.accountSaver ?? saveAccount)(
+      FirebaseAccount(email: email, password: password),
+    );
+    final client = await (widget.firebaseFactory ?? openFirebase)();
+    if (!mounted) return;
+    if (client == null) {
+      await (widget.accountClearer ?? clearAccount)();
+      setState(() {
+        _busy = false;
+        _firebaseConnected = false;
+        _status = 'Firebase rejected that account.';
+      });
+      return;
+    }
+    _password.clear();
+    setState(() {
+      _busy = false;
+      _firebaseConnected = true;
+      _status = 'Connected to Firebase.';
+    });
+  }
+
+  Future<void> _disconnectFirebase() async {
+    await (widget.accountClearer ?? clearAccount)();
+    if (!mounted) return;
+    _email.clear();
+    _password.clear();
+    setState(() {
+      _firebaseConnected = false;
+      _status = 'Firebase disconnected.';
+    });
+  }
 
   @override
   void dispose() {
@@ -74,6 +163,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _repo.dispose();
     _token.dispose();
     _clientId.dispose();
+    _email.dispose();
+    _password.dispose();
     super.dispose();
   }
 
@@ -228,44 +319,108 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Connect to GitHub',
+            'Firebase sync',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 4),
           Text(
-            'Authorize in your browser — no token to paste. Syncs to '
-            'kuhyx/syncs by default.',
+            _firebaseConnected
+                ? 'Connected. Notes go to Firebase first, and still mirror '
+                      'to GitHub until every device has moved.'
+                : 'Not connected — syncing over GitHub only. Enter the '
+                      'shared sync account to move this device over. The '
+                      'password is kept in the device keystore, never in the '
+                      'app or the repo.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _connectGitHub,
-            icon: const Icon(Icons.login),
-            label: const Text('Connect GitHub'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _owner,
-            decoration: const InputDecoration(
-              labelText: 'GitHub owner',
-              border: OutlineInputBorder(),
+          // Once connected the account is read-only text: an editable email
+          // box beside an empty password box reads as "you still have to
+          // enter this", making a connected device look unconfigured.
+          if (_firebaseConnected)
+            Row(
+              children: [
+                const Icon(Icons.cloud_done, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text(_email.text)),
+                TextButton(
+                  onPressed: _busy ? null : _disconnectFirebase,
+                  child: const Text('Disconnect'),
+                ),
+              ],
+            )
+          else ...[
+            TextField(
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              decoration: const InputDecoration(
+                labelText: 'Sync account email',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _repo,
-            decoration: const InputDecoration(
-              labelText: 'Repository name',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _password,
+              obscureText: true,
+              autocorrect: false,
+              decoration: const InputDecoration(
+                labelText: 'Sync account password',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                onPressed: _busy ? null : _connectFirebase,
+                icon: const Icon(Icons.cloud_done),
+                label: const Text('Connect Firebase'),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
-          // Manual escape hatches — most users never open this.
+          // GitHub is the cutover mirror, not a choice competing with
+          // Firebase, so its whole setup lives behind one disclosure.
           ExpansionTile(
-            title: const Text('Advanced'),
+            title: const Text('Advanced (GitHub mirror)'),
             tilePadding: EdgeInsets.zero,
             childrenPadding: const EdgeInsets.only(bottom: 8),
             children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Authorize in your browser — no token to paste. Syncs to '
+                  'kuhyx/syncs by default.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  onPressed: _connectGitHub,
+                  icon: const Icon(Icons.login),
+                  label: const Text('Connect GitHub'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _owner,
+                decoration: const InputDecoration(
+                  labelText: 'GitHub owner',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _repo,
+                decoration: const InputDecoration(
+                  labelText: 'Repository name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _clientId,
                 decoration: const InputDecoration(

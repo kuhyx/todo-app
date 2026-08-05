@@ -286,7 +286,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Sync settings'));
     await tester.pumpAndSettle(); // route transition
-    expect(find.text('Connect GitHub'), findsOneWidget); // settings is up
+    expect(find.text('Firebase sync'), findsOneWidget); // settings is up
 
     // Saving pops a SyncSettings back to the capture screen (covers the
     // result-adoption branch in _openSettings). Scope to the settings route —
@@ -299,7 +299,7 @@ void main() {
     );
     await tester.pumpAndSettle(); // save + pop transition
 
-    expect(find.text('Connect GitHub'), findsNothing); // back on capture
+    expect(find.text('Firebase sync'), findsNothing); // back on capture
     expect(find.byTooltip('Sync settings'), findsOneWidget);
   });
 

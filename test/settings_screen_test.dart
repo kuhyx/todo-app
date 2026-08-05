@@ -87,6 +87,10 @@ void main() {
     http.Client? httpClient,
     List<Note> seed = const [],
     FakeNoteRepository? repository,
+    Future<FirebaseRestClient?> Function()? firebaseFactory,
+    Future<FirebaseAccount?> Function()? accountLoader,
+    Future<void> Function(FirebaseAccount)? accountSaver,
+    Future<void> Function()? accountClearer,
   }) async {
     SharedPreferences.setMockInitialValues({});
     installFakeSecureStorage();
@@ -108,7 +112,10 @@ void main() {
           // Both injected so the widget never reaches for the platform: the
           // real factories want the OS keystore and an application-support
           // directory, neither of which exists under `flutter test`.
-          firebaseFactory: () async => null,
+          firebaseFactory: firebaseFactory ?? () async => null,
+          accountLoader: accountLoader ?? () async => null,
+          accountSaver: accountSaver,
+          accountClearer: accountClearer,
           stateStore: InMemorySyncStateStore(),
         ),
       ),
@@ -117,17 +124,145 @@ void main() {
     return repo;
   }
 
+  /// Expands the "Advanced (GitHub mirror)" section.
+  ///
+  /// GitHub is the cutover mirror rather than a choice the user makes, so
+  /// everything GitHub-facing is collapsed by default; a test that touches
+  /// those widgets has to open it first.
+  Future<void> openAdvanced(WidgetTester tester) async {
+    await tester.tap(find.text('Advanced (GitHub mirror)'));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('renders sync fields and the backup actions', (tester) async {
     await pumpSettings(tester);
+    // GitHub is the mirror now: hidden until the disclosure is opened.
+    expect(find.text('Connect GitHub'), findsNothing);
+    expect(find.text('Connect Firebase'), findsOneWidget);
+    await openAdvanced(tester);
     expect(find.text('Connect GitHub'), findsOneWidget);
     expect(find.text('Export notes'), findsOneWidget);
     expect(find.text('Import notes'), findsOneWidget);
+  });
+
+  testWidgets('offers the Firebase account form when not connected', (
+    tester,
+  ) async {
+    await pumpSettings(tester);
+    expect(
+      find.widgetWithText(TextField, 'Sync account email'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(TextField, 'Sync account password'),
+      findsOneWidget,
+    );
+    expect(find.text('Disconnect'), findsNothing);
+  });
+
+  testWidgets('Connect Firebase with empty fields asks for credentials', (
+    tester,
+  ) async {
+    await pumpSettings(tester);
+    await tester.tap(find.text('Connect Firebase'));
+    await tester.pump();
+    expect(
+      find.textContaining('Enter the sync account email and password'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Connect Firebase stores the account and reports success', (
+    tester,
+  ) async {
+    FirebaseAccount? saved;
+    await pumpSettings(
+      tester,
+      accountSaver: (a) async => saved = a,
+      firebaseFactory: () async => _stubClient(),
+    );
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Sync account email'),
+      'sync@example.com',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Sync account password'),
+      'pw',
+    );
+    await tester.tap(find.text('Connect Firebase'));
+    await tester.pumpAndSettle();
+
+    // saveAccount must actually be called: without it openFirebase() reads an
+    // account nothing ever wrote, and Firebase is a silent no-op forever.
+    expect(saved?.email, 'sync@example.com');
+    expect(saved?.password, 'pw');
+    expect(find.text('Connected to Firebase.'), findsOneWidget);
+    // Connected state is read-only text, not a form implying re-entry.
+    expect(find.text('sync@example.com'), findsOneWidget);
+    expect(find.text('Disconnect'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextField, 'Sync account password'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('a rejected account is cleared rather than left half-stored', (
+    tester,
+  ) async {
+    var cleared = false;
+    await pumpSettings(
+      tester,
+      accountSaver: (_) async {},
+      accountClearer: () async => cleared = true,
+      firebaseFactory: () async => null,
+    );
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Sync account email'),
+      'wrong@example.com',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Sync account password'),
+      'bad',
+    );
+    await tester.tap(find.text('Connect Firebase'));
+    await tester.pumpAndSettle();
+
+    expect(cleared, isTrue);
+    expect(find.text('Firebase rejected that account.'), findsOneWidget);
+  });
+
+  testWidgets('a stored account shows as connected on open, and disconnects', (
+    tester,
+  ) async {
+    var cleared = false;
+    await pumpSettings(
+      tester,
+      accountLoader: () async =>
+          const FirebaseAccount(email: 'stored@example.com', password: 'pw'),
+      accountClearer: () async => cleared = true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('stored@example.com'), findsOneWidget);
+
+    await tester.tap(find.text('Disconnect'));
+    await tester.pumpAndSettle();
+
+    expect(cleared, isTrue);
+    expect(find.text('Firebase disconnected.'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextField, 'Sync account email'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Connect GitHub without a client id shows guidance', (
     tester,
   ) async {
     await pumpSettings(tester);
+    await openAdvanced(tester);
     await tester.tap(find.text('Connect GitHub'));
     await tester.pump();
     expect(
@@ -140,7 +275,9 @@ void main() {
     final mock = MockClient((_) async => http.Response('{}', 200));
     await pumpSettings(tester, httpClient: mock);
 
-    await tester.tap(find.text('Advanced')); // Test connection lives here now
+    await tester.tap(
+      find.text('Advanced (GitHub mirror)'),
+    ); // Test connection lives here now
     await tester.pumpAndSettle();
     await tester.tap(find.text('Test connection'));
     await tester.pump(); // start
@@ -153,7 +290,7 @@ void main() {
     final mock = MockClient((_) async => http.Response('', 404));
     await pumpSettings(tester, httpClient: mock);
 
-    await tester.tap(find.text('Advanced'));
+    await tester.tap(find.text('Advanced (GitHub mirror)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Test connection'));
     await tester.pump();
@@ -166,7 +303,7 @@ void main() {
     final mock = MockClient((_) async => throw Exception('offline'));
     await pumpSettings(tester, httpClient: mock);
 
-    await tester.tap(find.text('Advanced'));
+    await tester.tap(find.text('Advanced (GitHub mirror)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Test connection'));
     await tester.pump();
@@ -188,6 +325,7 @@ void main() {
       httpClient: mock,
     );
 
+    await openAdvanced(tester);
     await tester.tap(find.text('Connect GitHub'));
     await tester.pump();
     await tester.pump();
@@ -224,6 +362,7 @@ void main() {
       httpClient: mock,
     );
 
+    await openAdvanced(tester);
     await tester.tap(find.text('Connect GitHub'));
     await tester.pump(); // requestDeviceCode
     await tester.pump(); // dialog builds, shows the user code
@@ -272,6 +411,7 @@ void main() {
       httpClient: mock,
     );
 
+    await openAdvanced(tester);
     await tester.tap(find.text('Connect GitHub'));
     await tester.pump();
     await tester.pump();
@@ -387,7 +527,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400)); // route transition
-    expect(find.text('Connect GitHub'), findsOneWidget); // settings is up
+    expect(find.text('Firebase sync'), findsOneWidget); // settings is up
 
     await tester.tap(find.text('Save'));
     await tester.pump(); // run _save (persist + pop)
@@ -502,6 +642,7 @@ void main() {
       httpClient: mock,
     );
 
+    await openAdvanced(tester);
     await tester.tap(find.text('Connect GitHub'));
     await tester.pump(); // requestDeviceCode
     await tester.pump(); // dialog builds, poll starts (interval 0)
@@ -524,3 +665,13 @@ void main() {
     expect(find.text('WXYZ-1234'), findsNothing); // dialog dismissed
   });
 }
+
+/// A real [FirebaseRestClient] that is never called: the settings screen only
+/// checks it for null, so no network or keystore is touched.
+FirebaseRestClient _stubClient() => FirebaseRestClient(
+  databaseUrl: 'https://example.invalid',
+  auth: FirebaseTokenProvider(
+    apiKey: 'k',
+    store: InMemoryCredentialStore(),
+  ),
+);
