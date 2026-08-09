@@ -15,9 +15,13 @@ concurrency:
   group: release-apk-${{ github.ref }}
   cancel-in-progress: false
 
-# NOTE: versionCode is github.run_number, which is per-workflow-FILE. Never
-# rename or replace this file — the counter resets to 1, versionCode goes
-# backwards, and Android silently refuses every future update.
+# NOTE: versionCode is the commit count (`git rev-list --count HEAD`), which
+# only ever increases and tracks the code rather than the CI file. It replaced
+# github.run_number on 2026-08-09: run_number counts workflow RUNS, so it
+# resets to 1 if this file is renamed AND it can fall behind a build made
+# outside this workflow — which happened, leaving CI unable to install over a
+# manually sideloaded APK (INSTALL_FAILED_VERSION_DOWNGRADE). The checkout
+# below therefore needs fetch-depth: 0; a shallow clone counts 1 commit.
 #
 # This job is NOT gated on a test suite: this repo has no Flutter analyze/test
 # job to depend on, so a broken commit still publishes. The build failing is
@@ -28,6 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # versionCode is the commit count; a shallow clone would report 1.
+          fetch-depth: 0
+
+      - name: Derive versionCode from the commit count
+        id: vc
+        run: echo "code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         with:
@@ -84,7 +95,7 @@ jobs:
         run: |
           flutter build apk --release \
             --build-name="${{ steps.ver.outputs.semver }}" \
-            --build-number="${{ github.run_number }}"
+            --build-number="${{ steps.vc.outputs.code }}"
 
       # Fail closed. `findByName("release") ?: debug` silently falls back to
       # the debug key if key.properties is misplaced, producing a green build
@@ -112,7 +123,7 @@ jobs:
         id: art
         run: |
           set -euo pipefail
-          out="todo-${{ steps.ver.outputs.semver }}-build.${{ github.run_number }}.apk"
+          out="todo-${{ steps.ver.outputs.semver }}-build.${{ steps.vc.outputs.code }}.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "$out"
           echo "path=$out" >> "$GITHUB_OUTPUT"
 
@@ -121,12 +132,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="v${{ steps.ver.outputs.semver }}-build.${{ github.run_number }}"
+          tag="v${{ steps.ver.outputs.semver }}-build.${{ steps.vc.outputs.code }}"
           gh release create "$tag" "${{ steps.art.outputs.path }}" \
             --prerelease \
             --target "${{ github.sha }}" \
             --title "$tag" \
-            --notes "Automated build of ${{ github.sha }} (versionCode ${{ github.run_number }})."
+            --notes "Automated build of ${{ github.sha }} (versionCode ${{ steps.vc.outputs.code }})."
 
       # Cut a clean vX.Y.Z the first time a pubspec version is seen. A failing
       # `gh release view` is the "not published yet" signal, which also covers
@@ -146,4 +157,4 @@ jobs:
           gh release create "$tag" "${{ steps.art.outputs.path }}" \
             --target "${{ github.sha }}" \
             --title "$tag" \
-            --notes "Release $tag (versionCode ${{ github.run_number }})."
+            --notes "Release $tag (versionCode ${{ steps.vc.outputs.code }})."
