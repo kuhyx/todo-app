@@ -1,0 +1,90 @@
+# Maintainer: Krzysztof Rudnicki <krzysztofrudnicki0@gmail.com>
+pkgname=todo-flutter
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Offline-first, CRDT-synced notes app (Flutter web in a Chrome app window)'
+arch=('x86_64')
+url='https://github.com/kuhyx/todo-app'
+license=('MIT')
+# A Chrome-family browser renders the UI, but none is a hard dependency: the
+# wrapper discovers whichever is installed at run time (Chrome, Chromium,
+# Thorium, Brave) and reports clearly if none is present. The deps below are
+# the ones actually linked/executed: the Dart AOT binary and the bundled
+# libsqlite3.so need glibc, /usr/bin/todo is a bash script, and the icons are
+# installed into the hicolor theme hierarchy.
+depends=('glibc' 'bash' 'hicolor-icon-theme')
+optdepends=('google-chrome: renders the app window'
+            'chromium: renders the app window')
+makedepends=('flutter')   # flutter-bin provides `flutter`; either satisfies this
+# The AUR already ships an unrelated package literally named 'todo' (a todo.txt
+# CLI) which also owns /usr/bin/todo, so the two genuinely cannot coexist.
+conflicts=('todo')
+# !strip is LOAD-BEARING: the wrapper is a Dart AOT executable with its snapshot
+# embedded in the ELF. Stripping discards the snapshot and the binary degrades
+# to a bare dartaotruntime that refuses to run ("is not an AOT snapshot").
+# !debug because Flutter/Dart AOT release binaries carry no extractable DWARF.
+options=('!strip' '!debug')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('0b44abd05569b310b930b9a8b72d0d6687a1973c072401e2355ac0a4247e1bc5')
+
+_srcdir="todo-app-$pkgver"
+
+build() {
+  cd "$_srcdir"
+  # makepkg builds as an unprivileged user with no writable default pub cache;
+  # keep it inside $srcdir so the build is self-contained and leaves no trace.
+  export PUB_CACHE="$srcdir/.pub-cache"
+  flutter build web --release
+  # `dart build cli`, NOT `dart compile exe`: dependencies (sqlite3,
+  # objective_c) have native build hooks that `dart compile` refuses to handle.
+  dart build cli -o build/cli
+}
+
+package() {
+  cd "$_srcdir"
+  local bundle="build/cli/bundle"
+
+  # Preserve the bundle's bin/ + lib/ layout: the executable resolves its
+  # native libraries from ../lib and the web assets from ../web.
+  install -dm755 "$pkgdir/opt/todo"
+  cp -r "$bundle/bin" "$pkgdir/opt/todo/bin"
+  # lib/ exists only when a dependency ships native code (here: libsqlite3.so).
+  if [[ -d "$bundle/lib" ]]; then
+    cp -r "$bundle/lib" "$pkgdir/opt/todo/lib"
+  fi
+  chmod 755 "$pkgdir/opt/todo/bin/todo_desktop"
+
+  install -dm755 "$pkgdir/opt/todo/web"
+  cp -r build/web/. "$pkgdir/opt/todo/web/"
+
+  install -dm755 "$pkgdir/usr/bin"
+  cat > "$pkgdir/usr/bin/todo" <<'WRAPPER'
+#!/bin/bash
+exec /opt/todo/bin/todo_desktop "$@"
+WRAPPER
+  chmod 755 "$pkgdir/usr/bin/todo"
+
+  # Desktop entry written inline. Do NOT call install_desktop_entry.sh: it
+  # targets ~/.local/share and its dev fallback points Exec at the repo's run.sh.
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/todo.desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=todo
+Comment=Offline-first, CRDT-synced notes
+Exec=/usr/bin/todo
+Icon=todo
+Terminal=false
+Categories=Utility;TextEditor;
+StartupWMClass=todo
+DESKTOP
+
+  local size
+  for size in 16 24 32 48 64 128 256 512; do
+    install -Dm644 "desktop/icons/$size/todo.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/todo.png"
+  done
+  # No gtk-update-icon-cache / update-desktop-database here: pacman hooks own
+  # that, and namcap flags calling them from package().
+
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
