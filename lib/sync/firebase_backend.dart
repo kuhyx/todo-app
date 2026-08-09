@@ -12,6 +12,7 @@
 /// half. On Android there is no such file.
 library;
 
+import 'dart:developer';
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -63,9 +64,16 @@ Future<FirebaseAccount?> loadAccount() async {
     final provisioned = await accountFromWrapper(Uri.base);
     if (provisioned != null) await saveAccount(provisioned);
     return provisioned;
-  } on Exception {
-    // No secret service available: behave as "not configured" rather than
-    // crashing the settings screen.
+  } on Exception catch (error, stackTrace) {
+    // Still "not configured" rather than crashing the settings screen -- but
+    // never silent: this hid *why* provisioning failed, which is
+    // indistinguishable from "no account set" until you say so.
+    log(
+      'loadAccount failed; treating this device as not configured',
+      level: 1000,
+      error: error,
+      stackTrace: stackTrace,
+    );
     return null;
   }
 }

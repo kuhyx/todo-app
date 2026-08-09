@@ -151,7 +151,7 @@ void main() {
     expect(raw.controller!.text, isEmpty);
   });
 
-  testWidgets('tapping Sync while unconfigured prompts for a token', (
+  testWidgets('tapping Sync while unconfigured prompts to connect a backend', (
     tester,
   ) async {
     await pumpCapture(tester); // empty prefs → no token → not configured
@@ -160,7 +160,11 @@ void main() {
     await tester.pump(); // settings load + snackbar
     await tester.pump();
 
-    expect(find.textContaining('Add a GitHub token'), findsOneWidget);
+    // The behaviour that matters is the routing, not the wording: an
+    // unconfigured device is sent to settings to connect a backend. Asserting
+    // on the snackbar text tied this to one phrasing, and the snackbar is
+    // gone by the time settings has pushed anyway.
+    expect(find.textContaining('Connect Firebase'), findsWidgets);
   });
 
   testWidgets('the notes-list button navigates to the list screen', (

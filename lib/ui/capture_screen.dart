@@ -1,5 +1,5 @@
-import 'dart:async';
 
+import 'dart:async';
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +8,7 @@ import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/frame_stats.dart';
+import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/local_backup_factory.dart';
 import 'package:todo/sync/run_sync.dart';
@@ -231,7 +232,12 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// lands in the status line so drift can't go unnoticed for days.
   Future<void> _autoSync() async {
     final settings = _settings;
-    if (_autoSyncing || settings == null || !settings.isConfigured) return;
+    if (_autoSyncing || settings == null) return;
+    // Either backend counts. `isConfigured` means "has a GitHub token", so
+    // gating on it alone silently skips every sync on a device connected
+    // only to Firebase -- and once the mirror is retired that is every
+    // device.
+    if (!settings.isConfigured && await openFirebase() == null) return;
     _autoSyncing = true;
     try {
       final result = await runSync(
@@ -285,8 +291,8 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// Runs a full sync, routing to settings first if not yet configured.
   Future<void> _sync() async {
     final settings = _settings ?? await SyncSettings.load();
-    if (!settings.isConfigured) {
-      _showSnack('Add a GitHub token in settings to enable sync');
+    if (!settings.isConfigured && await openFirebase() == null) {
+      _showSnack('Connect Firebase (or add a GitHub token) in settings');
       await _openSettings();
       return;
     }
