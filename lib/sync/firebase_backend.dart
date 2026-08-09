@@ -45,11 +45,24 @@ SecureCredentialStore credentialStore() => SecureCredentialStore(
 );
 
 /// Reads the per-device account, or null when sync has not been set up.
+///
+/// Falls back to the local wrapper when the store is empty, so a desktop
+/// install can provision itself from `~/.config/crdt-sync/` instead of the
+/// account being retyped per machine. The fetched account is written to the
+/// store on first success, so the route is consulted once rather than being
+/// load-bearing forever.
 Future<FirebaseAccount?> loadAccount() async {
   try {
-    return FirebaseAccount.tryParse(
+    final stored = FirebaseAccount.tryParse(
       await _secure.read(key: kFirebaseAccountKey),
     );
+    if (stored != null) return stored;
+    // Disconnect must stick: without this the next launch would silently
+    // re-adopt the account and the button would look broken.
+    if (await _secure.read(key: kSyncAccountOptOutKey) != null) return null;
+    final provisioned = await accountFromWrapper(Uri.base);
+    if (provisioned != null) await saveAccount(provisioned);
+    return provisioned;
   } on Exception {
     // No secret service available: behave as "not configured" rather than
     // crashing the settings screen.
@@ -64,6 +77,8 @@ Future<void> saveAccount(FirebaseAccount account) =>
 /// Forgets the account and any cached session.
 Future<void> clearAccount() async {
   await _secure.delete(key: kFirebaseAccountKey);
+  // Suppress wrapper re-provisioning; see loadAccount().
+  await _secure.write(key: kSyncAccountOptOutKey, value: 'true');
   await credentialStore().clear();
 }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:path/path.dart' as p;
 
 /// Local HTTP server backing the desktop app.
@@ -79,7 +80,54 @@ class WrapperServer {
     if (path == '/backup/log') {
       return _file(request, logPath);
     }
+    if (path == kSyncAccountPath) {
+      return _syncAccount(request);
+    }
     return _static(request, path);
+  }
+
+  /// Serves the shared sync account so a desktop install can self-provision.
+  ///
+  /// Off unless CRDT_SYNC_SERVE_ACCOUNT is set: this hands out a credential
+  /// with database write access to anything that can reach the port, so it is
+  /// something you switch on once to set an install up, not a standing route.
+  /// 404 (rather than 403) when disabled, so a probe cannot tell the route
+  /// exists.
+  ///
+  /// The account is read from the same ~/.config/crdt-sync/ pair the Python
+  /// daemons already use, so there is one source of truth per machine rather
+  /// than a per-app copy.
+  Future<void> _syncAccount(HttpRequest request) async {
+    if ((Platform.environment[kSyncAccountEnvVar] ?? '').isEmpty) {
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    final home = Platform.environment['HOME'] ?? '';
+    final configDir = p.join(home, '.config', 'crdt-sync');
+    final configFile = File(p.join(configDir, 'firebase.json'));
+    final passwordFile = File(p.join(configDir, 'password'));
+    if (!configFile.existsSync() || !passwordFile.existsSync()) {
+      stderr.writeln(
+        'Sync account requested but ~/.config/crdt-sync/ is incomplete — '
+        'the desktop app will keep asking for credentials.',
+      );
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    final email = (jsonDecode(await configFile.readAsString())
+        as Map<String, dynamic>)['email'];
+    if (email is! String || email.isEmpty) {
+      stderr.writeln('firebase.json has no usable "email" — not serving it.');
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    request.response.headers.contentType = ContentType.json;
+    request.response.write(
+      jsonEncode({
+        'email': email,
+        'password': (await passwordFile.readAsString()).trim(),
+      }),
+    );
   }
 
   /// GET returns the file's contents (404 when absent); POST overwrites it.
