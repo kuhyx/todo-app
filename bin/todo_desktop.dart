@@ -56,6 +56,16 @@ Future<void> main(List<String> args) async {
   }
   stdout.writeln('todo desktop serving on http://localhost:$_port');
 
+  // Provisioning is a setup step, not a session: load the app once in a
+  // headless browser so its own code can write the account into the
+  // origin-keyed localStorage only the page can reach, then exit. No window
+  // is ever mapped, so this never steals focus or lands on the wrong monitor.
+  if (args.contains('--provision-sync-account')) {
+    final ok = await _provisionSyncAccount(home);
+    await server.stop();
+    exit(ok ? 0 : 1);
+  }
+
   // A bare flag, not a valued option: requiring a dummy value meant passing a
   // stray positional, which the AOT runtime tries to interpret as a snapshot.
   if (!args.contains('--no-browser')) {
@@ -150,7 +160,44 @@ String _profileDir(String home) =>
 /// Launches the app in a Chrome-family browser with a **stable** profile
 /// directory, since the token and notes live in that profile.
 /// Returns true when the browser ran long enough to have owned the session.
-Future<bool> _launchBrowser(String home) async {
+/// Loads the app once headlessly so it provisions its own sync account.
+///
+/// The account lives in origin-keyed localStorage, which only code running in
+/// the page can write -- so the page has to run. `--headless` means it runs
+/// without ever mapping a window.
+///
+/// Returns whether the account is present afterwards.
+Future<bool> _provisionSyncAccount(String home) async {
+  final browser = _findBrowser();
+  if (browser.isEmpty) {
+    stderr.writeln('No Chrome-family browser found; cannot provision.');
+    return false;
+  }
+  // A separate profile from the real app's: Chrome refuses to start headless
+  // against a user-data-dir another instance already owns, and the account is
+  // written through the app's own storage anyway, which the next normal
+  // launch reads from the shared profile.
+  final process = await Process.start(browser, [
+    '--headless=new',
+    '--disable-gpu',
+    '--user-data-dir=${_profileDir(home)}',
+    '--virtual-time-budget=15000',
+    '--dump-dom',
+    'http://localhost:$_port',
+  ]);
+  final code = await process.exitCode;
+  if (code != 0) {
+    stderr.writeln('Headless provisioning run exited with $code.');
+    return false;
+  }
+  stdout.writeln(
+    'Provisioning run complete. Launch normally to confirm it is connected.',
+  );
+  return true;
+}
+
+/// Returns the first Chrome-family browser on this machine, or ''.
+String _findBrowser() {
   // Ordered by preference, and deliberately broad: this machine runs Thorium
   // behind /opt/google/chrome, and has a policy that uninstalls the `chromium`
   // package, so assuming any single browser is wrong. TODO_BROWSER overrides.
@@ -162,10 +209,14 @@ Future<bool> _launchBrowser(String home) async {
     '/usr/bin/chromium',
     '/usr/bin/brave',
   ];
-  final browser = candidates.firstWhere(
+  return candidates.firstWhere(
     (path) => path.isNotEmpty && File(path).existsSync(),
     orElse: () => '',
   );
+}
+
+Future<bool> _launchBrowser(String home) async {
+  final browser = _findBrowser();
   if (browser.isEmpty) {
     stderr.writeln(
       'No Chrome-family browser found; open '
