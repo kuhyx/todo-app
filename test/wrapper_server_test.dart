@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -148,5 +149,67 @@ void main() {
     expect(kind('a.mjs'), 'text/javascript');
     expect(kind('a.bin'), 'application/octet-stream');
     expect(kind('a.unknown'), 'application/octet-stream');
+  });
+
+  group('sync-account provisioning', () {
+    /// Starts a second server with provisioning enabled against [files].
+    Future<String> enabledOrigin(Map<String, String> files) async {
+      final configDir = Directory(p.join(root.path, 'crdt-sync'))
+        ..createSync(recursive: true);
+      files.forEach((name, contents) {
+        File(p.join(configDir.path, name)).writeAsStringSync(contents);
+      });
+      final enabled = WrapperServer(
+        webRoot: p.join(root.path, 'web'),
+        backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
+        logPath: p.join(root.path, 'state', 'todo_notes.json'),
+        serveSyncAccount: true,
+        syncConfigDir: configDir.path,
+      );
+      await enabled.start(0);
+      addTearDown(enabled.stop);
+      return 'http://localhost:${enabled.port}';
+    }
+
+    test('is 404 when not enabled', () async {
+      // The default, and the whole security posture: a credential route must
+      // not be reachable just because the app is running.
+      final response = await http.get(Uri.parse('$base$kSyncAccountPath'));
+
+      expect(response.statusCode, HttpStatus.notFound);
+    });
+
+    test('serves the account when enabled', () async {
+      final origin = await enabledOrigin({
+        'firebase.json': '{"email":"a@b.c"}',
+        'password': 'pw\n',
+      });
+
+      final response = await http.get(Uri.parse('$origin$kSyncAccountPath'));
+      final account = FirebaseAccount.tryParse(response.body);
+
+      expect(response.statusCode, HttpStatus.ok);
+      expect(account?.email, 'a@b.c');
+      expect(account?.password, 'pw');
+    });
+
+    test('is 404 when the config files are absent', () async {
+      final origin = await enabledOrigin({});
+
+      final response = await http.get(Uri.parse('$origin$kSyncAccountPath'));
+
+      expect(response.statusCode, HttpStatus.notFound);
+    });
+
+    test('is 404 when firebase.json has no usable email', () async {
+      final origin = await enabledOrigin({
+        'firebase.json': '{"apiKey":"x"}',
+        'password': 'pw',
+      });
+
+      final response = await http.get(Uri.parse('$origin$kSyncAccountPath'));
+
+      expect(response.statusCode, HttpStatus.notFound);
+    });
   });
 }
