@@ -1,8 +1,8 @@
 # Maintainer: Krzysztof Rudnicki <krzysztofrudnicki0@gmail.com>
 pkgname=todo-flutter
-pkgver=1.0.1
+pkgver=1.0.2
 pkgrel=1
-pkgdesc='Offline-first, CRDT-synced notes app (Flutter web in a Chrome app window)'
+pkgdesc='Offline-first notes app with optional CRDT sync (Flutter web app in a Chrome window)'
 arch=('x86_64')
 url='https://github.com/kuhyx/todo-app'
 license=('MIT')
@@ -14,7 +14,9 @@ license=('MIT')
 # installed into the hicolor theme hierarchy.
 depends=('glibc' 'bash' 'hicolor-icon-theme')
 optdepends=('google-chrome: renders the app window'
-            'chromium: renders the app window')
+            'chromium: renders the app window'
+            'brave-bin: renders the app window'
+            'thorium-browser-bin: renders the app window')
 makedepends=('flutter')   # flutter-bin provides `flutter`; either satisfies this
 # The AUR already ships an unrelated package literally named 'todo' (a todo.txt
 # CLI) which also owns /usr/bin/todo, so the two genuinely cannot coexist.
