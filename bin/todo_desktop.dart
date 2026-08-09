@@ -128,7 +128,12 @@ Future<bool> _recoverPort(
       // and window count goes 1 -> 2). A duplicate window is the right
       // trade-off anyway: both share this one server and one IndexedDB, and
       // typing `todo` to get nothing visible would be worse.
-      final opening = !args.contains('--no-browser');
+      // --provision-sync-account counts as "do not open a window" too: it
+      // is a headless setup step, and opening one here defeated the whole
+      // point (it landed fullscreen on the primary monitor).
+      final opening =
+          !args.contains('--no-browser') &&
+          !args.contains('--provision-sync-account');
       stdout.writeln(
         'todo is already running (pid $pid)'
         '${opening ? '; opening a window.' : '.'}',
