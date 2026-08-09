@@ -1,6 +1,6 @@
 # Maintainer: Krzysztof Rudnicki <krzysztofrudnicki0@gmail.com>
 pkgname=todo-flutter
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc='Offline-first, CRDT-synced notes app (Flutter web in a Chrome app window)'
 arch=('x86_64')
