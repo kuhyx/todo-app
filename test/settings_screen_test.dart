@@ -4,12 +4,12 @@ import 'dart:io';
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sync_settings_ui/sync_settings_ui.dart';
 import 'package:todo/analytics/analytics_service.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
@@ -17,9 +17,8 @@ import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/backlog_export_io.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/sync_settings.dart';
+import 'package:todo/ui/github_mirror_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
-import 'package:url_launcher_platform_interface/link.dart';
-import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
@@ -59,25 +58,6 @@ class _ThrowingFileSelector extends FileSelectorPlatform
   }) async => throw Exception('picker blew up');
 }
 
-/// Stub launcher that records the URL instead of opening it, so `_openPage`
-/// can be exercised without a real platform channel.
-class _FakeUrlLauncher extends UrlLauncherPlatform
-    with MockPlatformInterfaceMixin {
-  String? launched;
-
-  @override
-  final LinkDelegate? linkDelegate = null;
-
-  @override
-  Future<bool> supportsMode(PreferredLaunchMode mode) async => true;
-
-  @override
-  Future<bool> launchUrl(String url, LaunchOptions options) async {
-    launched = url;
-    return true;
-  }
-}
-
 void main() {
   Future<FakeNoteRepository> pumpSettings(
     WidgetTester tester, {
@@ -90,19 +70,14 @@ void main() {
     List<Note> seed = const [],
     FakeNoteRepository? repository,
     Future<FirebaseRestClient?> Function()? firebaseFactory,
-    Future<FirebaseRestClient?> Function()? googleFirebaseFactory,
-    bool? googleAvailable,
-    Future<FirebaseAccount?> Function()? accountLoader,
-    Future<void> Function(FirebaseAccount)? accountSaver,
-    Future<void> Function()? accountClearer,
-    Future<bool> Function()? sessionProbe,
     ValueNotifier<AppSettings>? appSettings,
     AnalyticsService? analytics,
   }) async {
     SharedPreferences.setMockInitialValues({});
     installFakeSecureStorage();
-    // Tall surface so the whole settings ListView builds (its Backup section
-    // is below the default 800×600 fold and would otherwise be lazy-skipped).
+    // Tall surface so the whole settings ListView builds and the pushed
+    // Sync settings screen's Backup section (below the default 800×600
+    // fold) isn't lazy-skipped.
     tester.view.physicalSize = const Size(1200, 2800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -120,48 +95,18 @@ void main() {
               ValueNotifier(const AppSettings(advancedMode: false)),
           analytics: analytics,
           httpClient: httpClient,
-          // Both injected so the widget never reaches for the platform: the
-          // real factories want the OS keystore and an application-support
-          // directory, neither of which exists under `flutter test`.
+          // Injected so the widget never reaches for the platform: the real
+          // factory wants the OS keystore, which doesn't exist under
+          // `flutter test`.
           firebaseFactory: firebaseFactory ?? () async => null,
-          googleFirebaseFactory: googleFirebaseFactory ?? () async => null,
-          googleAvailable: googleAvailable ?? true,
-          accountLoader: accountLoader ?? () async => null,
-          accountSaver: accountSaver,
-          accountClearer: accountClearer,
-          // Defaults to whatever the injected account says, so a test that
-          // only stubs the account still describes one coherent device. The
-          // production probe consults the keystore, which these tests fake
-          // rather than provide, and would otherwise answer "no session" for
-          // a device the test just declared signed in.
-          sessionProbe:
-              sessionProbe ??
-              () async => await (accountLoader ?? () async => null)() != null,
+          accountLoader: () async => null,
+          sessionProbe: () async => false,
           stateStore: InMemorySyncStateStore(),
         ),
       ),
     );
     await tester.pump();
     return repo;
-  }
-
-  /// Expands "Use the account password instead".
-  ///
-  /// Google sign-in is the primary path now, so the email/password form is
-  /// collapsed by default; a test that types credentials has to open it.
-  Future<void> openPasswordForm(WidgetTester tester) async {
-    await tester.tap(find.text('Use the account password instead'));
-    await tester.pumpAndSettle();
-  }
-
-  /// Expands the "Advanced (GitHub mirror)" section.
-  ///
-  /// GitHub is the cutover mirror rather than a choice the user makes, so
-  /// everything GitHub-facing is collapsed by default; a test that touches
-  /// those widgets has to open it first.
-  Future<void> openAdvanced(WidgetTester tester) async {
-    await tester.tap(find.text('Advanced (GitHub mirror)'));
-    await tester.pumpAndSettle();
   }
 
   testWidgets(
@@ -259,396 +204,50 @@ void main() {
     expect(prefs.getString('analytics.buffer'), contains('settings_toggle'));
   });
 
-  testWidgets('renders sync fields and the backup actions', (tester) async {
+  testWidgets('renders the two sync links and no inline sync fields', (
+    tester,
+  ) async {
     await pumpSettings(tester);
-    // GitHub is the mirror now: hidden until the disclosure is opened. The
-    // password form is likewise behind one, leaving Google as the only
-    // sign-in control on screen.
+    // The slim screen only links out; neither sync surface's own widgets
+    // should be inlined here anymore.
+    expect(find.text('Sync settings'), findsOneWidget);
+    expect(find.text('Advanced sync (GitHub)'), findsOneWidget);
     expect(find.text('Connect GitHub'), findsNothing);
-    expect(find.text('Connect Firebase'), findsNothing);
-    expect(find.text('Sign in with Google'), findsOneWidget);
-    await openAdvanced(tester);
-    expect(find.text('Connect GitHub'), findsOneWidget);
-    expect(find.text('Export notes'), findsOneWidget);
-    expect(find.text('Import notes'), findsOneWidget);
-  });
-
-  testWidgets('offers Google first and the password form behind it', (
-    tester,
-  ) async {
-    // Ordering is the feature: after a reinstall the one-tap path has to be
-    // the thing you see, with the phone-keyboard path available but demoted.
-    await pumpSettings(tester);
-    expect(find.text('Sign in with Google'), findsOneWidget);
-    expect(
-      find.widgetWithText(TextField, 'Sync account email'),
-      findsNothing,
-      reason: 'the password form starts collapsed',
-    );
-
-    await openPasswordForm(tester);
-    expect(
-      find.widgetWithText(TextField, 'Sync account email'),
-      findsOneWidget,
-    );
-    expect(
-      find.widgetWithText(TextField, 'Sync account password'),
-      findsOneWidget,
-    );
-    expect(find.text('Disconnect'), findsNothing);
-  });
-
-  testWidgets('hides Google and opens the password form on desktop', (
-    tester,
-  ) async {
-    // The desktop build is the web build, where Google Identity Services only
-    // signs in through its own rendered button -- `authenticate()` throws
-    // UnimplementedError there, and not a GoogleSignInException, so it would
-    // not even have been caught. Offering a button that always crashed would
-    // be worse than offering none, and the password form has to be visible
-    // because it is then the only way in.
-    await pumpSettings(tester, googleAvailable: false);
-
     expect(find.text('Sign in with Google'), findsNothing);
-    expect(
-      find.widgetWithText(TextField, 'Sync account email'),
-      findsOneWidget,
-      reason: 'the password form is expanded when it is the only option',
-    );
   });
 
-  testWidgets('Sign in with Google connects without typing anything', (
-    tester,
-  ) async {
-    // The whole feature in one test: no text entered anywhere, one tap, and
-    // the device ends up connected showing the account Google signed in as.
-    //
-    // The email comes from Firebase's response via openFirebaseWithGoogle,
-    // not from the form -- a fresh install has nothing in the form, which is
-    // exactly the scenario this path exists for. An earlier cut read the
-    // controller here and persisted an empty account; the next launch then
-    // took the password branch with '' and failed.
-    // Starts genuinely unconfigured -- a fresh install -- and only gains an
-    // account as a side effect of the Google sign-in itself.
-    FirebaseAccount? stored;
-    await pumpSettings(
-      tester,
-      googleFirebaseFactory: () async {
-        stored = const FirebaseAccount(
-          email: 'signed-in@example.com',
-          password: '',
-        );
-        return _stubClient();
-      },
-      accountLoader: () async => stored,
-    );
-
-    await tester.tap(find.text('Sign in with Google'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Connected to Firebase.'), findsOneWidget);
-    expect(find.text('signed-in@example.com'), findsOneWidget);
-  });
-
-  testWidgets('a cancelled Google sign-in is not reported as an error', (
-    tester,
-  ) async {
-    // Dismissing the account picker is an ordinary thing to do; it must not
-    // look like a failure.
-    await pumpSettings(tester, googleFirebaseFactory: () async => null);
-
-    await tester.tap(find.text('Sign in with Google'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Google sign-in was cancelled.'), findsOneWidget);
-    expect(find.text('Sign in with Google'), findsOneWidget);
-  });
-
-  testWidgets('a wrong-account Google sign-in explains itself', (tester) async {
-    // The failure worth being loud about: authentication succeeds but the uid
-    // is not the one the security rules pin, so every read and write would be
-    // denied with no other symptom.
-    await pumpSettings(
-      tester,
-      googleFirebaseFactory: () async =>
-          throw FirebaseAuthError('signed in as the wrong account: uid X'),
-    );
-
-    await tester.tap(find.text('Sign in with Google'));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('wrong account'), findsOneWidget);
-  });
-
-  testWidgets('Connect Firebase with empty fields asks for credentials', (
+  testWidgets('Tapping "Sync settings" navigates to SyncSettingsScreen', (
     tester,
   ) async {
     await pumpSettings(tester);
-    await openPasswordForm(tester);
-    await tester.tap(find.text('Connect Firebase'));
-    await tester.pump();
-    expect(
-      find.textContaining('Enter the sync account email and password'),
-      findsOneWidget,
-    );
-  });
 
-  testWidgets('Connect Firebase stores the account and reports success', (
-    tester,
-  ) async {
-    FirebaseAccount? saved;
-    await pumpSettings(
-      tester,
-      accountSaver: (a) async => saved = a,
-      firebaseFactory: () async => _stubClient(),
-    );
-    await openPasswordForm(tester);
-
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Sync account email'),
-      'sync@example.com',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Sync account password'),
-      'pw',
-    );
-    await tester.tap(find.text('Connect Firebase'));
+    await tester.tap(find.text('Sync settings'));
     await tester.pumpAndSettle();
 
-    // saveAccount must actually be called: without it openFirebase() reads an
-    // account nothing ever wrote, and Firebase is a silent no-op forever.
-    expect(saved?.email, 'sync@example.com');
-    expect(saved?.password, 'pw');
-    expect(find.text('Connected to Firebase.'), findsOneWidget);
-    // Connected state is read-only text, not a form implying re-entry.
-    expect(find.text('sync@example.com'), findsOneWidget);
-    expect(find.text('Disconnect'), findsOneWidget);
-    expect(
-      find.widgetWithText(TextField, 'Sync account password'),
-      findsNothing,
-    );
+    expect(find.byType(SyncSettingsScreen), findsOneWidget);
   });
 
-  testWidgets('a rejected account is cleared rather than left half-stored', (
-    tester,
-  ) async {
-    var cleared = false;
-    await pumpSettings(
-      tester,
-      accountSaver: (_) async {},
-      accountClearer: () async => cleared = true,
-      firebaseFactory: () async => null,
-    );
-    await openPasswordForm(tester);
+  testWidgets(
+    'Tapping "Advanced sync (GitHub)" navigates to GitHubMirrorScreen with '
+    'the right params',
+    (tester) async {
+      const initial = SyncSettings(owner: 'o', repo: 'r', token: 'tok');
+      final repo = await pumpSettings(tester, initial: initial);
 
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Sync account email'),
-      'wrong@example.com',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Sync account password'),
-      'bad',
-    );
-    await tester.tap(find.text('Connect Firebase'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Advanced sync (GitHub)'));
+      await tester.pumpAndSettle();
 
-    expect(cleared, isTrue);
-    expect(find.text('Firebase rejected that account.'), findsOneWidget);
-  });
-
-  testWidgets('a stored account shows as connected on open, and disconnects', (
-    tester,
-  ) async {
-    var cleared = false;
-    await pumpSettings(
-      tester,
-      accountLoader: () async =>
-          const FirebaseAccount(email: 'stored@example.com', password: 'pw'),
-      accountClearer: () async => cleared = true,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('stored@example.com'), findsOneWidget);
-
-    await tester.tap(find.text('Disconnect'));
-    await tester.pumpAndSettle();
-
-    expect(cleared, isTrue);
-    expect(find.text('Firebase disconnected.'), findsOneWidget);
-    // Back to the not-connected state, which now leads with Google rather
-    // than with the email field.
-    expect(find.text('Sign in with Google'), findsOneWidget);
-    await openPasswordForm(tester);
-    expect(
-      find.widgetWithText(TextField, 'Sync account email'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('Connect GitHub without a client id shows guidance', (
-    tester,
-  ) async {
-    await pumpSettings(tester);
-    await openAdvanced(tester);
-    await tester.tap(find.text('Connect GitHub'));
-    await tester.pump();
-    expect(
-      find.textContaining('Enter the OAuth App client id'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('Test connection reports a reachable repo', (tester) async {
-    final mock = MockClient((_) async => http.Response('{}', 200));
-    await pumpSettings(tester, httpClient: mock);
-
-    await tester.tap(
-      find.text('Advanced (GitHub mirror)'),
-    ); // Test connection lives here now
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Test connection'));
-    await tester.pump(); // start
-    await tester.pump(); // resolve future + rebuild
-
-    expect(find.textContaining('reachable'), findsOneWidget);
-  });
-
-  testWidgets('Test connection reports an inaccessible repo', (tester) async {
-    final mock = MockClient((_) async => http.Response('', 404));
-    await pumpSettings(tester, httpClient: mock);
-
-    await tester.tap(find.text('Advanced (GitHub mirror)'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Test connection'));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.textContaining('Could not access'), findsOneWidget);
-  });
-
-  testWidgets('Test connection surfaces a network error', (tester) async {
-    final mock = MockClient((_) async => throw Exception('offline'));
-    await pumpSettings(tester, httpClient: mock);
-
-    await tester.tap(find.text('Advanced (GitHub mirror)'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Test connection'));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.textContaining('Error:'), findsOneWidget);
-  });
-
-  testWidgets('device flow failure to start shows a message', (tester) async {
-    final mock = MockClient((_) async => http.Response('nope', 422));
-    await pumpSettings(
-      tester,
-      initial: const SyncSettings(
-        owner: 'o',
-        repo: 'r',
-        token: '',
-        clientId: 'cid',
-      ),
-      httpClient: mock,
-    );
-
-    await openAdvanced(tester);
-    await tester.tap(find.text('Connect GitHub'));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.textContaining('Could not start device flow'), findsOneWidget);
-  });
-
-  testWidgets('device flow happy path saves the token', (tester) async {
-    final mock = MockClient((req) async {
-      if (req.url.path.contains('device/code')) {
-        return http.Response(
-          jsonEncode({
-            'device_code': 'dev123',
-            'user_code': 'WXYZ-1234',
-            'verification_uri': 'https://github.com/login/device',
-            'interval': 0,
-            'expires_in': 900,
-          }),
-          200,
-        );
-      }
-      // Token endpoint: authorize immediately.
-      return http.Response(jsonEncode({'access_token': 'gho_test'}), 200);
-    });
-
-    await pumpSettings(
-      tester,
-      initial: const SyncSettings(
-        owner: 'o',
-        repo: 'r',
-        token: '',
-        clientId: 'cid',
-      ),
-      httpClient: mock,
-    );
-
-    await openAdvanced(tester);
-    await tester.tap(find.text('Connect GitHub'));
-    await tester.pump(); // requestDeviceCode
-    await tester.pump(); // dialog builds, shows the user code
-    expect(find.text('WXYZ-1234'), findsOneWidget);
-
-    // Let the dialog poll (interval 0) and resolve the token, then the
-    // post-connect sync runs against the mock (list → empty, then PUT).
-    await tester.pump(const Duration(milliseconds: 50));
-    for (var i = 0; i < 6; i++) {
-      await tester.pump();
-    }
-
-    expect(find.textContaining('Connected and synced'), findsOneWidget);
-  });
-
-  testWidgets('device flow connects but surfaces a post-connect sync failure', (
-    tester,
-  ) async {
-    final mock = MockClient((req) async {
-      if (req.url.path.contains('device/code')) {
-        return http.Response(
-          jsonEncode({
-            'device_code': 'dev123',
-            'user_code': 'WXYZ-1234',
-            'verification_uri': 'https://github.com/login/device',
-            'interval': 0,
-            'expires_in': 900,
-          }),
-          200,
-        );
-      }
-      if (req.url.path.contains('login/oauth/access_token')) {
-        return http.Response(jsonEncode({'access_token': 'gho_test'}), 200);
-      }
-      return http.Response('boom', 500); // the sync's repo calls fail
-    });
-
-    await pumpSettings(
-      tester,
-      initial: const SyncSettings(
-        owner: 'o',
-        repo: 'r',
-        token: '',
-        clientId: 'cid',
-      ),
-      httpClient: mock,
-    );
-
-    await openAdvanced(tester);
-    await tester.tap(find.text('Connect GitHub'));
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    for (var i = 0; i < 6; i++) {
-      await tester.pump();
-    }
-
-    expect(find.textContaining('sync failed'), findsOneWidget);
-  });
+      expect(find.byType(GitHubMirrorScreen), findsOneWidget);
+      final screen = tester.widget<GitHubMirrorScreen>(
+        find.byType(GitHubMirrorScreen),
+      );
+      // Prove the hand-off actually carries the right values, not just that
+      // the right widget type appears — a dropped constructor arg is the
+      // failure mode a screen split like this one actually produces.
+      expect(screen.initial, initial);
+      expect(screen.repository, repo);
+    },
+  );
 
   test('the default export home is the real HOME', () {
     // Guards the production default, which every other test overrides so the
@@ -656,252 +255,137 @@ void main() {
     expect(resolveExportHome(), Platform.environment['HOME']);
   });
 
-  testWidgets('Export notes writes the backlog file (desktop)', (tester) async {
-    // Redirect HOME: this test does real file I/O, and without the override it
-    // overwrites the user's canonical ~/todo/BACKLOG.md with the fake note
-    // below on every test run.
-    // Sync creation: awaiting real file I/O under the widget tester's fake
-    // clock never completes.
-    final home = Directory.systemTemp.createTempSync('todo_export_home');
-    resolveExportHome = () => home.path;
-    addTearDown(() {
-      resolveExportHome = () =>
-          Platform.environment['HOME'] ?? Directory.current.path;
-      home.deleteSync(recursive: true);
+  group('BackupSlot wiring through Sync settings', () {
+    // These prove the closures SettingsScreen builds for
+    // SyncSettingsScreen's BackupSlot actually call todo's real
+    // export/import — the shared package's own suite covers the generic
+    // BackupSlot UI (button taps, status text), so these focus on the real
+    // behavior behind the closures instead of re-asserting status text.
+
+    testWidgets('Export notes writes the backlog file (desktop)', (
+      tester,
+    ) async {
+      // Redirect HOME: this test does real file I/O, and without the
+      // override it overwrites the user's canonical ~/todo/BACKLOG.md with
+      // the fake note below on every test run.
+      final home = Directory.systemTemp.createTempSync('todo_export_home');
+      resolveExportHome = () => home.path;
+      addTearDown(() {
+        resolveExportHome = () =>
+            Platform.environment['HOME'] ?? Directory.current.path;
+        home.deleteSync(recursive: true);
+      });
+
+      await pumpSettings(
+        tester,
+        seed: [
+          Note(
+            id: 'n',
+            text: 'an idea',
+            priority: Priority.medium,
+            status: Status.todo,
+            createdAt: DateTime(2026, 6, 15),
+            updatedAt: DateTime(2026, 6, 15),
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('Sync settings'));
+      await tester.pumpAndSettle();
+
+      // _export does real file I/O on desktop, so drive it under runAsync.
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Export notes'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await tester.pump();
+
+      final file = File('${home.path}/todo/BACKLOG.md');
+      expect(file.existsSync(), isTrue);
+      expect(file.readAsStringSync(), contains('an idea'));
     });
 
-    await pumpSettings(
+    testWidgets('Export surfaces a failure when the repository read fails', (
       tester,
-      seed: [
+    ) async {
+      await pumpSettings(tester, repository: _ExplodingRepo());
+
+      await tester.tap(find.text('Sync settings'));
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Export notes'));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+      await tester.pump();
+
+      expect(find.textContaining('Export failed'), findsOneWidget);
+    });
+
+    testWidgets('Import notes reads the picked file and merges', (
+      tester,
+    ) async {
+      // Round-trip a known note through the export format so the picked
+      // file is valid input the importer can parse and merge.
+      final markdown = NotesMarkdown.export([
         Note(
-          id: 'n',
-          text: 'an idea',
-          priority: Priority.medium,
-          status: Status.todo,
+          id: 'imported-1',
+          text: 'an imported idea',
+          priority: Priority.high,
+          status: Status.inProgress,
           createdAt: DateTime(2026, 6, 15),
           updatedAt: DateTime(2026, 6, 15),
         ),
-      ],
-    );
-
-    // _export does real file I/O on desktop, so drive it under runAsync.
-    await tester.runAsync(() async {
-      await tester.tap(find.text('Export notes'));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    });
-    await tester.pump();
-
-    expect(find.textContaining('Exported'), findsOneWidget);
-  });
-
-  testWidgets('Export surfaces a failure when the repository read fails', (
-    tester,
-  ) async {
-    await pumpSettings(tester, repository: _ExplodingRepo());
-
-    await tester.runAsync(() async {
-      await tester.tap(find.text('Export notes'));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    });
-    await tester.pump();
-
-    expect(find.textContaining('Export failed'), findsOneWidget);
-  });
-
-  testWidgets('Save persists the settings and closes the screen', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({});
-    installFakeSecureStorage();
-    tester.view.physicalSize = const Size(1200, 2800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    final repo = FakeNoteRepository();
-    addTearDown(repo.close);
-
-    // Push Settings over a base route so _save's Navigator.pop has somewhere
-    // to return to (popping the root route is a no-op and hides the result).
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<SyncSettings>(
-                    builder: (_) => SettingsScreen(
-                      initial: const SyncSettings(
-                        owner: 'o',
-                        repo: 'r',
-                        token: 'tok',
-                      ),
-                      repository: repo,
-                      appSettings: ValueNotifier(
-                        const AppSettings(advancedMode: false),
-                      ),
-                      firebaseFactory: () async => null,
-                      stateStore: InMemorySyncStateStore(),
-                    ),
-                  ),
-                ),
-                child: const Text('open'),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('open'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400)); // route transition
-    expect(find.text('Firebase sync'), findsOneWidget); // settings is up
-
-    await tester.tap(find.text('Save'));
-    await tester.pump(); // run _save (persist + pop)
-    await tester.pump(const Duration(milliseconds: 400)); // pop transition
-
-    expect(find.text('open'), findsOneWidget); // back on the base route
-    final saved = await SyncSettings.load();
-    expect(saved.owner, 'o');
-    expect(saved.token, 'tok');
-  });
-
-  testWidgets('Import notes reads the picked file and merges', (tester) async {
-    // Round-trip a known note through the export format so the picked file is
-    // valid input the importer can parse and merge.
-    final markdown = NotesMarkdown.export([
-      Note(
-        id: 'imported-1',
-        text: 'an imported idea',
-        priority: Priority.high,
-        status: Status.inProgress,
-        createdAt: DateTime(2026, 6, 15),
-        updatedAt: DateTime(2026, 6, 15),
-      ),
-    ]);
-    FileSelectorPlatform.instance = _FakeFileSelector(
-      XFile.fromData(utf8.encode(markdown), name: 'backlog.md'),
-    );
-
-    final repo = await pumpSettings(tester);
-
-    await tester.tap(find.text('Import notes'));
-    await tester.pump(); // openFile resolves (in-memory)
-    await tester.pump(); // read + parse + merge + setState
-
-    expect(find.textContaining('Imported'), findsOneWidget);
-    expect((await repo.listNotes()).single.text, 'an imported idea');
-  });
-
-  testWidgets('Import shows nothing when the picker is cancelled', (
-    tester,
-  ) async {
-    FileSelectorPlatform.instance = _FakeFileSelector(null); // user cancels
-    final repo = await pumpSettings(tester);
-
-    await tester.tap(find.text('Import notes'));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.textContaining('Imported'), findsNothing);
-    expect(await repo.listNotes(), isEmpty);
-  });
-
-  testWidgets('Import surfaces a failure from the picker', (tester) async {
-    FileSelectorPlatform.instance = _ThrowingFileSelector();
-    final repo = await pumpSettings(tester);
-
-    await tester.tap(find.text('Import notes'));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.textContaining('Import failed'), findsOneWidget);
-    expect(await repo.listNotes(), isEmpty);
-  });
-
-  testWidgets('device dialog: failed poll shows the error and Open launches', (
-    tester,
-  ) async {
-    final launcher = _FakeUrlLauncher();
-    UrlLauncherPlatform.instance = launcher;
-
-    // _openPage copies the code to the clipboard first; there's no clipboard
-    // plugin in the test host, so stub the channel to succeed.
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(
-      SystemChannels.platform,
-      (call) async => null,
-    );
-    addTearDown(
-      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
-    );
-
-    final mock = MockClient((req) async {
-      if (req.url.path.contains('device/code')) {
-        return http.Response(
-          jsonEncode({
-            'device_code': 'dev123',
-            'user_code': 'WXYZ-1234',
-            'verification_uri': 'https://github.com/login/device',
-            'interval': 0,
-            'expires_in': 900,
-          }),
-          200,
-        );
-      }
-      // Token endpoint: a terminal error ends the poll loop cleanly (no
-      // lingering timer to trip the tester's pending-timer guard).
-      return http.Response(
-        jsonEncode({'error': 'access_denied', 'error_description': 'nope'}),
-        200,
+      ]);
+      FileSelectorPlatform.instance = _FakeFileSelector(
+        XFile.fromData(utf8.encode(markdown), name: 'backlog.md'),
       );
+
+      final repo = await pumpSettings(tester);
+
+      await tester.tap(find.text('Sync settings'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Import notes'));
+      await tester.pump(); // openFile resolves (in-memory)
+      await tester.pump(); // read + parse + merge + setState
+
+      expect((await repo.listNotes()).single.text, 'an imported idea');
     });
 
-    await pumpSettings(
+    testWidgets('Import shows nothing when the picker is cancelled', (
       tester,
-      initial: const SyncSettings(
-        owner: 'o',
-        repo: 'r',
-        token: '',
-        clientId: 'cid',
-      ),
-      httpClient: mock,
-    );
+    ) async {
+      FileSelectorPlatform.instance = _FakeFileSelector(null); // cancelled
+      final repo = await pumpSettings(tester);
 
-    await openAdvanced(tester);
-    await tester.tap(find.text('Connect GitHub'));
-    await tester.pump(); // requestDeviceCode
-    await tester.pump(); // dialog builds, poll starts (interval 0)
-    expect(find.text('WXYZ-1234'), findsOneWidget);
+      await tester.tap(find.text('Sync settings'));
+      await tester.pumpAndSettle();
 
-    await tester.pump(const Duration(milliseconds: 1)); // _delay(0) fires
-    await tester.pump(); // token error throws → _error set
-    expect(find.textContaining('nope'), findsOneWidget); // error rendered
+      await tester.tap(find.text('Import notes'));
+      await tester.pump();
+      await tester.pump();
 
-    // Tap the "open on GitHub" action: copies the code and launches the URL.
-    // _openPage awaits Clipboard.setData then the launcher's supportsMode +
-    // launchUrl; pumpAndSettle drains them (no spinner is animating now that
-    // the error is shown, so it settles).
-    await tester.tap(find.byIcon(Icons.open_in_new));
-    await tester.pumpAndSettle();
-    expect(launcher.launched, 'https://github.com/login/device');
+      // The shared screen can't distinguish "cancelled" from "nothing
+      // imported" — it reports "Imported notes." either way, since
+      // BackupSlot.import() returns normally on cancel. The behavior that
+      // actually matters, that nothing was merged, is what's asserted here.
+      expect(await repo.listNotes(), isEmpty);
+    });
 
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle(); // finish the dialog pop animation
-    expect(find.text('WXYZ-1234'), findsNothing); // dialog dismissed
+    testWidgets('Import surfaces a failure from the picker', (tester) async {
+      FileSelectorPlatform.instance = _ThrowingFileSelector();
+      final repo = await pumpSettings(tester);
+
+      await tester.tap(find.text('Sync settings'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Import notes'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.textContaining('Import failed'), findsOneWidget);
+      expect(await repo.listNotes(), isEmpty);
+    });
   });
 }
-
-/// A real [FirebaseRestClient] that is never called: the settings screen only
-/// checks it for null, so no network or keystore is touched.
-FirebaseRestClient _stubClient() => FirebaseRestClient(
-  databaseUrl: 'https://example.invalid',
-  auth: FirebaseTokenProvider(
-    apiKey: 'k',
-    store: InMemoryCredentialStore(),
-  ),
-);

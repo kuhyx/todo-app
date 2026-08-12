@@ -13,6 +13,7 @@ import 'package:todo/data/note_template.dart';
 import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/ui/capture_screen.dart';
+import 'package:todo/ui/github_mirror_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
 
 import 'fake_note_repository.dart';
@@ -304,20 +305,27 @@ void main() {
 
     await tester.tap(find.byTooltip('Settings'));
     await tester.pumpAndSettle(); // route transition
-    expect(find.text('Firebase sync'), findsOneWidget); // settings is up
+    expect(find.byType(SettingsScreen), findsOneWidget); // settings is up
 
-    // Saving pops a SyncSettings back to the capture screen (covers the
-    // result-adoption branch in _openSettings). Scope to the settings route —
-    // the capture screen's own "Save" is still mounted behind it.
-    await tester.tap(
-      find.descendant(
-        of: find.byType(SettingsScreen),
-        matching: find.text('Save'),
-      ),
-    );
-    await tester.pumpAndSettle(); // save + pop transition
+    // GitHub sync settings (owner/repo/token) now live on the standalone
+    // GitHubMirrorScreen, reached via a link from SettingsScreen. The pop
+    // value itself is discarded by SettingsScreen; _openSettings always
+    // reloads from storage instead (a device-flow "Connect" saves the token
+    // without popping a result at all, so a stale in-memory value would be
+    // wrong there too). This exercises that reload-after-return path, then
+    // Back returns to capture.
+    await tester.tap(find.text('Advanced sync (GitHub)'));
+    await tester.pumpAndSettle(); // route transition
+    expect(find.byType(GitHubMirrorScreen), findsOneWidget);
 
-    expect(find.text('Firebase sync'), findsNothing); // back on capture
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle(); // save + pop transition back to Settings
+    expect(find.byType(SettingsScreen), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle(); // pop transition back to capture
+
+    expect(find.byType(SettingsScreen), findsNothing); // back on capture
     expect(find.byTooltip('Settings'), findsOneWidget);
   });
 

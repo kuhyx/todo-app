@@ -814,6 +814,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  sync_settings_ui:
+    dependency: "direct main"
+    description:
+      path: sync_settings_ui
+      ref: "sync_settings_ui-v0.1.0"
+      resolved-ref: "23c693da4e6fd6004df09829a7d75365dc086c2c"
+      url: "https://github.com/kuhyx/utils"
+    source: git
+    version: "0.1.0"
   synchronized:
     dependency: transitive
     description:
