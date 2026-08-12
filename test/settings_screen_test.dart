@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 
-import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:crdt_sync/crdt_sync.dart';
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,9 +10,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:todo/sync/backlog_export_io.dart';
+import 'package:todo/analytics/analytics_service.dart';
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/sync/backlog_export_io.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:todo/ui/settings_screen.dart';
@@ -94,6 +96,8 @@ void main() {
     Future<void> Function(FirebaseAccount)? accountSaver,
     Future<void> Function()? accountClearer,
     Future<bool> Function()? sessionProbe,
+    ValueNotifier<AppSettings>? appSettings,
+    AnalyticsService? analytics,
   }) async {
     SharedPreferences.setMockInitialValues({});
     installFakeSecureStorage();
@@ -111,6 +115,10 @@ void main() {
         home: SettingsScreen(
           initial: initial,
           repository: repo,
+          appSettings:
+              appSettings ??
+              ValueNotifier(const AppSettings(advancedMode: false)),
+          analytics: analytics,
           httpClient: httpClient,
           // Both injected so the widget never reaches for the platform: the
           // real factories want the OS keystore and an application-support
@@ -155,6 +163,101 @@ void main() {
     await tester.tap(find.text('Advanced (GitHub mirror)'));
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'Enable advanced toggles and persists locally with no client',
+    (tester) async {
+      final appSettings = ValueNotifier(
+        const AppSettings(advancedMode: false),
+      );
+      await pumpSettings(
+        tester,
+        appSettings: appSettings,
+        firebaseFactory: () async => null,
+      );
+
+      await tester.tap(find.text('Enable advanced'));
+      await tester.pump();
+
+      expect(appSettings.value.advancedMode, isTrue);
+      final reloaded = await AppSettings.load();
+      expect(reloaded.advancedMode, isTrue);
+    },
+  );
+
+  testWidgets('Enable advanced mirrors the toggle to Firebase', (
+    tester,
+  ) async {
+    String? putPath;
+    final firebase = FirebaseRestClient(
+      databaseUrl: 'https://x-rtdb.europe-west1.firebasedatabase.app',
+      auth: FirebaseTokenProvider(
+        apiKey: 'AIzaKey',
+        store: InMemoryCredentialStore(
+          FirebaseCredentials(
+            idToken: 'id',
+            refreshToken: 'refresh',
+            expiresAt: DateTime.now().add(const Duration(hours: 1)),
+          ),
+        ),
+      ),
+      httpClient: MockClient((request) async {
+        if (request.method == 'PATCH') putPath = request.url.path;
+        return http.Response(request.body, 200);
+      }),
+    );
+    final appSettings = ValueNotifier(const AppSettings(advancedMode: false));
+    await pumpSettings(
+      tester,
+      appSettings: appSettings,
+      firebaseFactory: () async => firebase,
+    );
+
+    await tester.tap(find.text('Enable advanced'));
+    await tester.pump();
+
+    expect(appSettings.value.advancedMode, isTrue);
+    expect(putPath, '/settings/advancedMode.json');
+  });
+
+  testWidgets(
+    'Enable advanced still persists locally when opening Firebase throws',
+    (tester) async {
+      final appSettings = ValueNotifier(
+        const AppSettings(advancedMode: false),
+      );
+      await pumpSettings(
+        tester,
+        appSettings: appSettings,
+        firebaseFactory: () async => throw FirebaseAuthError('wrong account'),
+      );
+
+      await tester.tap(find.text('Enable advanced'));
+      await tester.pump();
+
+      // A signed-in-as-wrong-account device must not lose the local toggle.
+      expect(appSettings.value.advancedMode, isTrue);
+    },
+  );
+
+  testWidgets('Enable advanced logs a settings_toggle event', (
+    tester,
+  ) async {
+    const analytics = AnalyticsService(nodeId: 'device-a');
+    final appSettings = ValueNotifier(const AppSettings(advancedMode: false));
+    await pumpSettings(
+      tester,
+      appSettings: appSettings,
+      analytics: analytics,
+      firebaseFactory: () async => null,
+    );
+
+    await tester.tap(find.text('Enable advanced'));
+    await tester.pump();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('analytics.buffer'), contains('settings_toggle'));
+  });
 
   testWidgets('renders sync fields and the backup actions', (tester) async {
     await pumpSettings(tester);
@@ -635,6 +738,9 @@ void main() {
                         token: 'tok',
                       ),
                       repository: repo,
+                      appSettings: ValueNotifier(
+                        const AppSettings(advancedMode: false),
+                      ),
                       firebaseFactory: () async => null,
                       stateStore: InMemorySyncStateStore(),
                     ),

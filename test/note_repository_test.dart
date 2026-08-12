@@ -62,6 +62,17 @@ void main() {
     expect(log['b']!.deleted, isTrue);
   });
 
+  test('modifiedDesc sort orders most-recently-updated first', () async {
+    final repo = await NoteRepository.openInMemory();
+    addTearDown(repo.close);
+
+    await repo.upsert(note('a', 'older', updatedAt: DateTime(2026)));
+    await repo.upsert(note('b', 'newer', updatedAt: DateTime(2026, 6)));
+
+    final notes = await repo.listNotes(sort: NoteSort.modifiedDesc);
+    expect(notes.map((n) => n.text), ['newer', 'older']);
+  });
+
   test('priority sort orders highest first', () async {
     final repo = await NoteRepository.openInMemory();
     addTearDown(repo.close);

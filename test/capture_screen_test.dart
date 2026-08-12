@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo/analytics/analytics_service.dart';
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/sync/local_backup.dart';
@@ -29,6 +31,11 @@ void main() {
     FakeNoteRepository? repository,
     LocalBackup? localBackup,
     Future<FirebaseRestClient?> Function()? firebaseFactory,
+    // Defaults to true: these tests exercise today's full UI (priority/status
+    // dropdowns, sync status text, Guided). Tests for the new default-off
+    // behavior pass advancedMode: false explicitly.
+    ValueNotifier<AppSettings>? appSettings,
+    AnalyticsService? analytics,
   }) async {
     SharedPreferences.setMockInitialValues(prefs);
     installFakeSecureStorage();
@@ -54,6 +61,10 @@ void main() {
       MaterialApp(
         home: CaptureScreen(
           repository: repo,
+          appSettings:
+              appSettings ??
+              ValueNotifier(const AppSettings(advancedMode: true)),
+          analytics: analytics,
           httpClient: httpClient,
           // Both injected so the widget never reaches for the platform: the
           // real factories want the OS keystore and an application-support
@@ -83,7 +94,7 @@ void main() {
     // Defaults to Raw: a single text field, no note persisted yet.
     expect(find.byType(TextField), findsOneWidget);
     expect(find.text('Guided'), findsOneWidget);
-    expect(find.text('0 saved'), findsOneWidget);
+    expect(find.text('0'), findsOneWidget);
 
     // Tapping Guided on the empty draft opens the priority+template wizard
     // rather than jumping straight into the stepper.
@@ -108,7 +119,7 @@ void main() {
   testWidgets('saving the untouched template creates no note', (tester) async {
     final repo = await pumpCapture(tester);
 
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.byTooltip('New note'));
     await tester.pump();
 
     expect(await repo.listNotes(), isEmpty);
@@ -128,20 +139,15 @@ void main() {
     expect(notes.single.text, contains('My idea'));
     expect(notes.single.priority, Priority.medium);
     expect(notes.single.status, Status.todo);
-    expect(find.text('1 saved'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
   });
 
-  testWidgets('save after editing shows a snackbar and resets the template', (
-    tester,
-  ) async {
+  testWidgets('the new-note action resets the template', (tester) async {
     final repo = await pumpCapture(tester);
 
     await tester.enterText(find.byType(TextField).first, 'A real idea');
     await tester.pump();
-    await tester.tap(find.text('Save'));
-    await tester.pump(); // build the snackbar
-
-    expect(find.text('Idea saved locally'), findsOneWidget);
+    await tester.tap(find.byTooltip('New note'));
     await tester.pump();
 
     expect(await repo.listNotes(), hasLength(1));
@@ -296,7 +302,7 @@ void main() {
   ) async {
     await pumpCapture(tester);
 
-    await tester.tap(find.byTooltip('Sync settings'));
+    await tester.tap(find.byTooltip('Settings'));
     await tester.pumpAndSettle(); // route transition
     expect(find.text('Firebase sync'), findsOneWidget); // settings is up
 
@@ -312,7 +318,7 @@ void main() {
     await tester.pumpAndSettle(); // save + pop transition
 
     expect(find.text('Firebase sync'), findsNothing); // back on capture
-    expect(find.byTooltip('Sync settings'), findsOneWidget);
+    expect(find.byTooltip('Settings'), findsOneWidget);
   });
 
   // A MockClient that records request methods and answers the sync flow:
@@ -323,6 +329,120 @@ void main() {
     if (req.method == 'PUT') return http.Response('{}', 200);
     if (!req.url.path.contains('/contents/')) return http.Response('{}', 200);
     return http.Response('', 404);
+  });
+
+  testWidgets(
+    'advancedMode off shows just the text field, no chrome or status text',
+    (tester) async {
+      await pumpCapture(
+        tester,
+        appSettings: ValueNotifier(const AppSettings(advancedMode: false)),
+      );
+      await tester.enterText(find.byType(TextField), 'A plain idea');
+      await tester.pump();
+
+      // The editor's own template/mode chrome is gone.
+      expect(find.text('Guided'), findsNothing);
+      expect(find.text('Template'), findsNothing);
+      // The capture screen's priority/status row is gone.
+      expect(find.text('Priority'), findsNothing);
+      expect(find.text('Status'), findsNothing);
+      // Routine status chatter is gone; only a badge count remains.
+      expect(find.textContaining('Autosaves as you type'), findsNothing);
+      expect(find.text('1'), findsOneWidget);
+      // The note still persisted normally underneath the simplified UI.
+      expect(find.text('A plain idea'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'draft text survives an advancedMode toggle mid-typing',
+    (tester) async {
+      final appSettings = ValueNotifier(
+        const AppSettings(advancedMode: true),
+      );
+      await pumpCapture(tester, appSettings: appSettings);
+
+      await tester.enterText(
+        find.byType(TextField).first,
+        'my important idea',
+      );
+      await tester.pump();
+
+      // The Row above the editor is conditionally present, which shifts the
+      // editor's position in the Column whenever advancedMode changes at
+      // runtime — a key one level too shallow doesn't survive that
+      // reposition and Flutter remounts the editor with an empty draft.
+      appSettings.value = const AppSettings(advancedMode: false);
+      await tester.pump();
+
+      final field = tester.widget<TextField>(find.byType(TextField).first);
+      expect(field.controller?.text, contains('my important idea'));
+    },
+  );
+
+  testWidgets(
+    'auto-sync adopts a newer advancedMode value from Firebase',
+    (tester) async {
+      final remoteTime = DateTime(2026, 6);
+      final firebase = FirebaseRestClient(
+        databaseUrl: 'https://x-rtdb.europe-west1.firebasedatabase.app',
+        auth: FirebaseTokenProvider(
+          apiKey: 'AIzaKey',
+          store: InMemoryCredentialStore(
+            FirebaseCredentials(
+              idToken: 'id',
+              refreshToken: 'refresh',
+              expiresAt: DateTime.now().add(const Duration(hours: 1)),
+            ),
+          ),
+        ),
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/settings/advancedMode.json') {
+            return http.Response(
+              '{"value": "true", '
+              '"updatedAtMillis": "${remoteTime.millisecondsSinceEpoch}"}',
+              200,
+            );
+          }
+          if (request.method == 'PUT') return http.Response(request.body, 200);
+          return http.Response('null', 200);
+        }),
+      );
+      final appSettings = ValueNotifier(
+        AppSettings(
+          advancedMode: false,
+          // Older than remoteTime, and non-null, so the reconciliation
+          // guard's `currentAt != null && !reconciledAt.isAfter(currentAt)`
+          // check actually evaluates both operands.
+          advancedModeUpdatedAt: remoteTime.subtract(
+            const Duration(days: 1),
+          ),
+        ),
+      );
+
+      await pumpCapture(
+        tester,
+        prefs: configuredPrefs,
+        firebaseFactory: () async => firebase,
+        appSettings: appSettings,
+      );
+      await tester.pump(); // settings load → auto-sync (pull) …
+      await tester.pump(); // … then push, then reconcile
+
+      expect(appSettings.value.advancedMode, isTrue);
+    },
+  );
+
+  testWidgets('logs app_open when analytics is injected', (tester) async {
+    const analytics = AnalyticsService(nodeId: 'device-a');
+    await pumpCapture(tester, analytics: analytics);
+    await tester.pump(); // flush the unawaited logEvent's prefs write
+
+    final prefs = await SharedPreferences.getInstance();
+    final buffer = prefs.getString('analytics.buffer');
+    expect(buffer, isNotNull);
+    expect(buffer, contains('app_open'));
   });
 
   testWidgets('auto-syncs on launch when configured', (tester) async {
@@ -383,21 +503,23 @@ void main() {
     expect(find.textContaining('offline'), findsOneWidget);
   });
 
-  testWidgets('auto-sync success shows when and what was merged', (
-    tester,
-  ) async {
-    final methods = <String>[];
-    await pumpCapture(
-      tester,
-      prefs: configuredPrefs,
-      httpClient: recordingMock(methods),
-    );
-    await tester.pump();
-    await tester.pump();
+  testWidgets(
+    'auto-sync success shows no status text — sync is automatic and silent',
+    (tester) async {
+      final methods = <String>[];
+      await pumpCapture(
+        tester,
+        prefs: configuredPrefs,
+        httpClient: recordingMock(methods),
+      );
+      await tester.pump();
+      await tester.pump();
 
-    expect(find.textContaining('Synced at'), findsOneWidget);
-    expect(find.textContaining('merged 0 device(s)'), findsOneWidget);
-  });
+      // Only a failure is worth surfacing; a routine success is silent.
+      expect(find.textContaining('Synced at'), findsNothing);
+      expect(find.textContaining('merged 0 device(s)'), findsNothing);
+    },
+  );
 
   testWidgets('restores the last sync outcome on launch', (tester) async {
     // Unconfigured (no token) so no launch auto-sync overwrites the restored

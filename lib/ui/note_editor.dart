@@ -51,6 +51,7 @@ class NoteEditor extends StatefulWidget {
     this.initialTemplate,
     this.initialMode = NoteEditorMode.guided,
     this.autofocus = false,
+    this.advancedMode = true,
     super.key,
   });
 
@@ -84,6 +85,16 @@ class NoteEditor extends StatefulWidget {
   /// Autofocus the first field, so a fresh capture needs zero taps before
   /// typing — preserving the app's instant-capture invariant.
   final bool autofocus;
+
+  /// Whether the template picker and View/Guided/Raw mode toggle are shown.
+  /// For a freshly-mounted editor, false pins the mode to
+  /// [NoteEditorMode.raw] regardless of [initialMode], and Guided/Preview
+  /// are unreachable — casual capture needs neither. Toggling this off
+  /// while already mid-Guided does not itself force an immediate mode
+  /// change (the open mode stays until the next mode transition, which
+  /// then resolves to raw) — a transient, self-healing state, not a hole
+  /// in the gating.
+  final bool advancedMode;
 
   @override
   State<NoteEditor> createState() => _NoteEditorState();
@@ -179,8 +190,11 @@ class _NoteEditorState extends State<NoteEditor> {
   bool get _canOpenGuided => !_template.isFreeform && !_rawSource;
 
   /// Picks the mode to actually display: honours [desired] unless Guided was
-  /// asked for when it can't be opened, in which case fall back to Raw.
+  /// asked for when it can't be opened (falls back to Raw), or
+  /// [NoteEditor.advancedMode] is off (Preview/Guided are unreachable
+  /// without their chrome, so Raw is the only mode shown).
   NoteEditorMode _resolveMode(NoteEditorMode desired) {
+    if (!widget.advancedMode) return NoteEditorMode.raw;
     if (desired == NoteEditorMode.guided && !_canOpenGuided) {
       return NoteEditorMode.raw;
     }
@@ -369,6 +383,13 @@ class _NoteEditorState extends State<NoteEditor> {
     // depth as _buildRaw, avoiding the nested-Column/Expanded layout issue
     // that silently collapses the inner flex space in release builds.
     if (_mode == NoteEditorMode.guided) return _buildStepPage(theme);
+
+    // Advanced mode off: the template picker and mode toggle are hidden and
+    // _resolveMode() has already pinned _mode to raw, so skip straight to
+    // the body directly (not wrapped in another Expanded — the parent
+    // screen already wraps this whole widget in one, same as the guided
+    // branch above).
+    if (!widget.advancedMode) return _buildBody(theme);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

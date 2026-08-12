@@ -3,6 +3,9 @@ import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo/analytics/analytics_event.dart';
+import 'package:todo/analytics/analytics_service.dart';
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
@@ -22,13 +25,14 @@ import 'package:uuid/uuid.dart';
 ///
 /// Per the product goal "no interruptions, immediate", text is persisted
 /// to local storage on *every* keystroke. A note row is created lazily on
-/// the first character typed, then updated in place. The explicit "Save"
-/// action finalises the current idea and clears the field for the next
-/// one (remote sync will hook in here later).
+/// the first character typed, then updated in place. The "new note" action
+/// finalises the current idea and clears the field for the next one.
 class CaptureScreen extends StatefulWidget {
   /// Creates a [CaptureScreen] backed by [repository].
   const CaptureScreen({
     required this.repository,
+    required this.appSettings,
+    this.analytics,
     this.httpClient,
     this.localBackup,
     this.firebaseFactory,
@@ -38,6 +42,17 @@ class CaptureScreen extends StatefulWidget {
 
   /// The store the captured note is persisted to on every keystroke.
   final NoteRepository repository;
+
+  /// App-wide preferences, currently just `advancedMode`: whether the
+  /// priority/status row and the routine save/sync status line are shown.
+  /// A sync failure is always surfaced regardless of this flag.
+  final ValueNotifier<AppSettings> appSettings;
+
+  /// Interaction-only usage analytics (taps, navigation, sync outcomes —
+  /// never note text). Null in tests that don't exercise it, so the prefs
+  /// round-trip `logEvent` does on every call never has to be awaited by a
+  /// test that didn't ask for it.
+  final AnalyticsService? analytics;
 
   /// Builds the Firebase backend. Injected so tests can supply a fake, or
   /// null to assert the pre-migration GitHub-only path still works.
@@ -117,9 +132,26 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// (template/mode selectors) is also hidden, so the two stay in lockstep.
   bool _chromeVisible = true;
 
+  /// When this session started, for the duration on the `app_close` event.
+  final DateTime _sessionStart = DateTime.now();
+
+  /// Logs an interaction event without blocking the caller on the prefs
+  /// round-trip `AnalyticsService.logEvent` does. A no-op when
+  /// [CaptureScreen.analytics] is null (tests that don't exercise it).
+  void _logEvent(String name, {Map<String, Object?> params = const {}}) {
+    final analytics = widget.analytics;
+    if (analytics == null) return;
+    unawaited(
+      analytics.logEvent(
+        AnalyticsEvent(name: name, timestamp: DateTime.now(), params: params),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    _logEvent('app_open');
     WidgetsBinding.instance.addObserver(this);
     _localBackup =
         widget.localBackup ?? _platformLocalBackup(widget.repository);
@@ -147,6 +179,12 @@ class _CaptureScreenState extends State<CaptureScreen>
 
   @override
   void dispose() {
+    _logEvent(
+      'app_close',
+      params: {
+        'durationMs': DateTime.now().difference(_sessionStart).inMilliseconds,
+      },
+    );
     WidgetsBinding.instance.removeObserver(this);
     _autoSyncDebounce?.cancel();
     unawaited(_changesSub?.cancel());
@@ -223,6 +261,14 @@ class _CaptureScreenState extends State<CaptureScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Push on background so the remote (the durable store) stays near-current.
     if (state == AppLifecycleState.paused) {
+      // The realistic "user left the app" signal on Android: the process may
+      // be killed right after, so dispose() is not guaranteed to run.
+      _logEvent(
+        'app_close',
+        params: {
+          'durationMs': DateTime.now().difference(_sessionStart).inMilliseconds,
+        },
+      );
       // Immediate: Android may kill the app before a debounce timer fires.
       _autoSyncDebounce?.cancel();
       unawaited(_autoSync());
@@ -249,25 +295,43 @@ class _CaptureScreenState extends State<CaptureScreen>
     if (!settings.isConfigured && await openFirebase() == null) return;
     _autoSyncing = true;
     try {
-      final result = await runSync(
+      final run = await runSync(
         widget.repository,
         settings,
+        appSettings: widget.appSettings.value,
+        analytics: widget.analytics,
         httpClient: widget.httpClient,
         firebaseFactory: widget.firebaseFactory,
         stateStore: widget.stateStore,
       );
-      await _recordSyncStatus(ok: true, detail: _describe(result));
+      _adoptReconciledSettings(run.appSettings);
+      final detail = _describe(run.syncResult);
+      await _recordSyncStatus(ok: true, detail: detail);
+      _logEvent(
+        'sync_result',
+        params: {'ok': true, 'auto': true, 'detail': detail},
+      );
     } on Exception catch (e) {
       // Offline or a transient GitHub error: still no snackbar (this path
       // must never interrupt capture), but the status line shows it.
       await _recordSyncStatus(ok: false, detail: '$e');
+      _logEvent('sync_result', params: {'ok': false, 'auto': true});
     } finally {
       _autoSyncing = false;
     }
   }
 
+  /// Applies a settings snapshot reconciled during a sync pass, when it is
+  /// newer than what this screen already holds (the toggle in Settings may
+  /// have written a newer value locally in between, which must win).
+  void _adoptReconciledSettings(AppSettings? reconciled) {
+    if (!mounted) return;
+    widget.appSettings.value = widget.appSettings.value.adopt(reconciled);
+  }
+
   /// Opens the settings screen and adopts any saved configuration.
   Future<void> _openSettings() async {
+    _logEvent('screen_view', params: {'screen': 'settings'});
     final current = _settings ?? await SyncSettings.load();
     if (!mounted) return;
     await Navigator.of(context).push<SyncSettings>(
@@ -275,6 +339,8 @@ class _CaptureScreenState extends State<CaptureScreen>
         builder: (_) => SettingsScreen(
           initial: current,
           repository: widget.repository,
+          appSettings: widget.appSettings,
+          analytics: widget.analytics,
           httpClient: widget.httpClient,
         ),
       ),
@@ -288,6 +354,7 @@ class _CaptureScreenState extends State<CaptureScreen>
   }
 
   void _openList() {
+    _logEvent('screen_view', params: {'screen': 'notes_list'});
     unawaited(
       Navigator.of(context).push<void>(
         MaterialPageRoute(
@@ -307,18 +374,26 @@ class _CaptureScreenState extends State<CaptureScreen>
     }
     setState(() => _syncing = true);
     try {
-      final result = await runSync(
+      final run = await runSync(
         widget.repository,
         settings,
+        appSettings: widget.appSettings.value,
+        analytics: widget.analytics,
         httpClient: widget.httpClient,
         firebaseFactory: widget.firebaseFactory,
         stateStore: widget.stateStore,
       );
-      final detail = _describe(result);
+      _adoptReconciledSettings(run.appSettings);
+      final detail = _describe(run.syncResult);
       await _recordSyncStatus(ok: true, detail: detail);
+      _logEvent(
+        'sync_result',
+        params: {'ok': true, 'auto': false, 'detail': detail},
+      );
       _showSnack('Synced: $detail');
     } on Exception catch (e) {
       await _recordSyncStatus(ok: false, detail: '$e');
+      _logEvent('sync_result', params: {'ok': false, 'auto': false});
       _showSnack('Sync failed: $e');
     } finally {
       if (mounted) setState(() => _syncing = false);
@@ -342,6 +417,7 @@ class _CaptureScreenState extends State<CaptureScreen>
       if (text.trim().isEmpty) return;
       _draftId = _uuid.v4();
       _draftCreatedAt = DateTime.now();
+      _logEvent('note_created');
     }
     final now = DateTime.now();
     await widget.repository.upsert(
@@ -360,6 +436,10 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// Applies a new priority to the draft, persisting immediately if a note
   /// row already exists (otherwise it is applied on the first keystroke).
   Future<void> _setPriority(Priority priority) async {
+    _logEvent(
+      'priority_changed',
+      params: {'from': _draftPriority.name, 'to': priority.name},
+    );
     setState(() => _draftPriority = priority);
     await _persistDraftMeta();
   }
@@ -367,6 +447,10 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// Applies a new status to the draft, persisting immediately if a note
   /// row already exists.
   Future<void> _setStatus(Status status) async {
+    _logEvent(
+      'status_changed',
+      params: {'from': _draftStatus.name, 'to': status.name},
+    );
     setState(() => _draftStatus = status);
     await _persistDraftMeta();
   }
@@ -389,9 +473,10 @@ class _CaptureScreenState extends State<CaptureScreen>
   }
 
   /// Finalises the current idea and resets the field to a fresh template.
+  /// The field going blank is the only feedback needed — autosave already
+  /// persisted every keystroke, so there is nothing left to confirm.
   void _saveAndReset() {
-    // A note was actually persisted only if a draft row was created.
-    final saved = _draftId != null;
+    _logEvent('new_note_reset');
     setState(() {
       _editorGeneration++; // recreate the editor with a fresh template
       _draftText = '';
@@ -402,165 +487,182 @@ class _CaptureScreenState extends State<CaptureScreen>
       _chromeVisible = true;
     });
     _lastSavedAt.value = null;
-    if (saved) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Idea saved locally'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Capture'),
-        actions: [
-          // TEMPORARY: forces continuous frame production so raster cost can
-          // be sampled at each window size. Armed by TODO_FRAME_STATS=1, which
-          // is never set under the test runner, so the branch is unreachable.
-          // coverage:ignore-start
-          if (frameStatsEnabled)
-            const Padding(
-              padding: EdgeInsets.only(right: 8),
-              child: Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+    return ValueListenableBuilder<AppSettings>(
+      valueListenable: widget.appSettings,
+      builder: (context, settings, _) {
+        final advanced = settings.advancedMode;
+        return Scaffold(
+          appBar: AppBar(
+            actions: [
+              // TEMPORARY: forces continuous frame production so raster cost
+              // can be sampled at each window size. Armed by
+              // TODO_FRAME_STATS=1, which is never set under the test
+              // runner, so the branch is unreachable.
+              // coverage:ignore-start
+              if (frameStatsEnabled)
+                const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          // coverage:ignore-end
-          // Live count of stored notes, proving local persistence.
-          StreamBuilder<int>(
-            stream: widget.repository.watchCount(),
-            builder: (context, snapshot) {
-              final count = snapshot.data ?? 0;
-              return Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Center(child: Text('$count saved')),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: 'Sync',
-            onPressed: _syncing ? null : _sync,
-            icon: _syncing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.sync),
-          ),
-          IconButton(
-            tooltip: 'Notes',
-            onPressed: _openList,
-            icon: const Icon(Icons.list),
-          ),
-          IconButton(
-            tooltip: 'Sync settings',
-            onPressed: _openSettings,
-            icon: const Icon(Icons.settings),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Pickers sit above the editor so the bottom-right Save FAB
-            // never overlaps them. Hidden together with the editor's own
-            // chrome while the bare guided stepper or its entry wizard is up,
-            // so the top of the screen stays free of noise.
-            if (_chromeVisible) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetaDropdown<Priority>(
-                      label: 'Priority',
-                      value: _draftPriority,
-                      values: Priority.values,
-                      labelOf: (p) => p.label,
-                      onChanged: _setPriority,
+              // coverage:ignore-end
+              // Live count of stored notes, proving local persistence.
+              StreamBuilder<int>(
+                stream: widget.repository.watchCount(),
+                builder: (context, snapshot) {
+                  final count = snapshot.data ?? 0;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.list_alt_outlined, size: 18),
+                          const SizedBox(width: 4),
+                          Text('$count'),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MetaDropdown<Status>(
-                      label: 'Status',
-                      value: _draftStatus,
-                      values: Status.values,
-                      labelOf: (s) => s.label,
-                      onChanged: _setStatus,
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
-              const SizedBox(height: 12),
+              IconButton(
+                tooltip: 'New note',
+                onPressed: _saveAndReset,
+                icon: const Icon(Icons.add),
+              ),
+              if (advanced)
+                IconButton(
+                  tooltip: 'Sync',
+                  onPressed: _syncing ? null : _sync,
+                  icon: _syncing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync),
+                ),
+              IconButton(
+                tooltip: 'Notes',
+                onPressed: _openList,
+                icon: const Icon(Icons.list),
+              ),
+              IconButton(
+                tooltip: 'Settings',
+                onPressed: _openSettings,
+                icon: const Icon(Icons.settings),
+              ),
             ],
-            Expanded(
-              child: NoteEditor(
-                key: ValueKey(_editorGeneration),
-                initialTemplate: NoteTemplate.defaultTemplate,
-                initialMode: NoteEditorMode.raw,
-                priority: _draftPriority,
-                onPriorityChanged: _setPriority,
-                onChromeVisibleChanged: (visible) =>
-                    setState(() => _chromeVisible = visible),
-                autofocus: true,
-                onChanged: _onChanged,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Leave room so the Save FAB doesn't cover the indicators.
-            Padding(
-              padding: const EdgeInsets.only(right: 96),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ValueListenableBuilder<DateTime?>(
-                    valueListenable: _lastSavedAt,
-                    builder: (context, savedAt, _) => Text(
-                      savedAt == null
-                          ? 'Autosaves as you type'
-                          : 'Saved locally at ${_formatTime(savedAt)}',
-                      style: theme.textTheme.bodySmall,
-                    ),
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Hidden together with the editor's own chrome while the
+                // bare guided stepper or its entry wizard is up, so the top
+                // of the screen stays free of noise. Also hidden outright
+                // when advanced mode is off.
+                if (advanced && _chromeVisible) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MetaDropdown<Priority>(
+                          label: 'Priority',
+                          value: _draftPriority,
+                          values: Priority.values,
+                          labelOf: (p) => p.label,
+                          onChanged: _setPriority,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _MetaDropdown<Status>(
+                          label: 'Status',
+                          value: _draftStatus,
+                          values: Status.values,
+                          labelOf: (s) => s.label,
+                          onChanged: _setStatus,
+                        ),
+                      ),
+                    ],
                   ),
-                  ValueListenableBuilder<SyncStatus?>(
-                    valueListenable: _lastSync,
-                    builder: (context, status, _) {
-                      if (status == null) return const SizedBox.shrink();
-                      return Text(
-                        '${status.ok ? 'Synced' : 'Sync failed'} at '
-                        '${_formatTime(status.time)} · ${status.detail}',
+                  const SizedBox(height: 12),
+                ],
+                Expanded(
+                  // The key lives on this Expanded, not on NoteEditor itself:
+                  // the Row above is conditionally present, which shifts
+                  // this Expanded's position in the Column whenever
+                  // advancedMode changes at runtime. A key one level too
+                  // deep (previously on NoteEditor) doesn't survive that
+                  // reposition — Flutter can't match it at the new index,
+                  // so it tears down and remounts NoteEditor with an empty
+                  // draft, discarding whatever the user was typing.
+                  key: ValueKey(_editorGeneration),
+                  child: NoteEditor(
+                    initialTemplate: NoteTemplate.defaultTemplate,
+                    initialMode: NoteEditorMode.raw,
+                    advancedMode: advanced,
+                    priority: _draftPriority,
+                    onPriorityChanged: _setPriority,
+                    onChromeVisibleChanged: (visible) =>
+                        setState(() => _chromeVisible = visible),
+                    autofocus: true,
+                    onChanged: _onChanged,
+                  ),
+                ),
+                // Sync is automatic; routine "saved"/"synced" chatter is not
+                // worth showing. Only a sync failure is surfaced, since that
+                // is the one state the user might need to act on.
+                ValueListenableBuilder<SyncStatus?>(
+                  valueListenable: _lastSync,
+                  builder: (context, status, _) {
+                    if (status == null || status.ok) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Sync failed at ${_formatTime(status.time)} · '
+                        '${status.detail}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: status.ok ? null : theme.colorScheme.error,
+                          color: theme.colorScheme.error,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                      );
-                    },
+                      ),
+                    );
+                  },
+                ),
+                if (advanced)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: ValueListenableBuilder<DateTime?>(
+                      valueListenable: _lastSavedAt,
+                      builder: (context, savedAt, _) => Text(
+                        savedAt == null
+                            ? 'Autosaves as you type'
+                            : 'Saved locally at ${_formatTime(savedAt)}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
                   ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: _chromeVisible
-          ? FloatingActionButton.extended(
-              onPressed: _saveAndReset,
-              icon: const Icon(Icons.check),
-              label: const Text('Save'),
-            )
-          : null,
+          ),
+        );
+      },
     );
   }
 

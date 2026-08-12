@@ -5,6 +5,9 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:todo/analytics/analytics_event.dart';
+import 'package:todo/analytics/analytics_service.dart';
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/backlog_export.dart';
 import 'package:todo/sync/firebase_backend.dart';
@@ -30,6 +33,8 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.initial,
     required this.repository,
+    required this.appSettings,
+    this.analytics,
     this.httpClient,
     this.firebaseFactory,
     this.googleFirebaseFactory,
@@ -47,6 +52,13 @@ class SettingsScreen extends StatefulWidget {
 
   /// The store backup export/import reads from and writes to.
   final NoteRepository repository;
+
+  /// App-wide preferences, currently just `advancedMode`. The "Enable
+  /// advanced" switch on this screen reads and writes it directly.
+  final ValueNotifier<AppSettings> appSettings;
+
+  /// Interaction-only usage analytics. Null in tests that don't exercise it.
+  final AnalyticsService? analytics;
 
   /// Builds the Firebase backend. Injected so tests can supply a fake, or
   /// null to assert the pre-migration GitHub-only path still works.
@@ -310,18 +322,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _syncAfterConnect() async {
     final s = _current;
     try {
-      final result = await runSync(
+      final run = await runSync(
         widget.repository,
         s,
+        appSettings: widget.appSettings.value,
+        analytics: widget.analytics,
         httpClient: widget.httpClient,
         firebaseFactory: widget.firebaseFactory,
         stateStore: widget.stateStore,
       );
+      widget.appSettings.value = widget.appSettings.value.adopt(
+        run.appSettings,
+      );
       if (mounted) {
         setState(
           () => _status =
-              'Connected and synced (merged ${result.mergedDevices} '
-              'device(s)). Your notes are up to date.',
+              'Connected and synced (merged '
+              '${run.syncResult.mergedDevices} device(s)). Your notes are '
+              'up to date.',
         );
       }
     } on Exception catch (e) {
@@ -360,6 +378,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = _current;
     await s.save();
     if (mounted) Navigator.of(context).pop(s);
+  }
+
+  /// Persists the "Enable advanced" toggle locally and, when a Firebase
+  /// session is available, best-effort mirrors it so the choice follows the
+  /// user to their other devices.
+  ///
+  /// The local write always lands — a signed-in-as-wrong-account device
+  /// throwing [FirebaseAuthError] out of `openFirebase()` must not take the
+  /// toggle down with it, so opening the client has its own try/catch,
+  /// separate from (and preceding) the try that guards the local write and
+  /// mirror push.
+  Future<void> _setAdvancedMode(bool value) async {
+    final analytics = widget.analytics;
+    if (analytics != null) {
+      unawaited(
+        analytics.logEvent(
+          AnalyticsEvent(
+            name: 'settings_toggle',
+            timestamp: DateTime.now(),
+            params: {'key': 'advancedMode', 'value': value},
+          ),
+        ),
+      );
+    }
+    FirebaseRestClient? client;
+    try {
+      client = await (widget.firebaseFactory ?? openFirebase)();
+    } on Exception {
+      client = null;
+    }
+    try {
+      final updated = await widget.appSettings.value.withAdvancedMode(
+        value: value,
+        client: client,
+      );
+      if (mounted) widget.appSettings.value = updated;
+    } finally {
+      client?.close();
+    }
   }
 
   /// Exports every note to a single Markdown file. On mobile this opens the
@@ -410,10 +467,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sync settings')),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          ValueListenableBuilder<AppSettings>(
+            valueListenable: widget.appSettings,
+            builder: (context, settings, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enable advanced'),
+              subtitle: const Text(
+                'Priority/status, templates, view modes, and sync details '
+                'in the capture screen',
+              ),
+              value: settings.advancedMode,
+              onChanged: (value) => unawaited(_setAdvancedMode(value)),
+            ),
+          ),
+          const Divider(),
+          const SizedBox(height: 8),
           Text(
             'Firebase sync',
             style: Theme.of(context).textTheme.titleMedium,
@@ -507,8 +579,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
           const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.save),
+              label: const Text('Save'),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 8),
+          Text('Backup', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Export all notes to a single Markdown file, or import/merge a '
+            'file back (matching ids are merged, never duplicated).',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: _export,
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Export notes'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: _import,
+                icon: const Icon(Icons.download),
+                label: const Text('Import notes'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 8),
           // GitHub is the cutover mirror, not a choice competing with
-          // Firebase, so its whole setup lives behind one disclosure.
+          // Firebase, so its whole setup lives behind one disclosure at the
+          // very bottom of the screen — last, not suggested as a normal
+          // option.
           ExpansionTile(
             title: const Text('Advanced (GitHub mirror)'),
             tilePadding: EdgeInsets.zero,
@@ -581,41 +692,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : const Icon(Icons.wifi_tethering),
                   label: const Text('Test connection'),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              onPressed: _save,
-              icon: const Icon(Icons.save),
-              label: const Text('Save'),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Divider(),
-          const SizedBox(height: 8),
-          Text('Backup', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Export all notes to a single Markdown file, or import/merge a '
-            'file back (matching ids are merged, never duplicated).',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: _export,
-                icon: const Icon(Icons.upload_file),
-                label: const Text('Export notes'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: _import,
-                icon: const Icon(Icons.download),
-                label: const Text('Import notes'),
               ),
             ],
           ),

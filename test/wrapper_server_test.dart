@@ -23,6 +23,16 @@ void main() {
       webRoot: webRoot.path,
       backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
       logPath: p.join(root.path, 'state', 'todo_notes.json'),
+      // Without this, the default falls back to the real
+      // $HOME/.config/todo/firebase_auth.json -- on a machine that has
+      // actually signed in (a real desktop session), that file exists, so
+      // the "no credentials file exists" test below observes 200 instead
+      // of 404. Point it at this test's own throwaway root instead.
+      todoCredentialsPath: p.join(
+        root.path,
+        'todo-config',
+        'firebase_auth.json',
+      ),
     );
     // Port 0 lets the OS pick, so tests never collide with a running app.
     await server.start(0);

@@ -11,6 +11,10 @@ import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo/analytics/analytics_event.dart';
+import 'package:todo/analytics/analytics_service.dart';
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/run_sync.dart';
 import 'package:todo/sync/sync_settings.dart';
@@ -21,6 +25,7 @@ void main() {
   late NoteRepository repo;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     repo = await NoteRepository.openInMemory(nodeId: 'me');
   });
 
@@ -40,12 +45,12 @@ void main() {
       stateStore: InMemorySyncStateStore(),
     );
 
-    expect(result.pushed, isTrue);
+    expect(result.syncResult.pushed, isTrue);
     expect(paths.every((p) => p.contains('api.github.com')), isTrue);
     // The status line's whole reason for existing: this must read as
     // GitHub-only, not as an unqualified success indistinguishable from a
     // Firebase-connected sync.
-    expect(result.firebaseConnected, isFalse);
+    expect(result.syncResult.firebaseConnected, isFalse);
   });
 
   test('makes Firebase primary and still mirrors to GitHub', () async {
@@ -84,7 +89,7 @@ void main() {
       stateStore: InMemorySyncStateStore(),
     );
 
-    expect(result.pushed, isTrue);
+    expect(result.syncResult.pushed, isTrue);
     expect(
       firebasePaths.any((p) => p.startsWith('PUT')),
       isTrue,
@@ -95,6 +100,81 @@ void main() {
       contains('PUT'),
       reason: 'GitHub must still be mirrored during the cutover',
     );
-    expect(result.firebaseConnected, isTrue);
+    expect(result.syncResult.firebaseConnected, isTrue);
   });
+
+  test('leaves appSettings null when the caller passes none', () async {
+    final result = await runSync(
+      repo,
+      _settings,
+      httpClient: http_testing.MockClient((request) async {
+        return http.Response(jsonEncode({'content': '', 'sha': 'x'}), 200);
+      }),
+      firebaseFactory: () async => null,
+      stateStore: InMemorySyncStateStore(),
+    );
+
+    expect(result.appSettings, isNull);
+  });
+
+  test(
+    'reconciles appSettings and flushes analytics on the same client',
+    () async {
+      final requestPaths = <String>[];
+      final remoteTime = DateTime(2026, 6);
+      final firebase = FirebaseRestClient(
+        databaseUrl: 'https://x-rtdb.europe-west1.firebasedatabase.app',
+        auth: FirebaseTokenProvider(
+          apiKey: 'AIzaKey',
+          store: InMemoryCredentialStore(
+            FirebaseCredentials(
+              idToken: 'id',
+              refreshToken: 'refresh',
+              expiresAt: DateTime.now().add(const Duration(hours: 1)),
+            ),
+          ),
+        ),
+        httpClient: http_testing.MockClient((request) async {
+          requestPaths.add('${request.method} ${request.url.path}');
+          if (request.url.path == '/settings/advancedMode.json') {
+            return http.Response(
+              '{"value": "true", '
+              '"updatedAtMillis": "${remoteTime.millisecondsSinceEpoch}"}',
+              200,
+            );
+          }
+          if (request.method == 'PUT') return http.Response(request.body, 200);
+          return http.Response('null', 200);
+        }),
+      );
+      const analytics = AnalyticsService(nodeId: 'me');
+      await analytics.logEvent(
+        AnalyticsEvent(name: 'app_open', timestamp: DateTime.now()),
+      );
+
+      final result = await runSync(
+        repo,
+        _settings,
+        appSettings: const AppSettings(advancedMode: false),
+        analytics: analytics,
+        httpClient: http_testing.MockClient((request) async {
+          return http.Response(jsonEncode({'content': '', 'sha': 'x'}), 200);
+        }),
+        firebaseFactory: () async => firebase,
+        stateStore: InMemorySyncStateStore(),
+      );
+
+      expect(result.appSettings?.advancedMode, isTrue);
+      expect(
+        requestPaths,
+        contains('GET /settings/advancedMode.json'),
+        reason: 'appSettings reconciliation used the same Firebase client',
+      );
+      expect(
+        requestPaths.any((p) => p.startsWith('PUT /analytics/me/')),
+        isTrue,
+        reason: 'analytics flush used the same Firebase client',
+      );
+    },
+  );
 }

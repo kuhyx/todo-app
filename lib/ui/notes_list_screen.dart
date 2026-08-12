@@ -38,7 +38,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
-  NoteSort _sort = NoteSort.modifiedDesc;
+  NoteSort _sort = NoteSort.priorityDesc;
 
   /// Default view hides completed/dropped work: only To do + In progress.
   /// The user can widen this (or clear it) via the filter sheet.

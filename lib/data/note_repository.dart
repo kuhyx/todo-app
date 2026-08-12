@@ -194,14 +194,14 @@ class NoteRepository {
 
   /// Returns the live notes matching [filter], ordered by [sort].
   Future<List<Note>> listNotes({
-    NoteSort sort = NoteSort.modifiedDesc,
+    NoteSort sort = NoteSort.priorityDesc,
     NoteFilter filter = const NoteFilter(),
   }) async => _query(sort, filter);
 
   /// Emits the matching, ordered note list immediately and re-emits whenever
   /// the log changes, so the UI stays in sync without manual refreshes.
   Stream<List<Note>> watchNotes({
-    NoteSort sort = NoteSort.modifiedDesc,
+    NoteSort sort = NoteSort.priorityDesc,
     NoteFilter filter = const NoteFilter(),
   }) => _watch(() => _query(sort, filter));
 
