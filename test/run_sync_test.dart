@@ -42,6 +42,10 @@ void main() {
 
     expect(result.pushed, isTrue);
     expect(paths.every((p) => p.contains('api.github.com')), isTrue);
+    // The status line's whole reason for existing: this must read as
+    // GitHub-only, not as an unqualified success indistinguishable from a
+    // Firebase-connected sync.
+    expect(result.firebaseConnected, isFalse);
   });
 
   test('makes Firebase primary and still mirrors to GitHub', () async {
@@ -91,5 +95,6 @@ void main() {
       contains('PUT'),
       reason: 'GitHub must still be mirrored during the cutover',
     );
+    expect(result.firebaseConnected, isTrue);
   });
 }

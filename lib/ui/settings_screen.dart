@@ -9,6 +9,7 @@ import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/backlog_export.dart';
 import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/github_device_auth.dart';
+import 'package:todo/sync/google_sign_in_backend.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/run_sync.dart';
 import 'package:todo/sync/sync_settings.dart';
@@ -31,10 +32,13 @@ class SettingsScreen extends StatefulWidget {
     required this.repository,
     this.httpClient,
     this.firebaseFactory,
+    this.googleFirebaseFactory,
+    this.googleAvailable,
     this.stateStore,
     this.accountLoader,
     this.accountSaver,
     this.accountClearer,
+    this.sessionProbe,
     super.key,
   });
 
@@ -47,6 +51,16 @@ class SettingsScreen extends StatefulWidget {
   /// Builds the Firebase backend. Injected so tests can supply a fake, or
   /// null to assert the pre-migration GitHub-only path still works.
   final Future<FirebaseRestClient?> Function()? firebaseFactory;
+
+  /// Builds the Firebase backend via Google sign-in. Separate from
+  /// [firebaseFactory] because it reaches the Google plugin's platform
+  /// channel, which `flutter test` has no binding for.
+  final Future<FirebaseRestClient?> Function()? googleFirebaseFactory;
+
+  /// Whether to offer the Google button. Defaults to what the platform
+  /// actually supports; injected by tests, which run on a host where the
+  /// plugin reports unsupported.
+  final bool? googleAvailable;
 
   /// Revision cache. Injected so tests need no application-support directory.
   final SyncStateStore? stateStore;
@@ -62,6 +76,15 @@ class SettingsScreen extends StatefulWidget {
 
   /// Forgets the account and any cached session. See [accountLoader].
   final Future<void> Function()? accountClearer;
+
+  /// Whether a Firebase session is stored. See [accountLoader].
+  ///
+  /// Separate from [accountLoader] because the two answer different
+  /// questions: the account marker is bookkeeping, the session is the
+  /// credential. A device can hold the second without the first, and
+  /// reporting only the first is what made a syncing phone read as
+  /// "not connected".
+  final Future<bool> Function()? sessionProbe;
 
   /// Optional HTTP client for the GitHub calls (test-connection and device
   /// flow). Injected by tests; production uses each client's default.
@@ -103,9 +126,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// state instead of an empty form that looks unconfigured.
   Future<void> _loadFirebaseAccount() async {
     final account = await (widget.accountLoader ?? loadAccount)();
+    // The stored session, not the account marker, decides "connected": a
+    // Google sign-in leaves a refresh token that authenticates every request
+    // even when no marker was written beside it.
+    final connected = await (widget.sessionProbe ?? isFirebaseConfigured)();
     if (!mounted) return;
     if (account != null) _email.text = account.email;
-    setState(() => _firebaseConnected = account != null);
+    setState(() => _firebaseConnected = connected);
   }
 
   /// Stores the typed account and signs in immediately, so a typo surfaces
@@ -144,6 +171,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _firebaseConnected = true;
       _status = 'Connected to Firebase.';
     });
+  }
+
+  /// Signs in by picking a Google account -- the one-tap path.
+  ///
+  /// Distinguishes three outcomes deliberately: a dismissed picker is not an
+  /// error and says nothing alarming; a wrong-account sign-in reports *why*,
+  /// because it is the failure that would otherwise look like a working sync
+  /// that never syncs; anything else is a plain failure.
+  Future<void> _connectGoogle() async {
+    setState(() {
+      _busy = true;
+      _status = 'Signing in…';
+    });
+    try {
+      final client =
+          await (widget.googleFirebaseFactory ?? openFirebaseWithGoogle)();
+      if (!mounted) return;
+      if (client == null) {
+        setState(() {
+          _busy = false;
+          _status = 'Google sign-in was cancelled.';
+        });
+        return;
+      }
+      // The account is saved by openFirebaseWithGoogle, using the email
+      // Firebase reports -- not from _email, which is empty on the fresh
+      // install this path exists for. Reflect it so the connected row shows
+      // the address instead of a blank.
+      //
+      // storedAccount, not loadAccount: the latter falls back to the desktop
+      // wrapper's /sync-account route when the keystore looks empty, which on
+      // Android resolves to file:/// and throws. That threw here mid-sign-in
+      // on the phone, leaving the screen stuck on "Signing in..." even though
+      // the sign-in had actually succeeded.
+      final account = await (widget.accountLoader ?? storedAccount)();
+      // Report the persisted state, not the fact that the call returned a
+      // client: a non-null client only means sign-in succeeded in that
+      // moment, which is how four apps claimed "Connected" and then synced
+      // over GitHub after the next restart.
+      final connected = await (widget.sessionProbe ?? isFirebaseConfigured)();
+      if (!mounted) return;
+      if (account != null) _email.text = account.email;
+      setState(() {
+        _busy = false;
+        _firebaseConnected = connected;
+        _status = connected
+            ? 'Connected to Firebase.'
+            : 'Signed in, but this device did not save the session - it will '
+                  'sync over GitHub after a restart. Try connecting again.';
+      });
+    } on FirebaseAuthError catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _firebaseConnected = false;
+        _status = error.message;
+      });
+    } on Object catch (error) {
+      // Broader than Exception on purpose: a missing platform binding raises
+      // an Error, and anything escaping here leaves the button disabled and
+      // the screen stuck on "Signing in..." forever -- which is exactly what
+      // happened on the phone. Always land in a state the user can retry from.
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _firebaseConnected = false;
+        _status = 'Google sign-in failed: $error';
+      });
+    }
   }
 
   Future<void> _disconnectFirebase() async {
@@ -350,33 +446,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             )
           else ...[
-            TextField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              decoration: const InputDecoration(
-                labelText: 'Sync account email',
-                border: OutlineInputBorder(),
+            // The whole point of this screen after a reinstall: one tap, no
+            // typing. The password form is kept but demoted, because on a
+            // phone keyboard it is the slow path.
+            //
+            // Hidden where the platform cannot sign in programmatically --
+            // the desktop build is the web build, and Google Identity
+            // Services only signs in through its own rendered button there.
+            // A visible button that always failed would be worse than none.
+            if (widget.googleAvailable ?? googleSignInSupported) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  onPressed: _busy ? null : _connectGoogle,
+                  icon: const Icon(Icons.account_circle),
+                  label: const Text('Sign in with Google'),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _password,
-              obscureText: true,
-              autocorrect: false,
-              decoration: const InputDecoration(
-                labelText: 'Sync account password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilledButton.icon(
-                onPressed: _busy ? null : _connectFirebase,
-                icon: const Icon(Icons.cloud_done),
-                label: const Text('Connect Firebase'),
-              ),
+              const SizedBox(height: 12),
+            ],
+            ExpansionTile(
+              // Expanded by default where Google is unavailable: on desktop
+              // the password form is the only way in, so hiding it behind a
+              // disclosure would look like there is no way to connect.
+              initiallyExpanded:
+                  !(widget.googleAvailable ?? googleSignInSupported),
+              title: const Text('Use the account password instead'),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              children: [
+                TextField(
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Sync account email',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _password,
+                  obscureText: true,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Sync account password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.icon(
+                    onPressed: _busy ? null : _connectFirebase,
+                    icon: const Icon(Icons.cloud_done),
+                    label: const Text('Connect Firebase'),
+                  ),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: 8),

@@ -10,6 +10,7 @@ class SyncResult {
     required this.pushed,
     this.skippedFiles = const [],
     this.skippedUnchanged = 0,
+    this.firebaseConnected = false,
   });
 
   /// How many other devices' logs were pulled and merged.
@@ -17,6 +18,17 @@ class SyncResult {
 
   /// Whether this device pushed its own log.
   final bool pushed;
+
+  /// Whether this run's primary backend was Firebase, rather than GitHub
+  /// alone. Set by the caller ([runSync]), which is the only layer that
+  /// knows which [RemoteStore] it built -- [SyncService] itself is
+  /// deliberately agnostic to what [RemoteStore] it was handed.
+  ///
+  /// Exists so the status line can say so: reporting a plain "Synced" while
+  /// this is false is what made a desktop stuck on GitHub-only look
+  /// identical to one actually reaching Firebase, on a device that had in
+  /// fact never connected.
+  final bool firebaseConnected;
 
   /// Peer files that were listed but could not be fetched or decoded
   /// (vanished, corrupt, or foreign format) and were left out of the merge.
@@ -29,10 +41,22 @@ class SyncResult {
   /// device dropping out.
   final int skippedUnchanged;
 
+  /// Returns a copy with [firebaseConnected] set. [SyncService] never sets
+  /// it -- only [runSync], which is the layer that knows which [RemoteStore]
+  /// it built -- so this is the seam that lets it do that without
+  /// [SyncService] taking on knowledge of Firebase at all.
+  SyncResult withFirebaseConnected({required bool value}) => SyncResult(
+    mergedDevices: mergedDevices,
+    pushed: pushed,
+    skippedFiles: skippedFiles,
+    skippedUnchanged: skippedUnchanged,
+    firebaseConnected: value,
+  );
+
   @override
   String toString() =>
       'SyncResult(mergedDevices: $mergedDevices, pushed: $pushed, '
-      'skippedFiles: $skippedFiles)';
+      'firebaseConnected: $firebaseConnected, skippedFiles: $skippedFiles)';
 }
 
 /// Synchronises a [NoteRepository] with a GitHub repo used as dumb storage.

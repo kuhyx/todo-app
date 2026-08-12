@@ -34,6 +34,38 @@ void main() {
     root.deleteSync(recursive: true);
   });
 
+  /// Starts a second server with provisioning enabled against [files], and
+  /// optionally a `todo`-specific credentials file at [credentialsJson].
+  Future<String> enabledOrigin(
+    Map<String, String> files, {
+    String? credentialsJson,
+  }) async {
+    final configDir = Directory(p.join(root.path, 'crdt-sync'))
+      ..createSync(recursive: true);
+    files.forEach((name, contents) {
+      File(p.join(configDir.path, name)).writeAsStringSync(contents);
+    });
+    String? credentialsPath;
+    if (credentialsJson != null) {
+      final credentialsDir = Directory(p.join(root.path, 'todo-config'))
+        ..createSync(recursive: true);
+      credentialsPath = p.join(credentialsDir.path, 'firebase_auth.json');
+      File(credentialsPath).writeAsStringSync(credentialsJson);
+    }
+    final enabled = WrapperServer(
+      webRoot: p.join(root.path, 'web'),
+      backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
+      logPath: p.join(root.path, 'state', 'todo_notes.json'),
+      serveSyncAccount: true,
+      syncConfigDir: configDir.path,
+      todoCredentialsPath:
+          credentialsPath ?? p.join(root.path, 'todo-config', 'absent.json'),
+    );
+    await enabled.start(0);
+    addTearDown(enabled.stop);
+    return 'http://localhost:${enabled.port}';
+  }
+
   test('serves index.html at the root', () async {
     final response = await http.get(Uri.parse('$base/'));
     expect(response.statusCode, 200);
@@ -152,25 +184,6 @@ void main() {
   });
 
   group('sync-account provisioning', () {
-    /// Starts a second server with provisioning enabled against [files].
-    Future<String> enabledOrigin(Map<String, String> files) async {
-      final configDir = Directory(p.join(root.path, 'crdt-sync'))
-        ..createSync(recursive: true);
-      files.forEach((name, contents) {
-        File(p.join(configDir.path, name)).writeAsStringSync(contents);
-      });
-      final enabled = WrapperServer(
-        webRoot: p.join(root.path, 'web'),
-        backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
-        logPath: p.join(root.path, 'state', 'todo_notes.json'),
-        serveSyncAccount: true,
-        syncConfigDir: configDir.path,
-      );
-      await enabled.start(0);
-      addTearDown(enabled.stop);
-      return 'http://localhost:${enabled.port}';
-    }
-
     test('is 404 when not enabled', () async {
       // The default, and the whole security posture: a credential route must
       // not be reachable just because the app is running.
@@ -211,5 +224,169 @@ void main() {
 
       expect(response.statusCode, HttpStatus.notFound);
     });
+  });
+
+  group('sync-credentials provisioning', () {
+    // Unlike /sync-account, this route needs no CRDT_SYNC_SERVE_ACCOUNT: a
+    // normal launch must self-provision with nothing to remember. [base]'s
+    // server was built with no credentials file at the default path, so this
+    // exercises the file-absent 404, not a disabled-route 404 -- there is no
+    // "disabled" state for this route anymore.
+    test(
+      'is 404 when no credentials file exists at the default path',
+      () async {
+        final response = await http.get(
+          Uri.parse('$base$kSyncCredentialsPath'),
+        );
+
+        expect(response.statusCode, HttpStatus.notFound);
+      },
+    );
+
+    test('serves once, then 404s for the rest of the process', () async {
+      final credentialsDir = Directory(p.join(root.path, 'todo-config-once'))
+        ..createSync(recursive: true);
+      final credentialsPath = p.join(credentialsDir.path, 'firebase_auth.json');
+      File(credentialsPath).writeAsStringSync(
+        jsonEncode({
+          'id_token': 'id',
+          'refresh_token': 'refresh',
+          'expires_at': '2026-01-01T00:00:00.000Z',
+        }),
+      );
+      final enabled = WrapperServer(
+        webRoot: p.join(root.path, 'web'),
+        backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
+        logPath: p.join(root.path, 'state', 'todo_notes.json'),
+        todoCredentialsPath: credentialsPath,
+      );
+      await enabled.start(0);
+      addTearDown(enabled.stop);
+      final origin = 'http://localhost:${enabled.port}';
+
+      final first = await http.get(Uri.parse('$origin$kSyncCredentialsPath'));
+      final second = await http.get(Uri.parse('$origin$kSyncCredentialsPath'));
+
+      expect(first.statusCode, HttpStatus.ok);
+      expect(second.statusCode, HttpStatus.notFound);
+    });
+
+    test(
+      'serves the seeded credentials, with email from firebase.json',
+      () async {
+        final configDir = Directory(p.join(root.path, 'crdt-sync'))
+          ..createSync(recursive: true);
+        File(
+          p.join(configDir.path, 'firebase.json'),
+        ).writeAsStringSync('{"email":"seeded@example.com"}');
+        final credentialsDir = Directory(p.join(root.path, 'todo-config'))
+          ..createSync(recursive: true);
+        final credentialsPath = p.join(
+          credentialsDir.path,
+          'firebase_auth.json',
+        );
+        File(credentialsPath).writeAsStringSync(
+          jsonEncode({
+            'id_token': 'id',
+            'refresh_token': 'refresh',
+            'expires_at': '2026-01-01T00:00:00.000Z',
+          }),
+        );
+        final enabled = WrapperServer(
+          webRoot: p.join(root.path, 'web'),
+          backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
+          logPath: p.join(root.path, 'state', 'todo_notes.json'),
+          serveSyncAccount: true,
+          syncConfigDir: configDir.path,
+          todoCredentialsPath: credentialsPath,
+        );
+        await enabled.start(0);
+        addTearDown(enabled.stop);
+
+        final response = await http.get(
+          Uri.parse('http://localhost:${enabled.port}$kSyncCredentialsPath'),
+        );
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(body['id_token'], 'id');
+        expect(body['refresh_token'], 'refresh');
+        expect(body['expires_at'], '2026-01-01T00:00:00.000Z');
+        expect(body['email'], 'seeded@example.com');
+      },
+    );
+
+    test(
+      'serves credentials with a null email when firebase.json is absent',
+      () async {
+        final credentialsDir = Directory(p.join(root.path, 'todo-config-2'))
+          ..createSync(recursive: true);
+        final credentialsPath = p.join(
+          credentialsDir.path,
+          'firebase_auth.json',
+        );
+        File(credentialsPath).writeAsStringSync(
+          jsonEncode({
+            'id_token': 'id',
+            'refresh_token': 'refresh',
+            'expires_at': '2026-01-01T00:00:00.000Z',
+          }),
+        );
+        final enabled = WrapperServer(
+          webRoot: p.join(root.path, 'web'),
+          backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
+          logPath: p.join(root.path, 'state', 'todo_notes.json'),
+          serveSyncAccount: true,
+          syncConfigDir: p.join(root.path, 'crdt-sync-absent'),
+          todoCredentialsPath: credentialsPath,
+        );
+        await enabled.start(0);
+        addTearDown(enabled.stop);
+
+        final response = await http.get(
+          Uri.parse('http://localhost:${enabled.port}$kSyncCredentialsPath'),
+        );
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+        expect(response.statusCode, HttpStatus.ok);
+        expect(body['email'], isNull);
+      },
+    );
+
+    test('is 404 when the credentials file is absent', () async {
+      final origin = await enabledOrigin({});
+
+      final response = await http.get(
+        Uri.parse('$origin$kSyncCredentialsPath'),
+      );
+
+      expect(response.statusCode, HttpStatus.notFound);
+    });
+
+    test('is 404 when the credentials file is not valid JSON', () async {
+      final origin = await enabledOrigin({}, credentialsJson: 'not json');
+
+      final response = await http.get(
+        Uri.parse('$origin$kSyncCredentialsPath'),
+      );
+
+      expect(response.statusCode, HttpStatus.notFound);
+    });
+
+    test(
+      'is 404 when the credentials file is missing required fields',
+      () async {
+        final origin = await enabledOrigin(
+          {},
+          credentialsJson: jsonEncode({'id_token': 'id'}),
+        );
+
+        final response = await http.get(
+          Uri.parse('$origin$kSyncCredentialsPath'),
+        );
+
+        expect(response.statusCode, HttpStatus.notFound);
+      },
+    );
   });
 }

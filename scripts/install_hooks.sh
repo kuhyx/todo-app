@@ -24,7 +24,12 @@ main() {
 #!/bin/bash
 # Installed by scripts/install_hooks.sh — see that file.
 set -euo pipefail
-exec bash "$(git rev-parse --show-toplevel)/scripts/bump_patch_version.sh"
+readonly ROOT="$(git rev-parse --show-toplevel)"
+# Gate first: a local crdt_sync override left in place makes CI build a
+# library this checkout has never tested against, silently and in both
+# directions. Blocking the commit is the only thing that actually prevents it.
+bash "$ROOT/scripts/check_no_crdt_sync_override.sh" "$ROOT/pubspec.yaml"
+exec bash "$ROOT/scripts/bump_patch_version.sh"
 HOOK_BODY
 
     chmod 755 "$HOOK"

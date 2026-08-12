@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.4+1
+version: 1.0.5+1
 
 environment:
   sdk: ^3.12.2
@@ -33,7 +33,7 @@ dependencies:
   crdt_sync:
     git:
       url: https://github.com/kuhyx/utils
-      ref: crdt_sync_dart-v0.8.0
+      ref: crdt_sync_dart-v0.10.0
       path: crdt_sync_dart
 
   # The following adds the Cupertino Icons font to your application.
@@ -46,6 +46,11 @@ dependencies:
   # Stores the GitHub sync token in the OS keystore (Android Keystore /
   # libsecret) instead of plaintext SharedPreferences.
   flutter_secure_storage: ^10.3.1
+
+  # One-tap sign-in for the sync account. Lives only in the app: `crdt_sync`
+  # stays pure Dart so it keeps working on Linux desktop and headless, where
+  # this plugin does not exist. See lib/sync/google_sign_in_backend.dart.
+  google_sign_in: ^7.2.0
   http: ^1.6.0
   idb_shim: ^2.9.6+2
   path: ^1.9.1
@@ -132,3 +137,4 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
   adaptive_icon_monochrome: "assets/icon/icon_monochrome.png"
   min_sdk_android: 21
+

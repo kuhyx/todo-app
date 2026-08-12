@@ -235,7 +235,15 @@ void main() {
     await tester.pump(); // service runs, snackbar scheduled
     await tester.pump(); // snackbar builds
 
-    expect(find.textContaining('Synced: merged 0 device'), findsOneWidget);
+    // No firebaseFactory was injected, so this runs over GitHub alone --
+    // the status line must say so rather than reading identically to a
+    // Firebase-connected sync.
+    expect(
+      find.textContaining(
+        'Synced: GitHub-only (Firebase not connected) — merged 0 device',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Sync surfaces a failure from the sync service', (tester) async {

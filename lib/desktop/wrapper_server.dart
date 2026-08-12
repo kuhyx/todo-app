@@ -5,6 +5,15 @@ import 'dart:io';
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:path/path.dart' as p;
 
+/// Route serving `todo`'s own seeded Firebase session (a `FirebaseCredentials`
+/// JSON blob), alongside [kSyncAccountPath]'s email/password pair.
+///
+/// `todo`-local rather than added to `crdt_sync_dart`: no other app in the
+/// fleet runs a desktop wrapper of its own, so a shared route would add
+/// surface area five other apps never use. Gated by the same
+/// [kSyncAccountEnvVar] as [kSyncAccountPath].
+const kSyncCredentialsPath = '/sync-credentials';
+
 /// Local HTTP server backing the desktop app.
 ///
 /// The desktop app is a Flutter **web** build (Flutter's Linux embedder manages
@@ -30,18 +39,47 @@ class WrapperServer {
     required this.logPath,
     bool? serveSyncAccount,
     String? syncConfigDir,
+    String? todoCredentialsPath,
   }) : serveSyncAccount =
            serveSyncAccount ??
            (Platform.environment[kSyncAccountEnvVar] ?? '').isNotEmpty,
        syncConfigDir =
            syncConfigDir ??
-           p.join(Platform.environment['HOME'] ?? '', '.config', 'crdt-sync');
+           p.join(Platform.environment['HOME'] ?? '', '.config', 'crdt-sync'),
+       todoCredentialsPath =
+           todoCredentialsPath ??
+           p.join(
+             Platform.environment['HOME'] ?? '',
+             '.config',
+             'todo',
+             'firebase_auth.json',
+           );
 
   /// Whether the sync-account route answers; off unless explicitly enabled.
   final bool serveSyncAccount;
 
   /// Directory holding `firebase.json` and `password`.
   final String syncConfigDir;
+
+  /// Whether [kSyncCredentialsPath] has served a valid credential yet.
+  ///
+  /// Flips to true after the first 200 and 404s every request after that,
+  /// so a normal launch can self-provision with no env var to remember (see
+  /// [_syncCredentials]) while the exposure window for a database-write
+  /// credential stays "until the app finishes booting" rather than "for as
+  /// long as the wrapper process runs". Independent of [serveSyncAccount]:
+  /// that gate protects the legacy shared `/sync-account` route other apps'
+  /// wrappers also serve, which stays opt-in.
+  bool _todoCredentialsServed = false;
+
+  /// `todo`'s own seeded Firebase session, written by
+  /// `crdt-sync/tool/seed_session.py --app todo` in the same
+  /// `{id_token, refresh_token, expires_at}` shape every other app's
+  /// credential cache uses. The account's password grant is retired
+  /// fleet-wide (see `link_google.py`/`seed_session.py`), so unlike
+  /// [syncConfigDir]'s `password` file this is the only thing that actually
+  /// authenticates.
+  final String todoCredentialsPath;
 
   /// Directory holding the built Flutter web assets.
   final String webRoot;
@@ -96,6 +134,9 @@ class WrapperServer {
     if (path == kSyncAccountPath) {
       return _syncAccount(request);
     }
+    if (path == kSyncCredentialsPath) {
+      return _syncCredentials(request);
+    }
     return _static(request, path);
   }
 
@@ -125,8 +166,9 @@ class WrapperServer {
       request.response.statusCode = HttpStatus.notFound;
       return;
     }
-    final email = (jsonDecode(await configFile.readAsString())
-        as Map<String, dynamic>)['email'];
+    final email =
+        (jsonDecode(await configFile.readAsString())
+            as Map<String, dynamic>)['email'];
     if (email is! String || email.isEmpty) {
       stderr.writeln('firebase.json has no usable "email" — not serving it.');
       request.response.statusCode = HttpStatus.notFound;
@@ -139,6 +181,78 @@ class WrapperServer {
         'password': (await passwordFile.readAsString()).trim(),
       }),
     );
+  }
+
+  /// Serves `todo`'s own seeded Firebase session, so a fresh desktop install
+  /// can authenticate without ever seeing a password field and without a
+  /// human setting an env var first.
+  ///
+  /// Reachable by default (unlike [_syncAccount], which stays behind
+  /// [serveSyncAccount]/[kSyncAccountEnvVar]) but only until the first
+  /// successful serve: this hands out a credential with database write
+  /// access to anything that can reach the port, shared with five other
+  /// apps, so the window it is actually reachable in must be as small as
+  /// "until the app finishes booting", not "for as long as the wrapper
+  /// runs". 404 (not 403) both when already served and when disabled, so a
+  /// probe cannot tell which case it hit.
+  ///
+  /// Consumed once by `loadAccount()`'s wrapper fallback and written
+  /// straight into the keystore; never a standing source the app re-reads on
+  /// every launch. That matters here specifically: `seed_session.py` may
+  /// later rotate this file's refresh token for an unrelated app's re-seed
+  /// run, and Firebase invalidates the previous token when it does --
+  /// serving a stale token to a device that already adopted the live one
+  /// would just hand back a token neither side can use.
+  Future<void> _syncCredentials(HttpRequest request) async {
+    if (_todoCredentialsServed) {
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    final credentialsFile = File(todoCredentialsPath);
+    if (!credentialsFile.existsSync()) {
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    final Map<String, dynamic> credentials;
+    try {
+      credentials =
+          jsonDecode(await credentialsFile.readAsString())
+              as Map<String, dynamic>;
+    } on FormatException {
+      stderr.writeln(
+        '$todoCredentialsPath is not valid JSON — not serving it.',
+      );
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    if (credentials['id_token'] is! String ||
+        credentials['refresh_token'] is! String ||
+        credentials['expires_at'] is! String) {
+      stderr.writeln(
+        '$todoCredentialsPath is missing id_token/refresh_token/expires_at '
+        '— not serving it.',
+      );
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    // The email is a display nicety (so Settings shows an address instead of
+    // a blank), not a credential -- read from the shared config, not from
+    // todoCredentialsPath, which has no email field of its own.
+    String? email;
+    final configFile = File(p.join(syncConfigDir, 'firebase.json'));
+    if (configFile.existsSync()) {
+      final config =
+          jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
+      final configEmail = config['email'];
+      if (configEmail is String && configEmail.isNotEmpty) {
+        email = configEmail;
+      }
+    }
+    request.response.headers.contentType = ContentType.json;
+    request.response.write(jsonEncode({...credentials, 'email': email}));
+    // After, not before writing the response: a request that fails partway
+    // through must remain retryable rather than burning the one serve.
+    _todoCredentialsServed = true;
   }
 
   /// GET returns the file's contents (404 when absent); POST overwrites it.

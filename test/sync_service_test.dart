@@ -83,6 +83,27 @@ void main() {
     expect(texts, contains('from other device'));
   });
 
+  test('withFirebaseConnected copies every other field unchanged', () {
+    // SyncService itself never sets firebaseConnected -- only runSync does,
+    // since SyncService is deliberately agnostic to which RemoteStore it was
+    // handed. This is the seam that lets runSync attach that fact afterward.
+    const original = SyncResult(
+      mergedDevices: 2,
+      pushed: true,
+      skippedFiles: ['bad.json'],
+      skippedUnchanged: 3,
+    );
+
+    final connected = original.withFirebaseConnected(value: true);
+
+    expect(connected.firebaseConnected, isTrue);
+    expect(connected.mergedDevices, original.mergedDevices);
+    expect(connected.pushed, original.pushed);
+    expect(connected.skippedFiles, original.skippedFiles);
+    expect(connected.skippedUnchanged, original.skippedUnchanged);
+    expect(connected.toString(), contains('firebaseConnected: true'));
+  });
+
   test('with no remote files, still pushes its own log', () async {
     final (:httpClient, :putCalls) = _mockGitHub(
       contentResponses: {'todo-sync/notes': _response(200, <Object>[])},

@@ -88,9 +88,12 @@ void main() {
     List<Note> seed = const [],
     FakeNoteRepository? repository,
     Future<FirebaseRestClient?> Function()? firebaseFactory,
+    Future<FirebaseRestClient?> Function()? googleFirebaseFactory,
+    bool? googleAvailable,
     Future<FirebaseAccount?> Function()? accountLoader,
     Future<void> Function(FirebaseAccount)? accountSaver,
     Future<void> Function()? accountClearer,
+    Future<bool> Function()? sessionProbe,
   }) async {
     SharedPreferences.setMockInitialValues({});
     installFakeSecureStorage();
@@ -113,15 +116,34 @@ void main() {
           // real factories want the OS keystore and an application-support
           // directory, neither of which exists under `flutter test`.
           firebaseFactory: firebaseFactory ?? () async => null,
+          googleFirebaseFactory: googleFirebaseFactory ?? () async => null,
+          googleAvailable: googleAvailable ?? true,
           accountLoader: accountLoader ?? () async => null,
           accountSaver: accountSaver,
           accountClearer: accountClearer,
+          // Defaults to whatever the injected account says, so a test that
+          // only stubs the account still describes one coherent device. The
+          // production probe consults the keystore, which these tests fake
+          // rather than provide, and would otherwise answer "no session" for
+          // a device the test just declared signed in.
+          sessionProbe:
+              sessionProbe ??
+              () async => await (accountLoader ?? () async => null)() != null,
           stateStore: InMemorySyncStateStore(),
         ),
       ),
     );
     await tester.pump();
     return repo;
+  }
+
+  /// Expands "Use the account password instead".
+  ///
+  /// Google sign-in is the primary path now, so the email/password form is
+  /// collapsed by default; a test that types credentials has to open it.
+  Future<void> openPasswordForm(WidgetTester tester) async {
+    await tester.tap(find.text('Use the account password instead'));
+    await tester.pumpAndSettle();
   }
 
   /// Expands the "Advanced (GitHub mirror)" section.
@@ -136,19 +158,32 @@ void main() {
 
   testWidgets('renders sync fields and the backup actions', (tester) async {
     await pumpSettings(tester);
-    // GitHub is the mirror now: hidden until the disclosure is opened.
+    // GitHub is the mirror now: hidden until the disclosure is opened. The
+    // password form is likewise behind one, leaving Google as the only
+    // sign-in control on screen.
     expect(find.text('Connect GitHub'), findsNothing);
-    expect(find.text('Connect Firebase'), findsOneWidget);
+    expect(find.text('Connect Firebase'), findsNothing);
+    expect(find.text('Sign in with Google'), findsOneWidget);
     await openAdvanced(tester);
     expect(find.text('Connect GitHub'), findsOneWidget);
     expect(find.text('Export notes'), findsOneWidget);
     expect(find.text('Import notes'), findsOneWidget);
   });
 
-  testWidgets('offers the Firebase account form when not connected', (
+  testWidgets('offers Google first and the password form behind it', (
     tester,
   ) async {
+    // Ordering is the feature: after a reinstall the one-tap path has to be
+    // the thing you see, with the phone-keyboard path available but demoted.
     await pumpSettings(tester);
+    expect(find.text('Sign in with Google'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextField, 'Sync account email'),
+      findsNothing,
+      reason: 'the password form starts collapsed',
+    );
+
+    await openPasswordForm(tester);
     expect(
       find.widgetWithText(TextField, 'Sync account email'),
       findsOneWidget,
@@ -160,10 +195,93 @@ void main() {
     expect(find.text('Disconnect'), findsNothing);
   });
 
+  testWidgets('hides Google and opens the password form on desktop', (
+    tester,
+  ) async {
+    // The desktop build is the web build, where Google Identity Services only
+    // signs in through its own rendered button -- `authenticate()` throws
+    // UnimplementedError there, and not a GoogleSignInException, so it would
+    // not even have been caught. Offering a button that always crashed would
+    // be worse than offering none, and the password form has to be visible
+    // because it is then the only way in.
+    await pumpSettings(tester, googleAvailable: false);
+
+    expect(find.text('Sign in with Google'), findsNothing);
+    expect(
+      find.widgetWithText(TextField, 'Sync account email'),
+      findsOneWidget,
+      reason: 'the password form is expanded when it is the only option',
+    );
+  });
+
+  testWidgets('Sign in with Google connects without typing anything', (
+    tester,
+  ) async {
+    // The whole feature in one test: no text entered anywhere, one tap, and
+    // the device ends up connected showing the account Google signed in as.
+    //
+    // The email comes from Firebase's response via openFirebaseWithGoogle,
+    // not from the form -- a fresh install has nothing in the form, which is
+    // exactly the scenario this path exists for. An earlier cut read the
+    // controller here and persisted an empty account; the next launch then
+    // took the password branch with '' and failed.
+    // Starts genuinely unconfigured -- a fresh install -- and only gains an
+    // account as a side effect of the Google sign-in itself.
+    FirebaseAccount? stored;
+    await pumpSettings(
+      tester,
+      googleFirebaseFactory: () async {
+        stored = const FirebaseAccount(
+          email: 'signed-in@example.com',
+          password: '',
+        );
+        return _stubClient();
+      },
+      accountLoader: () async => stored,
+    );
+
+    await tester.tap(find.text('Sign in with Google'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Connected to Firebase.'), findsOneWidget);
+    expect(find.text('signed-in@example.com'), findsOneWidget);
+  });
+
+  testWidgets('a cancelled Google sign-in is not reported as an error', (
+    tester,
+  ) async {
+    // Dismissing the account picker is an ordinary thing to do; it must not
+    // look like a failure.
+    await pumpSettings(tester, googleFirebaseFactory: () async => null);
+
+    await tester.tap(find.text('Sign in with Google'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Google sign-in was cancelled.'), findsOneWidget);
+    expect(find.text('Sign in with Google'), findsOneWidget);
+  });
+
+  testWidgets('a wrong-account Google sign-in explains itself', (tester) async {
+    // The failure worth being loud about: authentication succeeds but the uid
+    // is not the one the security rules pin, so every read and write would be
+    // denied with no other symptom.
+    await pumpSettings(
+      tester,
+      googleFirebaseFactory: () async =>
+          throw FirebaseAuthError('signed in as the wrong account: uid X'),
+    );
+
+    await tester.tap(find.text('Sign in with Google'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('wrong account'), findsOneWidget);
+  });
+
   testWidgets('Connect Firebase with empty fields asks for credentials', (
     tester,
   ) async {
     await pumpSettings(tester);
+    await openPasswordForm(tester);
     await tester.tap(find.text('Connect Firebase'));
     await tester.pump();
     expect(
@@ -181,6 +299,7 @@ void main() {
       accountSaver: (a) async => saved = a,
       firebaseFactory: () async => _stubClient(),
     );
+    await openPasswordForm(tester);
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Sync account email'),
@@ -217,6 +336,7 @@ void main() {
       accountClearer: () async => cleared = true,
       firebaseFactory: () async => null,
     );
+    await openPasswordForm(tester);
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Sync account email'),
@@ -252,6 +372,10 @@ void main() {
 
     expect(cleared, isTrue);
     expect(find.text('Firebase disconnected.'), findsOneWidget);
+    // Back to the not-connected state, which now leads with Google rather
+    // than with the email field.
+    expect(find.text('Sign in with Google'), findsOneWidget);
+    await openPasswordForm(tester);
     expect(
       find.widgetWithText(TextField, 'Sync account email'),
       findsOneWidget,

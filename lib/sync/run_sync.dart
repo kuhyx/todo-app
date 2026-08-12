@@ -47,12 +47,13 @@ Future<SyncResult> runSync(
       stateStore: stateStore ?? await openSyncStateStore(),
       // coverage:ignore-end
     );
-    return await service.sync(
+    final result = await service.sync(
       repository,
       firebase == null
           ? github
           : MirrorStore(primary: firebase, mirror: github),
     );
+    return result.withFirebaseConnected(value: firebase != null);
   } finally {
     // Close both: unlike the long-lived desktop callers, each screen builds
     // these per run.

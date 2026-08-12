@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter/material.dart';
@@ -186,9 +185,19 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// Human-readable one-liner for a sync outcome, shared by the snackbar and
   /// the status line. Skipped files are called out so a peer device silently
   /// dropping out of the merge is visible.
+  ///
+  /// Firebase-vs-GitHub-only is called out too, and first, because it used
+  /// to read identically either way: "Synced ... merged N device(s))" while
+  /// disconnected from Firebase looked exactly like success, which is
+  /// precisely how a desktop stuck syncing over the GitHub mirror alone
+  /// went unnoticed for days.
   static String _describe(SyncResult result) {
     final skipped = result.skippedFiles.length;
-    return 'merged ${result.mergedDevices} device(s)'
+    final backend = result.firebaseConnected
+        ? ''
+        : 'GitHub-only (Firebase not connected) — ';
+    return '$backend'
+        'merged ${result.mergedDevices} device(s)'
         '${skipped == 0 ? '' : ', skipped $skipped unreadable file(s)'}';
   }
 
