@@ -51,6 +51,13 @@ jobs:
           channel: stable
           cache: true
 
+      # Caches Gradle's dependency + build cache (not covered by
+      # flutter-action's cache, which only covers the Flutter SDK/pub
+      # packages). This is what the ~5min "Build signed APK" step was mostly
+      # spending on a cold runner: every run re-downloaded the Gradle
+      # wrapper and every AGP/Kotlin/dependency artifact from scratch.
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: Read version from pubspec
         id: ver
         run: |
@@ -91,9 +98,17 @@ jobs:
 
       - run: flutter pub get
 
+      # arm64-v8a only: this is a personal single-device (BL9000) sideload
+      # distribution, not a Play Store multi-device release, and every
+      # device it has ever installed on is arm64-v8a (`adb shell getprop
+      # ro.product.cpu.abi`). A fat APK spent most of its build time
+      # compiling/dexing/packaging armeabi-v7a and x86_64 native code that
+      # is never installed anywhere. If this ever needs to run on a
+      # non-arm64 device, drop --target-platform to rebuild the fat APK.
       - name: Build signed APK
         run: |
           flutter build apk --release \
+            --target-platform android-arm64 \
             --build-name="${{ steps.ver.outputs.semver }}" \
             --build-number="${{ steps.vc.outputs.code }}"
 
