@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:crdt_sync/crdt_sync.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:todo/analytics/analytics_event.dart';
@@ -221,6 +222,7 @@ class _CaptureScreenState extends State<CaptureScreen>
         outcome.ok
             ? 'Synced: ${outcome.detail}'
             : 'Sync failed: ${outcome.detail}',
+        isError: !outcome.ok,
       );
     } finally {
       if (mounted) setState(() => _syncing = false);

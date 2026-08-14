@@ -1,3 +1,4 @@
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
@@ -111,13 +112,9 @@ class _NoteEditorState extends State<NoteEditor> {
         case NoteEditorMode.guided:
           // raw -> guided: only if the edited text still fits the template.
           if (!_doc.tryAdoptGuided()) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  "Text doesn't match the template — staying in raw",
-                ),
-                duration: Duration(seconds: 2),
-              ),
+            showError(
+              context,
+              "Text doesn't match the template — staying in raw",
             );
             return;
           }

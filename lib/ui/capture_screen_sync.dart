@@ -64,11 +64,19 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
     );
   }
 
-  void _showSnack(String message) {
+  /// Shows transient feedback, if this screen is still mounted.
+  ///
+  /// Delegates to the shared helpers so the styling and the
+  /// replace-don't-queue behaviour match every other app; [isError] picks
+  /// the danger hue and the longer duration, because an error the user
+  /// missed is an error they will hit again.
+  void _showSnack(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
+    if (isError) {
+      showError(context, message);
+    } else {
+      showToast(context, message);
+    }
   }
 
   /// Reloads the persisted last-sync outcome so the status line survives a
