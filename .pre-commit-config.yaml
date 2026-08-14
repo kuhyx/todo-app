@@ -1,0 +1,43 @@
+# Pre-commit hooks for todo.
+#
+# This repo previously used a hand-written .git/hooks/pre-commit installed by
+# scripts/install_hooks.sh. It moved to the pre-commit framework when the
+# 250-line file-length gate was added, so all three checks live in one place
+# with one install path. The two pre-existing checks are ported verbatim
+# below -- dropping them to add a new gate would trade one silent failure for
+# another.
+#
+# Install with:  pre-commit install
+# The hooks are `language: system` because they are plain bash/python already
+# on this machine; pre-commit must not build an isolated env for them.
+repos:
+  - repo: local
+    hooks:
+      # Gate first: a local crdt_sync override left in place makes CI build a
+      # library this checkout has never tested against, silently and in both
+      # directions. Blocking the commit is the only thing that prevents it.
+      - id: no-crdt-sync-override
+        name: no local crdt_sync dependency_override
+        entry: scripts/check_no_crdt_sync_override.sh
+        language: system
+        files: ^pubspec\.yaml$
+
+      # The shared 250-line cap. Checks only the files in the commit, so an
+      # unrelated commit never breaks; exits 1 rather than warning. No
+      # baseline and no allowlist -- those are suppressions. The exemption
+      # list (generated/vendored/data files) lives with the checker in
+      # ~/utils/file_length/config.py so the gate and the survey cannot
+      # disagree.
+      - id: file-length
+        name: file length <= 250 lines
+        entry: scripts/check_file_length.sh
+        language: system
+
+      # Version bump LAST: it rewrites pubspec.yaml and `git add`s it, so it
+      # must not run before a gate that could still reject the commit.
+      - id: bump-patch-version
+        name: bump patch version
+        entry: scripts/bump_patch_version.sh
+        language: system
+        pass_filenames: false
+        always_run: true

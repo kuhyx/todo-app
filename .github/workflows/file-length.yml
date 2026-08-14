@@ -1,0 +1,33 @@
+name: file-length
+
+# The 250-line cap, enforced on push as well as at commit time. The local
+# pre-commit hook can be skipped (a fresh clone that never ran
+# scripts/install_hooks.sh has no hooks at all), so the cap needs a second
+# gate that no one can forget to install.
+#
+# Deliberately a SEPARATE workflow from release-apk.yml: a file that grew too
+# long should fail lint, not block publishing an APK.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  file-length:
+    name: file length <= 250 lines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The gate and its exemption list live in the shared utils repo so every
+      # repo enforces the same cap. Checking it out beats vendoring a copy
+      # here, which is exactly how a gate and a survey start disagreeing.
+      - name: Check out the shared gate
+        uses: actions/checkout@v4
+        with:
+          repository: kuhyx/utils
+          path: .utils
+
+      - name: Enforce the cap
+        run: bash .utils/scripts/check_file_length.sh --all
