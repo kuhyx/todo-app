@@ -1,5 +1,14 @@
 # Refactor TODO — enforce the 250-line file cap
 
+> **DONE for this repo (2026-08-14).** Every file is at most 250 lines and
+> `bash ~/utils/scripts/check_file_length.sh --all` exits 0. The gate is wired
+> into `.pre-commit-config.yaml` and `.github/workflows/file-length.yml`, and
+> was verified from a fresh checkout: `scripts/install_hooks.sh` installs it,
+> and a staged 260-line file then makes `git commit` fail. 313 tests pass at
+> 100% coverage (up from 99.9%). The counts below are the pre-refactor survey,
+> kept as the record of what was done — re-run the survey before reusing this
+> file here. It is still a valid prompt for **other** repos.
+
 > **This file is a ready-to-use prompt.** Paste it to Claude, or open this repo
 > and say "do refactor_claude_todo". It is self-contained: everything needed to
 > execute is below. Generated 2026-08-14 from a measured survey of every repo.
