@@ -17,8 +17,8 @@ churn, not size alone — refactoring pays where code is read and changed often
 
 ## Scope in this repo
 
-- **26 files** currently exceed 250 lines (of 128 eligible files).
-- **13,166 lines** sit in violation; longest file is **1838 lines**.
+- **19 files** currently exceed 250 lines (of 115 eligible files).
+- **8,691 lines** sit in violation; longest file is **925 lines**.
 
 Exempt (do NOT split these):
 - generated files — `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `**/l10n/generated/**`,
@@ -40,17 +40,17 @@ has near-zero payoff and should not be first.
 | 677 | 9 | code | `test/note_repository_test.dart` |
 | 925 | 6 | prose | `CLAUDE.md` |
 | 391 | 13 | code | `test/settings_screen_test.dart` |
-| 698 | 7 | code | `lib/ui/notes_list_screen.dart` |
 | 429 | 8 | code | `lib/data/note_repository.dart` |
 | 502 | 6 | code | `test/note_editor_test.dart` |
 | 356 | 7 | code | `test/sync_service_test.dart` |
 | 402 | 5 | code | `test/wrapper_server_test.dart` |
-| 370 | 5 | code | `lib/data/note_template.dart` |
+| 256 | 7 | code | `lib/ui/notes_list_screen.dart` |
 | 253 | 7 | code | `bin/todo_desktop.dart` |
 | 347 | 4 | code | `test/notes_list_screen_test.dart` |
 | 336 | 4 | code | `lib/desktop/wrapper_server.dart` |
+| 405 | 1 | code | `test/port_guard_test.dart` |
 
-_(11 further files over 250 lines not listed — re-run the survey for the full set.)_
+_(4 further files over 250 lines not listed — re-run the survey for the full set.)_
 
 ## How to split
 
