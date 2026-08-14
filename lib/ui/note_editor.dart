@@ -175,7 +175,7 @@ class _NoteEditorState extends State<NoteEditor> {
 
     // Guided hides the template/mode chrome entirely. Return the flat step
     // page directly so the TextField sits in THIS column's Expanded — same
-    // depth as _buildRaw, avoiding the nested-Column/Expanded layout issue
+    // depth as the raw field, avoiding the nested-Column/Expanded layout issue
     // that silently collapses the inner flex space in release builds.
     if (_mode == NoteEditorMode.guided) return _buildStepPage();
 

@@ -26,7 +26,7 @@ and sync peer-to-peer through a GitHub repo used as dumb storage.
 
 ## Commands
 
-- Run tests + coverage: `flutter test --coverage` (suite runs in 1–2min; keep it
+- Run tests + coverage: `flutter test --coverage` (suite runs in under a minute; keep it
   quick — see Testing below).
 - Coverage summary: `lcov --list coverage/lcov.info`.
 - Static analysis: `flutter analyze` (must be clean before committing).
@@ -138,7 +138,14 @@ migrate → Settings → Import).
   pre-commit hook (`scripts/check_file_length.sh`, delegating to the shared
   gate in `~/utils`) and by `.github/workflows/file-length.yml`, so it fails
   the commit rather than being a note anyone can ignore. Install the hook on
-  a fresh clone with `scripts/install_hooks.sh`. There is deliberately no
+  a fresh clone with `scripts/install_hooks.sh`.
+- **Only non-mutating checks go in `.pre-commit-config.yaml`.** pre-commit
+  stashes unstaged changes and restores them with `git apply`; a hook that
+  rewrites a tracked file inside that window makes the restore conflict,
+  which aborts the commit *and drops the developer's uncommitted edit*. That
+  is why `bump_patch_version.sh` runs from the wrapper hook that
+  `install_hooks.sh` writes, after pre-commit has exited and only when it
+  passed — see the comments in both files. There is deliberately no
   baseline and no allowlist — split the file instead. Exemptions (generated,
   vendored, data files) live with the checker so the gate and the survey
   cannot disagree.

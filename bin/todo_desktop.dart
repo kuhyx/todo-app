@@ -1,8 +1,8 @@
 // coverage:ignore-file
 // Entry point for the desktop wrapper: resolves real paths, starts the server,
 // and launches the browser. The serving logic it delegates to is covered by
-// test/wrapper_server_test.dart, and the busy-port recovery it delegates to by
-// test/port_guard_test.dart. Keep this file thin wiring for that reason.
+// test/wrapper_server_*_test.dart, and the busy-port recovery it delegates to
+// by test/port_guard_*_test.dart. Keep this file thin wiring for that reason.
 import 'dart:io';
 
 import 'package:path/path.dart' as p;

@@ -6,12 +6,22 @@
 # .git/hooks/ is not tracked, so a fresh clone has no hooks. Run this once
 # after cloning.
 #
-# This repo used to write a hand-rolled .git/hooks/pre-commit here. It moved
-# to the pre-commit framework when the 250-line file-length gate was added:
-# three checks in one hand-written hook is the point where "just a plain
-# script" stops paying for itself, and pre-commit already solves passing only
-# the staged files to each check. The checks themselves are unchanged and
-# still live in scripts/ -- see .pre-commit-config.yaml.
+# Two layers, deliberately:
+#
+#   1. pre-commit (the framework) runs the read-only gates in
+#      .pre-commit-config.yaml -- the crdt_sync override check and the
+#      250-line file-length cap.
+#   2. A thin wrapper hook installed here runs pre-commit first and, only if
+#      it passed, runs scripts/bump_patch_version.sh.
+#
+# The bump cannot live in .pre-commit-config.yaml. pre-commit stashes
+# unstaged changes for the duration of its run and restores them with
+# `git apply`; the bump rewrites pubspec.yaml inside that window, so an
+# uncommitted edit anywhere near the `version:` line makes the restore
+# conflict -- which aborts the commit and DROPS the developer's edit from the
+# working tree. Running it after pre-commit has exited keeps the mutation
+# outside the stash cycle, and gating it on pre-commit's exit status stops a
+# rejected commit from leaving a stray bump staged for the next one.
 # ============================================================================
 
 set -euo pipefail
@@ -22,8 +32,7 @@ readonly HOOK="$REPO_ROOT/.git/hooks/pre-commit"
 readonly LEGACY_MARKER='bump_patch_version.sh'
 
 # The old hand-written hook has to go before pre-commit will install over it;
-# pre-commit refuses to clobber a foreign hook, and leaving it would run the
-# version bump twice per commit.
+# pre-commit refuses to clobber a foreign hook.
 remove_legacy_hook() {
     if [[ -e "$HOOK" ]] && grep -q "$LEGACY_MARKER" "$HOOK" \
         && ! grep -q 'pre-commit' "$HOOK"; then
@@ -44,10 +53,34 @@ ensure_pre_commit() {
     fi
 }
 
+# Wraps pre-commit's own generated hook so the version bump runs after it,
+# and only on success. pre-commit install --hook-type pre-commit writes the
+# generated script; we move it aside and call it from ours.
+install_wrapper() {
+    local generated="$REPO_ROOT/.git/hooks/pre-commit.pre-commit-generated"
+    mv "$HOOK" "$generated"
+    cat > "$HOOK" <<'HOOK_BODY'
+#!/bin/bash
+# Installed by scripts/install_hooks.sh — see that file for why the version
+# bump runs here rather than as a pre-commit hook.
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+readonly ROOT
+
+# The read-only gates. A non-zero exit here rejects the commit, and the bump
+# below never runs, so a rejected attempt leaves no stray version change.
+"$ROOT/.git/hooks/pre-commit.pre-commit-generated" "$@"
+
+exec bash "$ROOT/scripts/bump_patch_version.sh"
+HOOK_BODY
+    chmod 755 "$HOOK"
+}
+
 main() {
     ensure_pre_commit
     remove_legacy_hook
     pre-commit install
+    install_wrapper
     echo "Installed pre-commit hooks: $HOOK"
 }
 
