@@ -2,49 +2,17 @@ import 'dart:async';
 
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:todo/data/note.dart';
+import 'package:todo/data/note_import.dart';
+import 'package:todo/data/note_query.dart';
+
+export 'package:todo/data/note_import.dart';
+export 'package:todo/data/note_query.dart';
 
 // Deliberately free of `dart:io`: the desktop app is a web build, and a single
 // `dart:io` import anywhere in the graph makes the whole app fail to compile
 // for web. Opening a repository for a real platform lives behind the
 // conditional export in `repository_factory.dart`; the legacy sqlite migration
 // lives in the io-only `legacy_sqlite_migration.dart`.
-
-/// How the history list should be ordered.
-enum NoteSort {
-  /// Newest created first.
-  createdDesc,
-
-  /// Most recently modified first.
-  modifiedDesc,
-
-  /// A-Z by note text.
-  alphabetical,
-
-  /// Highest [Priority] first.
-  priorityDesc,
-}
-
-/// Summary of an [NoteRepository.importNotes] run, for user feedback.
-class ImportOutcome {
-  /// Creates an [ImportOutcome] from its per-category counts.
-  const ImportOutcome({
-    required this.added,
-    required this.updated,
-    required this.skipped,
-  });
-
-  /// Notes that did not exist locally and were created.
-  final int added;
-
-  /// Existing notes overwritten because the import was newer.
-  final int updated;
-
-  /// Notes skipped because the local copy was the same age or newer.
-  final int skipped;
-
-  /// Total notes considered in the import.
-  int get total => added + updated + skipped;
-}
 
 /// Local-first persistence for [Note]s, backed by the shared `crdt_sync`
 /// [LogStore] (was `sqlite_crdt`).
@@ -110,7 +78,7 @@ class NoteRepository {
   static Future<NoteRepository> openInMemory({
     String nodeId = 'test-node',
   }) async {
-    final store = LogStore(persistence: _MemoryPersistence(), nodeId: nodeId);
+    final store = LogStore(persistence: MemoryPersistence(), nodeId: nodeId);
     await store.load();
     return NoteRepository._(store, nodeId);
   }
@@ -273,157 +241,8 @@ class NoteRepository {
   int _liveCount() => _store.values.where((r) => !r.deleted).length;
 
   List<Note> _query(NoteSort sort, NoteFilter filter) {
-    final notes = _liveNotes().where((n) => _matches(n, filter)).toList()
-      ..sort(_comparator(sort));
+    final notes = _liveNotes().where((n) => matchesFilter(n, filter)).toList()
+      ..sort(comparatorFor(sort));
     return notes;
-  }
-
-  bool _matches(Note note, NoteFilter filter) {
-    final query = filter.query.trim().toLowerCase();
-    if (query.isNotEmpty && !note.text.toLowerCase().contains(query)) {
-      return false;
-    }
-    if (filter.priorities.isNotEmpty &&
-        !filter.priorities.contains(note.priority)) {
-      return false;
-    }
-    if (filter.statuses.isNotEmpty && !filter.statuses.contains(note.status)) {
-      return false;
-    }
-    if (!_withinDays(note.createdAt, filter.createdFrom, filter.createdTo)) {
-      return false;
-    }
-    if (!_withinDays(note.updatedAt, filter.updatedFrom, filter.updatedTo)) {
-      return false;
-    }
-    return true;
-  }
-
-  /// Inclusive day-granularity range check, matching the old SQL bounds:
-  /// `from` includes its whole day; `to` includes its whole day.
-  static bool _withinDays(DateTime value, DateTime? from, DateTime? to) {
-    if (from != null && value.isBefore(_startOfDay(from))) return false;
-    if (to != null &&
-        !value.isBefore(_startOfDay(to).add(const Duration(days: 1)))) {
-      return false;
-    }
-    return true;
-  }
-
-  static Comparator<Note> _comparator(NoteSort sort) {
-    switch (sort) {
-      case NoteSort.createdDesc:
-        return (a, b) => b.createdAt.compareTo(a.createdAt);
-      case NoteSort.modifiedDesc:
-        return (a, b) => b.updatedAt.compareTo(a.updatedAt);
-      case NoteSort.alphabetical:
-        return (a, b) => a.text.toLowerCase().compareTo(b.text.toLowerCase());
-      case NoteSort.priorityDesc:
-        return (a, b) {
-          final byPriority = b.priority.value.compareTo(a.priority.value);
-          return byPriority != 0
-              ? byPriority
-              : b.updatedAt.compareTo(a.updatedAt);
-        };
-    }
-  }
-
-  /// Midnight (local) of [t]'s calendar day.
-  static DateTime _startOfDay(DateTime t) => DateTime(t.year, t.month, t.day);
-}
-
-/// In-memory [LogPersistence] for [NoteRepository.openInMemory] (tests).
-class _MemoryPersistence implements LogPersistence {
-  String? _text;
-
-  @override
-  Future<String?> read() async => _text;
-
-  @override
-  Future<void> write(String text) async => _text = text;
-}
-
-/// An immutable set of constraints for querying notes.
-///
-/// All fields combine with logical AND. Empty/null fields impose no
-/// constraint. Lives in the data layer so the filtering it drives never leaks
-/// into the UI. Construct copies with [copyWith] when toggling one facet.
-class NoteFilter {
-  /// Creates a [NoteFilter] from its constraint fields.
-  const NoteFilter({
-    this.query = '',
-    this.priorities = const {},
-    this.statuses = const {},
-    this.createdFrom,
-    this.createdTo,
-    this.updatedFrom,
-    this.updatedTo,
-  });
-
-  /// Case-insensitive substring matched against the note body.
-  final String query;
-
-  /// Notes must have one of these priorities. Empty means "any priority".
-  final Set<Priority> priorities;
-
-  /// Notes must have one of these statuses. Empty means "any status".
-  final Set<Status> statuses;
-
-  /// Inclusive lower bound (by calendar day) on the creation date.
-  final DateTime? createdFrom;
-
-  /// Inclusive upper bound (by calendar day) on the creation date.
-  final DateTime? createdTo;
-
-  /// Inclusive lower bound (by calendar day) on the last-updated date.
-  final DateTime? updatedFrom;
-
-  /// Inclusive upper bound (by calendar day) on the last-updated date.
-  final DateTime? updatedTo;
-
-  /// True when no constraint is active (the unfiltered, full list).
-  bool get isEmpty =>
-      query.trim().isEmpty &&
-      priorities.isEmpty &&
-      statuses.isEmpty &&
-      createdFrom == null &&
-      createdTo == null &&
-      updatedFrom == null &&
-      updatedTo == null;
-
-  /// Number of distinct active facets, for an "N filters" badge in the UI.
-  int get activeCount {
-    var n = 0;
-    if (query.trim().isNotEmpty) n++;
-    if (priorities.isNotEmpty) n++;
-    if (statuses.isNotEmpty) n++;
-    if (createdFrom != null || createdTo != null) n++;
-    if (updatedFrom != null || updatedTo != null) n++;
-    return n;
-  }
-
-  /// Returns a copy with selected facets replaced. A `null` argument keeps
-  /// the current value; clearing a date is done via the dedicated clear
-  /// flags so `null` can mean "unchanged".
-  NoteFilter copyWith({
-    String? query,
-    Set<Priority>? priorities,
-    Set<Status>? statuses,
-    DateTime? createdFrom,
-    DateTime? createdTo,
-    DateTime? updatedFrom,
-    DateTime? updatedTo,
-    bool clearCreated = false,
-    bool clearUpdated = false,
-  }) {
-    return NoteFilter(
-      query: query ?? this.query,
-      priorities: priorities ?? this.priorities,
-      statuses: statuses ?? this.statuses,
-      createdFrom: clearCreated ? null : (createdFrom ?? this.createdFrom),
-      createdTo: clearCreated ? null : (createdTo ?? this.createdTo),
-      updatedFrom: clearUpdated ? null : (updatedFrom ?? this.updatedFrom),
-      updatedTo: clearUpdated ? null : (updatedTo ?? this.updatedTo),
-    );
   }
 }
