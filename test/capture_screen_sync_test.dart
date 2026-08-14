@@ -175,10 +175,10 @@ void main() {
       );
       await tester.pump();
 
-      // The Row above the editor is conditionally present, which shifts the
-      // editor's position in the Column whenever advancedMode changes at
-      // runtime — a key one level too shallow doesn't survive that
-      // reposition and Flutter remounts the editor with an empty draft.
+      // NoteForm's metadata row is conditionally present, so toggling
+      // advancedMode changes the editor's position beneath it — a key one
+      // level too shallow doesn't survive that reposition and Flutter
+      // remounts the editor with an empty draft, losing the typing.
       appSettings.value = const AppSettings(advancedMode: false);
       await tester.pump();
 

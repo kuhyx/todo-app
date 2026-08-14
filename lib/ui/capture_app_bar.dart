@@ -68,30 +68,10 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
         // coverage:ignore-end
-        // Live count of stored notes, proving local persistence.
-        StreamBuilder<int>(
-          stream: repository.watchCount(),
-          builder: (context, snapshot) {
-            final count = snapshot.data ?? 0;
-            return Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.list_alt_outlined, size: 18),
-                    const SizedBox(width: 4),
-                    Text('$count'),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
         IconButton(
           tooltip: 'New note',
           onPressed: onNewNote,
-          icon: const Icon(Icons.add),
+          icon: const Icon(Icons.check),
         ),
         if (advanced)
           IconButton(
@@ -109,6 +89,19 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
           tooltip: 'Notes',
           onPressed: onOpenList,
           icon: const Icon(Icons.list),
+        ),
+        // Live count of stored notes, proving local persistence. Sits directly
+        // right of the Notes button it belongs to, and carries no icon of its
+        // own -- that button's Icons.list already names what is being counted.
+        StreamBuilder<int>(
+          stream: repository.watchCount(),
+          builder: (context, snapshot) {
+            final count = snapshot.data ?? 0;
+            return Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Center(child: Text('$count')),
+            );
+          },
         ),
         IconButton(
           tooltip: 'Settings',

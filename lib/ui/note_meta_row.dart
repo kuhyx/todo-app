@@ -1,8 +1,8 @@
-/// The capture screen's metadata controls: the priority/status row and the
-/// generic dropdown behind it.
+/// A note's metadata controls: the priority/status row and the generic
+/// dropdown behind it.
 ///
-/// Split out of `capture_status.dart` for file size. Public only because Dart
-/// privacy is library-scoped.
+/// Shared by both editing surfaces -- capture and the detail screen -- so the
+/// two cannot drift apart. Public only because Dart privacy is library-scoped.
 library;
 
 import 'package:flutter/material.dart';
@@ -66,14 +66,13 @@ class MetaDropdown<T> extends StatelessWidget {
   }
 }
 
-/// The draft's priority and status pickers, side by side.
+/// A note's priority and status pickers, side by side.
 ///
-/// Hidden together with the editor's own chrome while the bare guided
-/// stepper or its entry wizard is up, so the top of the screen stays free of
-/// noise -- the screen decides that; this only lays the row out.
-class CaptureMetaRow extends StatelessWidget {
-  /// Creates the metadata row for the current draft values.
-  const CaptureMetaRow({
+/// Lays the row out and nothing else: whether it is visible at all is
+/// [NoteFormChromeGate]'s job, not this widget's.
+class NoteMetaRow extends StatelessWidget {
+  /// Creates the metadata row for the current values.
+  const NoteMetaRow({
     required this.priority,
     required this.status,
     required this.onPriorityChanged,
@@ -81,10 +80,10 @@ class CaptureMetaRow extends StatelessWidget {
     super.key,
   });
 
-  /// The draft's current priority.
+  /// The note's current priority.
   final Priority priority;
 
-  /// The draft's current status.
+  /// The note's current status.
   final Status status;
 
   /// Called with a newly picked priority.

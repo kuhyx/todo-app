@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/confirm.dart';
-import 'package:todo/ui/note_editor.dart';
+import 'package:todo/ui/note_form.dart';
 
 /// Full-screen view of a single note: read it in full, edit its body through
-/// the guided [NoteEditor], change its priority/status, or delete it.
+/// the shared [NoteForm], change its priority/status, or delete it.
 ///
 /// Edits persist immediately (matching the capture screen's autosave), so
 /// there is no explicit save button. The template is detected from the note's
@@ -17,6 +18,7 @@ class NoteDetailScreen extends StatefulWidget {
   const NoteDetailScreen({
     required this.note,
     required this.repository,
+    required this.appSettings,
     super.key,
   });
 
@@ -26,16 +28,17 @@ class NoteDetailScreen extends StatefulWidget {
   /// The store edits persist to.
   final NoteRepository repository;
 
+  /// Drives whether the metadata row and editor chrome are shown. Required,
+  /// not defaulted: this screen silently defaulting it to "advanced" is
+  /// exactly what made editing look different from capture.
+  final ValueNotifier<AppSettings> appSettings;
+
   @override
   State<NoteDetailScreen> createState() => _NoteDetailScreenState();
 }
 
 class _NoteDetailScreenState extends State<NoteDetailScreen> {
   late Note _note = widget.note;
-
-  /// Hides the Priority/Status row while the editor's own bare-guided chrome
-  /// (template/mode selectors) is also hidden, so the two stay in lockstep.
-  bool _chromeVisible = true;
 
   Future<void> _persist(Note next) async {
     setState(() => _note = next);
@@ -72,92 +75,24 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_chromeVisible) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetaDropdown<Priority>(
-                      label: 'Priority',
-                      value: _note.priority,
-                      values: Priority.values,
-                      labelOf: (p) => p.label,
-                      onChanged: (p) => _persist(
-                        _note.copyWith(priority: p, updatedAt: DateTime.now()),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MetaDropdown<Status>(
-                      label: 'Status',
-                      value: _note.status,
-                      values: Status.values,
-                      labelOf: (s) => s.label,
-                      onChanged: (s) => _persist(
-                        _note.copyWith(status: s, updatedAt: DateTime.now()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
-            Expanded(
-              child: NoteEditor(
-                initialText: _note.text,
-                initialMode: NoteEditorMode.raw,
-                priority: _note.priority,
-                onPriorityChanged: (p) => _persist(
-                  _note.copyWith(priority: p, updatedAt: DateTime.now()),
-                ),
-                onChromeVisibleChanged: (visible) =>
-                    setState(() => _chromeVisible = visible),
-                onChanged: _onTextChanged,
-              ),
+        // The same form capture renders, gated on the same setting, so an
+        // edited note and a fresh one cannot look different.
+        child: ValueListenableBuilder<AppSettings>(
+          valueListenable: widget.appSettings,
+          builder: (context, settings, _) => NoteForm(
+            advancedMode: settings.advancedMode,
+            initialText: _note.text,
+            priority: _note.priority,
+            status: _note.status,
+            onPriorityChanged: (p) => _persist(
+              _note.copyWith(priority: p, updatedAt: DateTime.now()),
             ),
-          ],
+            onStatusChanged: (s) =>
+                _persist(_note.copyWith(status: s, updatedAt: DateTime.now())),
+            onChanged: _onTextChanged,
+          ),
         ),
       ),
-    );
-  }
-}
-
-/// A compact labelled dropdown for picking an enum value (priority/status).
-class _MetaDropdown<T> extends StatelessWidget {
-  const _MetaDropdown({
-    required this.label,
-    required this.value,
-    required this.values,
-    required this.labelOf,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T value;
-  final List<T> values;
-  final String Function(T) labelOf;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<T>(
-      initialValue: value,
-      decoration: InputDecoration(
-        labelText: label,
-        isDense: true,
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      items: [
-        for (final v in values)
-          DropdownMenuItem<T>(value: v, child: Text(labelOf(v))),
-      ],
-      onChanged: (v) {
-        if (v != null) onChanged(v);
-      },
     );
   }
 }

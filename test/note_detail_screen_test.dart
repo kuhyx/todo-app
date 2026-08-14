@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/note_detail_screen.dart';
 
@@ -15,7 +16,11 @@ void main() {
     updatedAt: DateTime(2026, 6, 15, 9),
   );
 
-  Future<FakeNoteRepository> pumpDetail(WidgetTester tester, Note note) async {
+  Future<FakeNoteRepository> pumpDetail(
+    WidgetTester tester,
+    Note note, {
+    bool advancedMode = true,
+  }) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -23,9 +28,15 @@ void main() {
 
     final repo = FakeNoteRepository([note]);
     addTearDown(repo.close);
+    final settings = ValueNotifier(AppSettings(advancedMode: advancedMode));
+    addTearDown(settings.dispose);
     await tester.pumpWidget(
       MaterialApp(
-        home: NoteDetailScreen(note: note, repository: repo),
+        home: NoteDetailScreen(
+          note: note,
+          repository: repo,
+          appSettings: settings,
+        ),
       ),
     );
     await tester.pump();
@@ -46,7 +57,7 @@ void main() {
     final repo = await pumpDetail(tester, seedNote('# T'));
 
     await tester.tap(
-      find.byWidgetPredicate((w) => w is DropdownButtonFormField<Priority>),
+      find.byWidgetPredicate((w) => w is DropdownButton<Priority>),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('High').last);
@@ -59,7 +70,7 @@ void main() {
     final repo = await pumpDetail(tester, seedNote('# T'));
 
     await tester.tap(
-      find.byWidgetPredicate((w) => w is DropdownButtonFormField<Status>),
+      find.byWidgetPredicate((w) => w is DropdownButton<Status>),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Done').last);
@@ -108,6 +119,28 @@ void main() {
       expect((await repo.listNotes()).single.priority, Priority.high);
     },
   );
+
+  // The regression this screen was built to stop: it used to let
+  // NoteEditor.advancedMode default to true, so editing an existing note
+  // showed the template dropdown and the View/Guided/Raw pills even though
+  // capture -- with the same app-wide setting off -- showed a bare box.
+  testWidgets('advanced mode off hides every chrome control, as capture does', (
+    tester,
+  ) async {
+    await pumpDetail(
+      tester,
+      seedNote('# T\n\n## what\nbody'),
+      advancedMode: false,
+    );
+
+    expect(find.text('Template'), findsNothing);
+    expect(find.text('Guided'), findsNothing);
+    expect(find.text('Raw'), findsNothing);
+    expect(find.text('Priority'), findsNothing);
+    expect(find.text('Status'), findsNothing);
+    // The body itself is still editable — only the chrome is gone.
+    expect(find.byType(TextField), findsOneWidget);
+  });
 
   testWidgets('the delete action removes the note and pops', (tester) async {
     final repo = await pumpDetail(tester, seedNote('# Bye'));

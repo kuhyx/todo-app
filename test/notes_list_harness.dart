@@ -7,8 +7,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
-import 'package:todo/data/note_repository.dart';
 import 'package:todo/ui/notes_list_screen.dart';
 
 import 'fake_note_repository.dart';
@@ -33,11 +33,16 @@ Note note(
 Future<FakeNoteRepository> pumpList(
   WidgetTester tester, {
   List<Note> seed = const [],
+  bool advancedMode = true,
 }) async {
   final repo = FakeNoteRepository(seed);
   addTearDown(repo.close);
+  final settings = ValueNotifier(AppSettings(advancedMode: advancedMode));
+  addTearDown(settings.dispose);
   await tester.pumpWidget(
-    MaterialApp(home: NotesListScreen(repository: repo)),
+    MaterialApp(
+      home: NotesListScreen(repository: repo, appSettings: settings),
+    ),
   );
   await tester.pump(); // flush the initial stream emit
   return repo;

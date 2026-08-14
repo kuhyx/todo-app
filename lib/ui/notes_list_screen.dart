@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/ui/note_tile.dart';
@@ -21,10 +22,18 @@ const Set<Status> kDefaultStatuses = {Status.todo, Status.inProgress};
 /// rebuild (e.g. a search keystroke) does not churn a new DB subscription.
 class NotesListScreen extends StatefulWidget {
   /// Creates a [NotesListScreen] backed by [repository].
-  const NotesListScreen({required this.repository, super.key});
+  const NotesListScreen({
+    required this.repository,
+    required this.appSettings,
+    super.key,
+  });
 
   /// The store this screen searches/filters/sorts.
   final NoteRepository repository;
+
+  /// Passed through to the detail screen so an opened note is edited with the
+  /// same chrome capture uses.
+  final ValueNotifier<AppSettings> appSettings;
 
   @override
   State<NotesListScreen> createState() => _NotesListScreenState();
@@ -207,8 +216,12 @@ class _NotesListScreenState extends State<NotesListScreen> {
                   itemBuilder: (context, i) => NoteTile(
                     key: ValueKey(notes[i].id),
                     note: notes[i],
-                    onTap: () =>
-                        openNote(context, notes[i], widget.repository),
+                    onTap: () => openNote(
+                      context,
+                      notes[i],
+                      widget.repository,
+                      widget.appSettings,
+                    ),
                     onActions: () =>
                         openNoteActions(context, notes[i], widget.repository),
                   ),

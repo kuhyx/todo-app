@@ -54,10 +54,11 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
 
   void _openList() {
     _logEvent('screen_view', params: {'screen': 'notes_list'});
-    unawaited(
-      Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => NotesListScreen(repository: widget.repository),
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => NotesListScreen(
+          repository: widget.repository,
+          appSettings: widget.appSettings,
         ),
       ),
     );
@@ -93,36 +94,22 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Hidden together with the editor's own chrome while the
-          // bare guided stepper or its entry wizard is up, so the top
-          // of the screen stays free of noise. Also hidden outright
-          // when advanced mode is off.
-          if (advanced && _chromeVisible) ...[
-            CaptureMetaRow(
+          Expanded(
+            // Bumping this key is how "new note" gets a fresh editor: it
+            // remounts NoteForm, which also resets the chrome gate to
+            // visible. Keep it here rather than inside NoteForm — a key
+            // below the conditional metadata row can't be matched after
+            // advancedMode toggles that row in or out, so Flutter tears
+            // the editor down and remounts it with an empty draft,
+            // discarding whatever the user was typing (fixed in ce2ea5b).
+            key: ValueKey(_editorGeneration),
+            child: NoteForm(
+              advancedMode: advanced,
+              initialTemplate: NoteTemplate.defaultTemplate,
               priority: _draft.priority,
               status: _draft.status,
               onPriorityChanged: _setPriority,
               onStatusChanged: _setStatus,
-            ),
-            const SizedBox(height: 12),
-          ],
-          Expanded(
-            // The key lives on this Expanded, not on NoteEditor itself:
-            // the Row above is conditionally present, which shifts
-            // this Expanded's position in the Column whenever
-            // advancedMode changes at runtime. A key one level too
-            // deep (previously on NoteEditor) doesn't survive that
-            // reposition — Flutter can't match it at the new index,
-            // so it tears down and remounts NoteEditor with an empty
-            // draft, discarding whatever the user was typing.
-            key: ValueKey(_editorGeneration),
-            child: NoteEditor(
-              initialTemplate: NoteTemplate.defaultTemplate,
-              initialMode: NoteEditorMode.raw,
-              advancedMode: advanced,
-              priority: _draft.priority,
-              onPriorityChanged: _setPriority,
-              onChromeVisibleChanged: _setChromeVisible,
               autofocus: true,
               onChanged: _onChanged,
             ),
@@ -172,9 +159,10 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
   void _saveAndReset() {
     _logEvent('new_note_reset');
     _rebuild(() {
+      // Bumping the generation remounts NoteForm, which resets the chrome
+      // gate to visible for free -- no separate flag to keep in step.
       _editorGeneration++; // recreate the editor with a fresh template
       _draft.reset();
-      _chromeVisible = true;
     });
   }
 

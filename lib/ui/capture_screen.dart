@@ -13,11 +13,10 @@ import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:todo/ui/capture_app_bar.dart';
 import 'package:todo/ui/capture_draft.dart';
-import 'package:todo/ui/capture_meta_row.dart';
 import 'package:todo/ui/capture_status.dart';
 import 'package:todo/ui/capture_status_footer.dart';
 import 'package:todo/ui/capture_sync_runner.dart';
-import 'package:todo/ui/note_editor.dart';
+import 'package:todo/ui/note_form.dart';
 import 'package:todo/ui/notes_list_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
 
@@ -74,10 +73,6 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// Debounces focus-loss sync triggers so desktop alt-tab flicker doesn't
   /// hammer GitHub with a request per focus change.
   Timer? _autoSyncDebounce;
-
-  /// Hides the Priority/Status row while the editor's own bare-guided chrome
-  /// (template/mode selectors) is also hidden, so the two stay in lockstep.
-  bool _chromeVisible = true;
 
   /// When this session started, for the duration on the `app_close` event.
   final DateTime _sessionStart = DateTime.now();
@@ -230,12 +225,6 @@ class _CaptureScreenState extends State<CaptureScreen>
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
-  }
-
-  /// Mirrors the editor's chrome visibility so this screen's own
-  /// priority/status row hides and shows in step with it.
-  void _setChromeVisible(bool visible) {
-    setState(() => _chromeVisible = visible);
   }
 
   /// setState, reachable from this screen's `part` files.
