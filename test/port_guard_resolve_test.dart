@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo/desktop/port_guard.dart';
 
+import 'port_guard_fakes.dart';
+
 /// Real `ss -tlnp` output, including the header row and the run-together
 /// `Peer Address:PortProcess` column that iproute2 actually prints.
 const _ssOutput = '''
@@ -73,133 +75,6 @@ Future<bool> _reap(PortGuard guard, int pid, int port) => guard.reap(
 );
 
 void main() {
-  group('parseListenerPid', () {
-    test('finds the pid holding the requested port', () {
-      expect(parseListenerPid(_ssOutput, 8730), 61687);
-      expect(parseListenerPid(_ssOutput, 9000), 1234);
-    });
-
-    test('returns null when no line listens on the port', () {
-      expect(parseListenerPid(_ssOutput, 7777), isNull);
-    });
-
-    test('returns null when ss hides the owning pid', () {
-      // ss omits the users:(...) column for another user's socket.
-      const hidden = 'LISTEN 0 128 127.0.0.1:8730 0.0.0.0:*';
-      expect(parseListenerPid(hidden, 8730), isNull);
-    });
-
-    test('ignores short and empty lines', () {
-      expect(parseListenerPid('\nLISTEN 0 128\n', 8730), isNull);
-    });
-
-    test('does not match a port that is only a suffix', () {
-      const other =
-          'LISTEN 0 128 127.0.0.1:18730 0.0.0.0:* '
-          'users:(("x",pid=5,fd=7))';
-      expect(parseListenerPid(other, 8730), isNull);
-    });
-  });
-
-  group('isTodoWrapper', () {
-    test('accepts the installed binary', () {
-      expect(isTodoWrapper('/opt/todo/bin/todo_desktop', []), isTrue);
-    });
-
-    test('accepts a binary replaced by an upgrade', () {
-      expect(
-        isTodoWrapper('/opt/todo/bin/todo_desktop (deleted)', []),
-        isTrue,
-      );
-    });
-
-    test('accepts a development run out of the repo', () {
-      expect(
-        isTodoWrapper('/usr/lib/dart/bin/dart', [
-          'dart',
-          'run',
-          'bin/todo_desktop.dart',
-          '--web-root',
-          'build/web',
-        ]),
-        isTrue,
-      );
-    });
-
-    test('rejects an unrelated process', () {
-      expect(
-        isTodoWrapper('/usr/bin/python3.14', [
-          'python3',
-          '-m',
-          'http.server',
-          '8730',
-        ]),
-        isFalse,
-      );
-    });
-  });
-
-  group('hasWindowAttached', () {
-    // Chrome rewrites argv into one space-joined string, so this is the shape
-    // that actually appears in /proc for a browser window.
-    const collapsed = [
-      '/opt/thorium-browser/thorium --app=http://localhost:8730 '
-          '--user-data-dir=$_profile --class=todo --no-first-run',
-    ];
-
-    test('matches a browser whose argv collapsed into one token', () {
-      expect(hasWindowAttached([collapsed], _profile), isTrue);
-    });
-
-    test('matches a normally separated argument vector', () {
-      expect(
-        hasWindowAttached(
-          [
-            ['thorium', '--user-data-dir=$_profile', '--class=todo'],
-          ],
-          _profile,
-        ),
-        isTrue,
-      );
-    });
-
-    test('matches when the flag is the final argument', () {
-      expect(
-        hasWindowAttached(
-          [
-            ['thorium', '--user-data-dir=$_profile'],
-          ],
-          _profile,
-        ),
-        isTrue,
-      );
-    });
-
-    test('does not match a sibling profile directory', () {
-      expect(
-        hasWindowAttached(
-          [
-            ['thorium', '--user-data-dir=${_profile}2'],
-          ],
-          _profile,
-        ),
-        isFalse,
-      );
-    });
-
-    test('does not match when no process mentions the profile', () {
-      expect(
-        hasWindowAttached(
-          [
-            ['bash', '-c', 'sleep 1'],
-          ],
-          _profile,
-        ),
-        isFalse,
-      );
-    });
-  });
-
   group('PortGuard.resolve', () {
     test('retries the bind when the port came free', () async {
       final guard = PortGuard(
@@ -341,65 +216,6 @@ void main() {
         ProcessSignal.sigterm,
         ProcessSignal.sigkill,
       ]);
-    });
-  });
-
-  group('LinuxSystemProbe against the real host', () {
-    test('portInUse tracks a real socket', () async {
-      const probe = LinuxSystemProbe();
-      final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-      addTearDown(() async => socket.close());
-      expect(await probe.portInUse(socket.port), isTrue);
-      await socket.close();
-      expect(await probe.portInUse(socket.port), isFalse);
-    });
-
-    test('listenerPid finds this process holding a real port', () async {
-      const probe = LinuxSystemProbe();
-      final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-      addTearDown(() async => socket.close());
-      // Proves the parser works against genuine `ss` output, not a fixture.
-      expect(await probe.listenerPid(socket.port), pid);
-    });
-
-    test('listenerPid returns null when ss is unavailable', () async {
-      const probe = LinuxSystemProbe(ssExecutable: 'ss-does-not-exist');
-      expect(await probe.listenerPid(8730), isNull);
-    });
-
-    test('describe reads this process', () async {
-      const probe = LinuxSystemProbe();
-      final description = await probe.describe(pid);
-      expect(description, isNotNull);
-      expect(description!.cmdline, isNotEmpty);
-      expect(description.exeTarget, isNotEmpty);
-    });
-
-    test('describe tolerates an unreadable executable link', () async {
-      // pid 1 belongs to root: its cmdline is world-readable but /proc/1/exe
-      // is not, which is the branch under test.
-      const probe = LinuxSystemProbe();
-      final description = await probe.describe(1);
-      expect(description, isNotNull);
-      expect(description!.exeTarget, isEmpty);
-    });
-
-    test('describe returns null for a process that does not exist', () async {
-      const probe = LinuxSystemProbe();
-      expect(await probe.describe(0x7FFFFFFF), isNull);
-    });
-
-    test('processCmdlines lists real processes', () async {
-      const probe = LinuxSystemProbe();
-      final cmdlines = await probe.processCmdlines();
-      expect(cmdlines, isNotEmpty);
-    });
-
-    test('signal terminates a real child process', () async {
-      const probe = LinuxSystemProbe();
-      final child = await Process.start('sleep', ['30']);
-      expect(probe.signal(child.pid, ProcessSignal.sigterm), isTrue);
-      expect(await child.exitCode, isNot(0));
     });
   });
 }
