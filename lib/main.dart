@@ -1,15 +1,14 @@
 // coverage:ignore-file
 // App bootstrap: opens the platform's note store and calls runApp. Exercised
 // end-to-end by running the app, not unit tests.
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
-
 import 'package:todo/analytics/analytics_service.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/repository_factory.dart';
 import 'package:todo/frame_stats.dart';
 import 'package:todo/ui/capture_screen.dart';
-import 'package:todo/ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

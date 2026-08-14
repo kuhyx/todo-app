@@ -6,11 +6,10 @@ library;
 
 import 'dart:async';
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
-
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
-import 'package:todo/ui/confirm.dart';
 
 /// The per-note bottom sheet: status/priority chips, and delete.
 class NoteActionsSheet extends StatefulWidget {

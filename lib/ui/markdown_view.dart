@@ -1,6 +1,5 @@
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
-
-import 'package:todo/ui/theme.dart';
 
 /// A lightweight, read-only renderer for the note format.
 ///

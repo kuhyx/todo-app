@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:todo/ui/theme.dart';
+import 'package:design_system/design_system.dart';
 
 void main() {
   test('buildLightTheme uses the shared palette and 16px body floor', () {

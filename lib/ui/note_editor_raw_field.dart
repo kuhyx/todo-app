@@ -4,9 +4,8 @@
 /// stays owned by `_NoteEditorState`.
 library;
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
-
-import 'package:todo/ui/theme.dart';
 
 /// A full-height plain-text field for the note's assembled Markdown.
 class NoteEditorRawField extends StatelessWidget {

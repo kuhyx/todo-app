@@ -1,10 +1,9 @@
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
-
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
-import 'package:todo/ui/confirm.dart';
 import 'package:todo/ui/note_form.dart';
 
 /// Full-screen view of a single note: read it in full, edit its body through
