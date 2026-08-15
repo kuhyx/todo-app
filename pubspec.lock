@@ -322,6 +322,15 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  github_device_auth:
+    dependency: "direct main"
+    description:
+      path: github_device_auth
+      ref: "github_device_auth-v0.3.0"
+      resolved-ref: "254e3b00c7f41a54c588ec32564017f96f328252"
+      url: "https://github.com/kuhyx/utils"
+    source: git
+    version: "0.3.0"
   glob:
     dependency: transitive
     description:

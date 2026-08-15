@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.24+1
+version: 1.0.25+1
 
 environment:
   sdk: ^3.12.2
@@ -55,6 +55,11 @@ dependencies:
   # libsecret) instead of plaintext SharedPreferences.
   flutter_secure_storage: ^10.3.1
 
+  github_device_auth:
+    git:
+      url: https://github.com/kuhyx/utils
+      ref: github_device_auth-v0.3.0
+      path: github_device_auth
   # One-tap sign-in for the sync account. Lives only in the app: `crdt_sync`
   # stays pure Dart so it keeps working on Linux desktop and headless, where
   # this plugin does not exist. See lib/sync/google_sign_in_backend.dart.
