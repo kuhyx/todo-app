@@ -87,3 +87,5 @@ per-file values have no source of truth at all).
 - The single hardcoded-color violation (`Colors.red`) is also the app's only
   spot where a raw `Colors.*` constant appears outside `main.dart`'s seed —
   fixing it removes the last non-theme-derived color reference in the app.
+
+REMOVE ME AFTER FINISH
