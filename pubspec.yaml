@@ -33,7 +33,7 @@ dependencies:
   crdt_sync:
     git:
       url: https://github.com/kuhyx/utils
-      ref: crdt_sync_dart-v0.10.0
+      ref: crdt_sync_dart-v0.11.0
       path: crdt_sync_dart
 
   # The following adds the Cupertino Icons font to your application.
@@ -82,7 +82,7 @@ dependencies:
   sync_settings_ui:
     git:
       url: https://github.com/kuhyx/utils
-      ref: sync_settings_ui-v0.1.0
+      ref: sync_settings_ui-v0.4.0
       path: sync_settings_ui
   url_launcher: ^6.3.2
   uuid: ^4.5.3
