@@ -50,3 +50,6 @@ todo-backlog.md
 
 # Android Gradle build output
 /android/build/
+
+# pytest-cov scratch file from the mcp/ subproject.
+.coverage

@@ -101,11 +101,11 @@ packages:
     dependency: "direct main"
     description:
       path: crdt_sync_dart
-      ref: "crdt_sync_dart-v0.11.0"
-      resolved-ref: feaaf691037da1580fabc992819180d85a97c90a
+      ref: "crdt_sync_dart-v0.11.1"
+      resolved-ref: "978d32af3af66f0d6500c4c6c0c6df5370ebe9a2"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.11.0"
+    version: "0.11.1"
   cross_file:
     dependency: transitive
     description:
@@ -134,11 +134,11 @@ packages:
     dependency: "direct main"
     description:
       path: design_system
-      ref: "design_system-v0.1.0"
-      resolved-ref: e6c9af81e9ac3000d87d9168d3ef87ba2979258b
+      ref: "design_system-v0.2.1"
+      resolved-ref: "978d32af3af66f0d6500c4c6c0c6df5370ebe9a2"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.1.0"
+    version: "0.2.1"
   dev_build:
     dependency: transitive
     description:
@@ -268,18 +268,18 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_secure_storage
-      sha256: "7686b1d6a29985dcbb808c59518226e603e3bfa7c0ddfd1a0d00e4cda77c868e"
+      sha256: "15e8c8fe269fdf7d469b23008ab3df521c8b826ed345820532364c31bdebace6"
       url: "https://pub.dev"
     source: hosted
-    version: "10.3.1"
+    version: "11.0.0"
   flutter_secure_storage_darwin:
     dependency: transitive
     description:
       name: flutter_secure_storage_darwin
-      sha256: "82329fa5cdf343773b1b6897dea959105a29f092454259edff92f9f6637e8149"
+      sha256: ac6d76a752de0cd738334eb4b21743fc4943f449f5b6e308f18838b048c02ac0
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.2"
+    version: "0.4.0"
   flutter_secure_storage_linux:
     dependency: transitive
     description:
@@ -326,11 +326,11 @@ packages:
     dependency: "direct main"
     description:
       path: github_device_auth
-      ref: "github_device_auth-v0.3.0"
-      resolved-ref: "254e3b00c7f41a54c588ec32564017f96f328252"
+      ref: "github_device_auth-v0.3.1"
+      resolved-ref: "11c752fe6508117d4d2db1c0744090221d5f6cb8"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.3.0"
+    version: "0.3.1"
   glob:
     dependency: transitive
     description:
@@ -415,10 +415,10 @@ packages:
     dependency: "direct main"
     description:
       name: idb_shim
-      sha256: "3448298f244bc76a14aca71461eeab6add2b8a877930521c42c2e8b71b644590"
+      sha256: e36a748165663a165e1f292e9d85af6e3aa087f6e2291d16f86b2035103b2950
       url: "https://pub.dev"
     source: hosted
-    version: "2.9.6+2"
+    version: "2.9.8"
   image:
     dependency: transitive
     description:
@@ -671,18 +671,18 @@ packages:
     dependency: "direct main"
     description:
       name: share_plus
-      sha256: "02180b01c1237b9706b663d9402b2cf2402b3407f48cce99cc19e3200f095b8a"
+      sha256: "34f00f9becd2743c1fb05363d624f9f70d37f7ccdcdda47450bc0b8c9d327b8c"
       url: "https://pub.dev"
     source: hosted
-    version: "13.2.1"
+    version: "13.3.0"
   share_plus_platform_interface:
     dependency: transitive
     description:
       name: share_plus_platform_interface
-      sha256: "7f7ae28cf400d13f811e297ff37742dba83b79e0a6f5dce14eec0248274e6ce9"
+      sha256: "365ef7379fc22507256adda3385152942ffce08935452bc972c2e52a0bebae41"
       url: "https://pub.dev"
     source: hosted
-    version: "7.1.0"
+    version: "7.2.0"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -764,10 +764,10 @@ packages:
     dependency: "direct main"
     description:
       name: sqflite_common_ffi
-      sha256: "5ccd38136edb9beb3213f6927775d52db70dfdadcdb28dad1f625ca9f2b9824f"
+      sha256: d5564f1308cafbf064be498f2beb1e993e742985a7cca9e2e228d6cbccd84a05
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.2"
+    version: "2.4.2+1"
   sqflite_common_ffi_web:
     dependency: transitive
     description:
@@ -836,11 +836,11 @@ packages:
     dependency: "direct main"
     description:
       path: sync_settings_ui
-      ref: "sync_settings_ui-v0.4.0"
-      resolved-ref: "26d7507fff52cd005bbd713e0b8608dc03a017b2"
+      ref: "sync_settings_ui-v0.4.1"
+      resolved-ref: "51700aa89eaf1789ae98491aaa854c54d35b4170"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.4.0"
+    version: "0.4.1"
   synchronized:
     dependency: transitive
     description:

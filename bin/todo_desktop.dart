@@ -116,11 +116,12 @@ Future<bool> _recoverPort(
   final guard = PortGuard(profileDir: profileDir(home));
   switch (await guard.resolve(_port)) {
     case AbortWithOwner(:final description):
-      stderr.writeln('port $_port is already in use by $description.');
-      stderr.writeln(
-        'todo needs this exact port — its notes and GitHub token are stored '
-        'per origin. Free the port, then run todo again.',
-      );
+      stderr
+        ..writeln('port $_port is already in use by $description.')
+        ..writeln(
+          'todo needs this exact port — its notes and GitHub token are stored '
+          'per origin. Free the port, then run todo again.',
+        );
       exit(1);
     case AttachToExisting(:final pid):
       // Re-running the browser command opens a second window rather than

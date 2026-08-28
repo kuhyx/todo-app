@@ -7,7 +7,7 @@ dependencies = [
     # The MCP SDK is the only runtime dependency: FastMCP powers the stdio
     # server. It lives in a dedicated venv (see scripts/setup_mcp.sh /
     # ../.mcp.json), kept entirely separate from the Dart/Flutter app.
-    "mcp>=1.9",
+    "mcp==2.1.1",
 ]
 
 # Explicit package discovery so ``pip install -e .`` picks up the package and

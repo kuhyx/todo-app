@@ -30,7 +30,7 @@ from pathlib import Path
 import sys
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from todo_mcp._backlog import Note, parse_backlog
 
@@ -43,7 +43,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-mcp = FastMCP("todo")
+# mcp 2.x renamed FastMCP to MCPServer; the decorator and run() API are
+# unchanged, so only the import and the constructor moved.
+mcp = MCPServer("todo")
 
 _DEFAULT_LIST_LIMIT = 100
 
