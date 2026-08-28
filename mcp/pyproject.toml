@@ -2,7 +2,7 @@
 name = "todo-mcp"
 version = "1.0.0"
 description = "Read-only MCP server over the todo app's exported BACKLOG.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = [
     # The MCP SDK is the only runtime dependency: FastMCP powers the stdio
     # server. It lives in a dedicated venv (see scripts/setup_mcp.sh /
