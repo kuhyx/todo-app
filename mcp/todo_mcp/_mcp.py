@@ -23,7 +23,7 @@ file yields a graceful "please export it" message rather than an error.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import logging
 import os
 from pathlib import Path
@@ -83,7 +83,7 @@ def _load_backlog() -> tuple[bool, list[Note], str | None]:
         stat = path.stat()
     except OSError:
         return False, [], None
-    mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+    mtime = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
     notes = parse_backlog(path.read_text(encoding="utf-8"))
     return True, notes, mtime
 
