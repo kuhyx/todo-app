@@ -75,7 +75,7 @@ Future<String?> googleIdToken({
   Future<String?> Function()? signInFn,
   String serverClientId = kServerClientId,
 }) async {
-  if (signInFn != null) return signInFn();
+  if (signInFn != null) return await signInFn();
   if (serverClientId.isEmpty) {
     // A build without --dart-define=GOOGLE_SERVER_CLIENT_ID would otherwise
     // fail inside the plugin with a far less obvious message.

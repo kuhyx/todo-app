@@ -29,8 +29,9 @@ LocalBackup createLocalBackup(NoteRepository repository) {
     fetch: repository.listNotes,
     reader: () async {
       final file = await backupFile();
-      return file.existsSync() ? file.readAsString() : null;
+      return file.existsSync() ? await file.readAsString() : null;
     },
-    writer: (markdown) async => (await backupFile()).writeAsString(markdown),
+    writer: (markdown) async =>
+        await (await backupFile()).writeAsString(markdown),
   );
 }

@@ -58,7 +58,7 @@ Future<FakeNoteRepository> pumpCapture(
   final repo = repository ?? FakeNoteRepository(seed);
   addTearDown(repo.close);
   // Default to an in-memory, no-op backup so tests never touch real disk
-  // (the production backup writes ~/todo/BACKLOG.md on the Linux test host).
+  // (the production backup writes ~/src/todo/BACKLOG.md on the Linux test host).
   final backup =
       localBackup ??
       LocalBackup(

@@ -139,7 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// Exports every note to a single Markdown file. On mobile this opens the
-  /// system share sheet; on desktop it writes the canonical `~/todo/
+  /// system share sheet; on desktop it writes the canonical `~/src/todo/
   /// BACKLOG.md` so a future tool/agent has a stable path to read.
   Future<void> _export() async {
     final notes = await widget.repository.listNotes();

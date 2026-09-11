@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 /// The wrapper exists because a browser cannot write to the filesystem, and two
 /// things depend on it:
 ///
-/// * `~/todo/BACKLOG.md` — read by the user's tooling and the `todo` MCP
+/// * `~/src/todo/BACKLOG.md` — read by the user's tooling and the `todo` MCP
 ///   server. Without this it would silently go stale after the move to a web
 ///   build.
 /// * an on-disk copy of the note log, so a wiped Chrome profile is not a

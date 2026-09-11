@@ -10,7 +10,7 @@
 #
 # Icon PNGs are pre-rendered and committed under desktop/icons/, so this script
 # needs no image tooling at run time. Regenerate them with:
-#   PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons \
+#   PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons \
 #       generate --app todo --linux-out desktop/icons
 # ============================================================================
 

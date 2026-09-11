@@ -214,7 +214,7 @@ class PortGuard {
     probe.signal(pid, ProcessSignal.sigterm);
     if (await _awaitFreePort(port, termWait, pollInterval)) return true;
     probe.signal(pid, ProcessSignal.sigkill);
-    return _awaitFreePort(port, killWait, pollInterval);
+    return await _awaitFreePort(port, killWait, pollInterval);
   }
 
   Future<bool> _awaitFreePort(

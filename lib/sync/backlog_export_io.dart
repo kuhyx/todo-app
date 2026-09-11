@@ -5,9 +5,9 @@ import 'package:share_plus/share_plus.dart';
 
 /// Resolves the home directory the desktop export writes under.
 ///
-/// Overridable **so the test suite never writes to the real `~/todo`**. This is
+/// Overridable **so the test suite never writes to the real `~/src/todo`**. This is
 /// not hypothetical: before this seam existed, running `flutter test` exported
-/// a fake note over the user's canonical `~/todo/BACKLOG.md` every time.
+/// a fake note over the user's canonical `~/src/todo/BACKLOG.md` every time.
 String Function() resolveExportHome = () =>
     Platform.environment['HOME'] ?? Directory.current.path;
 
@@ -15,7 +15,7 @@ String Function() resolveExportHome = () =>
 /// human-readable description of where it went.
 ///
 /// On mobile this opens the system share sheet; on a `dart:io` desktop host it
-/// writes the canonical `~/todo/BACKLOG.md`.
+/// writes the canonical `~/src/todo/BACKLOG.md`.
 Future<String> exportBacklog(String markdown, int noteCount) async {
   // coverage:ignore-start
   // Mobile-only share path: Platform.isAndroid/isIOS are always false on the

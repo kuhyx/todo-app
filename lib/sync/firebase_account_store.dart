@@ -41,7 +41,7 @@ SecureCredentialStore credentialStore() => SecureCredentialStore(
 /// `~/.config/todo/firebase_auth.json` via `seed_session.py --app todo`) --
 /// the only thing that actually authenticates, since the shared account's
 /// password grant is retired fleet-wide (see `link_google.py`/
-/// `seed_session.py` in `~/utils/crdt-sync`) -- then the legacy
+/// `seed_session.py` in `~/src/utils/crdt-sync`) -- then the legacy
 /// email/password route (`/sync-account`, `~/.config/crdt-sync/`) as a
 /// fallback for a machine that has not been re-seeded yet. Whichever
 /// succeeds is written to the store on first success, so the route is

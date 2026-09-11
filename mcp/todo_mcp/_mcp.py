@@ -54,12 +54,12 @@ def _backlog_path() -> Path:
     """Resolve the ``BACKLOG.md`` path (env override, else the default).
 
     Returns:
-        ``$TODO_BACKLOG_PATH`` when set, otherwise ``~/todo/BACKLOG.md``.
+        ``$TODO_BACKLOG_PATH`` when set, otherwise ``~/src/todo/BACKLOG.md``.
     """
     override = os.environ.get("TODO_BACKLOG_PATH")
     if override:
         return Path(override)
-    return Path.home() / "todo" / "BACKLOG.md"
+    return Path.home() / "src/todo" / "BACKLOG.md"
 
 
 def _missing_message() -> str:

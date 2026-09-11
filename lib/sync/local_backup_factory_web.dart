@@ -6,7 +6,7 @@ import 'package:todo/sync/local_backup.dart';
 /// Builds the [LocalBackup] for the browser-hosted desktop app.
 ///
 /// A browser cannot write to the filesystem, so the wrapper that serves the
-/// build owns the file. This keeps `~/todo/BACKLOG.md` current — the user's
+/// build owns the file. This keeps `~/src/todo/BACKLOG.md` current — the user's
 /// tooling and the `todo` MCP server read it, and without this the move to a
 /// web build would let it silently go stale.
 LocalBackup createLocalBackup(NoteRepository repository) {

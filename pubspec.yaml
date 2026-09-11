@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.32+1
+version: 1.0.33+1
 
 environment:
   sdk: ^3.12.2
@@ -53,7 +53,7 @@ dependencies:
 
   # Stores the GitHub sync token in the OS keystore (Android Keystore /
   # libsecret) instead of plaintext SharedPreferences.
-  flutter_secure_storage: 11.0.0
+  flutter_secure_storage: 11.1.0
 
   github_device_auth:
     git:
@@ -65,12 +65,12 @@ dependencies:
   # this plugin does not exist. See lib/sync/google_sign_in_backend.dart.
   google_sign_in: 7.2.0
   http: 1.6.0
-  idb_shim: 2.9.8
+  idb_shim: 2.9.9
   path: 1.9.1
   path_provider: 2.1.6
   share_plus: 13.3.0
   shared_preferences: 2.5.5
-  sqflite_common_ffi: 2.4.2+1
+  sqflite_common_ffi: 2.4.3
   # Retained only to read the legacy on-device DB during the one-time
   # migration in NoteRepository.open; remove once all devices are migrated.
   sqlite_crdt: 3.0.4
@@ -105,7 +105,7 @@ dev_dependencies:
   # Stricter than flutter_lints -- standardized across this ecosystem's
   # Flutter apps (see project memory: all Flutter apps use
   # very_good_analysis, not flutter_lints).
-  very_good_analysis: ^10.3.0
+  very_good_analysis: ^11.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -150,7 +150,7 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 # Launcher icon generation. Source art is produced by the shared generator:
-#   PYTHONPATH=~/testsAndMisc python3 -m python_pkg.app_icons generate --app <key>
+#   PYTHONPATH=~/src/testsAndMisc python3 -m python_pkg.app_icons generate --app <key>
 # then run: dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true

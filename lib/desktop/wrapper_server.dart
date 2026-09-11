@@ -24,7 +24,7 @@ const kSyncCredentialsPath = '/sync-credentials';
 /// of the desktop app: it serves the build and owns the two files a browser
 /// cannot write.
 ///
-/// * `~/todo/BACKLOG.md` — the canonical backlog path the user's tooling and
+/// * `~/src/todo/BACKLOG.md` — the canonical backlog path the user's tooling and
 ///   the `todo` MCP server read.
 /// * a copy of the note log — so a wiped Chrome profile is not a total-loss
 ///   event for notes that have not yet synced to GitHub.
@@ -112,7 +112,7 @@ class WrapperServer {
   }
 
   /// Stops serving and releases the port.
-  Future<void> stop() async => _server?.close(force: true);
+  Future<void> stop() async => await _server?.close(force: true);
 
   Future<void> _serve(HttpServer server) async {
     await for (final request in server) {
@@ -128,18 +128,18 @@ class WrapperServer {
   Future<void> _handle(HttpRequest request) async {
     final path = request.uri.path;
     if (path == '/backup/backlog') {
-      return _file(request, backlogPath);
+      return await _file(request, backlogPath);
     }
     if (path == '/backup/log') {
-      return _file(request, logPath);
+      return await _file(request, logPath);
     }
     if (path == kSyncAccountPath) {
-      return _syncAccount(request);
+      return await _syncAccount(request);
     }
     if (path == kSyncCredentialsPath) {
-      return _syncCredentials(request);
+      return await _syncCredentials(request);
     }
-    return _static(request, path);
+    return await _static(request, path);
   }
 
   /// GET returns the file's contents (404 when absent); POST overwrites it.

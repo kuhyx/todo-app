@@ -48,7 +48,7 @@ def missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 class TestBacklogPath:
     def test_default_path_when_env_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("TODO_BACKLOG_PATH", raising=False)
-        assert _mcp._backlog_path() == Path.home() / "todo" / "BACKLOG.md"
+        assert _mcp._backlog_path() == Path.home() / "src/todo" / "BACKLOG.md"
 
 
 class TestListBacklog:

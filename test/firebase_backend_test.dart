@@ -121,7 +121,7 @@ void main() {
 
   group('loadAccount', () {
     // The account's password grant is retired fleet-wide (see
-    // link_google.py/seed_session.py in ~/utils/crdt-sync), so the wrapper's
+    // link_google.py/seed_session.py in ~/src/utils/crdt-sync), so the wrapper's
     // seeded-credentials route is the only fallback that can actually
     // authenticate a fresh desktop install. These exercise loadAccount()'s
     // adoption of that route directly, since Uri.base in a test is

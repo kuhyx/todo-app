@@ -136,7 +136,7 @@ migrate → Settings → Import).
 - Keep the app buttery-smooth and low on CPU/RAM — it's a quick-capture tool.
 - **Every file is at most 250 lines**, source and prose alike. Enforced by a
   pre-commit hook (`scripts/check_file_length.sh`, delegating to the shared
-  gate in `~/utils`) and by `.github/workflows/file-length.yml`, so it fails
+  gate in `~/src/utils`) and by `.github/workflows/file-length.yml`, so it fails
   the commit rather than being a note anyone can ignore. Install the hook on
   a fresh clone with `scripts/install_hooks.sh`.
 - **Only non-mutating checks go in `.pre-commit-config.yaml`.** pre-commit

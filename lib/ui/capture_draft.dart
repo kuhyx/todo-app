@@ -101,7 +101,7 @@ class CaptureDraft {
 }
 
 // coverage:ignore-start
-// Platform file IO for the local backup: BACKLOG.md under ~/todo on desktop
+// Platform file IO for the local backup: BACKLOG.md under ~/src/todo on desktop
 // (the path the user's workflow already reads), or the app documents dir on
 // mobile (which Android Auto Backup includes). Exercised by running the app;
 // tests inject an in-memory LocalBackup instead.

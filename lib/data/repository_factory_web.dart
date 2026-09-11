@@ -23,5 +23,8 @@ Future<NoteRepository> openRepository() async {
     nodeId = const Uuid().v4();
     await prefs.setString(NoteRepository.kNodeId, nodeId);
   }
-  return NoteRepository.openWith(persistence: persistence, nodeId: nodeId);
+  return await NoteRepository.openWith(
+    persistence: persistence,
+    nodeId: nodeId,
+  );
 }

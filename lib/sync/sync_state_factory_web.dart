@@ -23,5 +23,5 @@ class _PrefsPersistence implements LogPersistence {
 
   @override
   Future<void> write(String text) async =>
-      _prefs.setString(kSyncStateKey, text);
+      await _prefs.setString(kSyncStateKey, text);
 }

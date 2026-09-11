@@ -36,7 +36,7 @@ This creates `~/.venvs/todo-mcp`, installs this package (which pulls in the
 `mcp` SDK), and verifies the imports. The server is registered via the
 repo-root `.mcp.json`; restart Claude Code in this repo and approve the project
 MCP server prompt. Override the backlog location with `TODO_BACKLOG_PATH`
-(defaults to `~/todo/BACKLOG.md`).
+(defaults to `~/src/todo/BACKLOG.md`).
 
 ## Development
 

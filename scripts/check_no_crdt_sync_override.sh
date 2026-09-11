@@ -5,7 +5,7 @@
 #
 # The apps depend on crdt_sync as a *git dependency pinned to a tag*, so what
 # CI builds is whatever that tag points at. A `dependency_overrides:` entry
-# pointing at ~/utils/crdt_sync_dart is invaluable while developing an unreleased
+# pointing at ~/src/utils/crdt_sync_dart is invaluable while developing an unreleased
 # library change -- and catastrophic if it survives the commit: local tests go
 # green against code CI has never seen, and the failure is silent in both
 # directions.

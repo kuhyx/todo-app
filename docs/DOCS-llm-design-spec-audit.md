@@ -2,7 +2,7 @@
 
 ## Context
 
-`~/todo`'s default note template (`lib/data/note_template.dart`, `NoteTemplate.llmDesignSpec`)
+`~/src/todo`'s default note template (`lib/data/note_template.dart`, `NoteTemplate.llmDesignSpec`)
 has 12 sections: title, what, where, tech, must, ask, nice, never, done, depends,
 estimate, refs. It was designed top-down from the `<work_backlog>` format in
 `~/.claude/CLAUDE.md`, never validated against what actually gets written or what
@@ -19,7 +19,7 @@ read, and did leaving it out cause a failure?*
 | Source | Size |
 | --- | --- |
 | `~/.claude/projects/**/*.jsonl` | 514 sessions, 495 with real user prompts, **1503 prompts** |
-| `~/todo/BACKLOG.md` | 49 notes — **25 structured, 24 freeform** |
+| `~/src/todo/BACKLOG.md` | 49 notes — **25 structured, 24 freeform** |
 | note → session join (title match) | **22 note/session pairs**, 21 of 25 notes traced |
 | `~/.claude/memories/mistakes.md` + `projects/-home-kuhy/memory/feedback-*.md` | 13 dated mistakes, 33 feedback memories |
 
@@ -93,7 +93,7 @@ add fields that cannot work.
 | --- | --- | --- |
 | `title` | **keep** | 25/25 |
 | `what` | **keep** | 25/25 — the load-bearing section |
-| `where` | **keep, widen** | 25/25. Widen to allow "the fix belongs in another repo" — two corrections were exactly that (*"our INSTALLER, installing files in a WRONG FOLDER"*, *"The real fix is in ~/screen-locker (a different repo)"*) |
+| `where` | **keep, widen** | 25/25. Widen to allow "the fix belongs in another repo" — two corrections were exactly that (*"our INSTALLER, installing files in a WRONG FOLDER"*, *"The real fix is in ~/src/screen-locker (a different repo)"*) |
 | `tech` | **merge into `where`** | Claude reads the manifest anyway in 54% of sessions. Load-bearing only for `where — new app: <name>`, which is where it should live |
 | `must` | **keep** | 25/25 |
 | `ask` | **remove** | Provably inert: 92% ask rate without it vs 100% with it. Global rules already own this |

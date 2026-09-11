@@ -120,7 +120,7 @@
       <li><code>watchNotes()</code> — a <em>live stream</em>: it re-runs its <code>SELECT&nbsp;*</code> and re-emits <strong>every time the table changes</strong>, so the UI can stay in sync automatically.</li>
     </ul>
   </li>
-  <li>A plain-text <strong>Markdown backup</strong> on disk (<code>~/todo/BACKLOG.md</code>), managed by <code>LocalBackup</code>. It's a human-readable third copy you (or an LLM) can read directly. <code>LocalBackup</code> debounces so a burst of typing produces a single file write.</li>
+  <li>A plain-text <strong>Markdown backup</strong> on disk (<code>~/src/todo/BACKLOG.md</code>), managed by <code>LocalBackup</code>. It's a human-readable third copy you (or an LLM) can read directly. <code>LocalBackup</code> debounces so a burst of typing produces a single file write.</li>
 </ul>
 
 <p>The subtle part is how those two were wired together. To keep the backup current, the capture screen subscribed to <code>watchNotes()</code> and handed each emission to the backup:</p>

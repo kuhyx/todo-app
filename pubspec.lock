@@ -268,10 +268,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_secure_storage
-      sha256: "15e8c8fe269fdf7d469b23008ab3df521c8b826ed345820532364c31bdebace6"
+      sha256: "4540927d8b37e6cc47aaa2d17b6035a2d49049e2797cb19d2bdd299bff602c67"
       url: "https://pub.dev"
     source: hosted
-    version: "11.0.0"
+    version: "11.1.0"
   flutter_secure_storage_darwin:
     dependency: transitive
     description:
@@ -292,10 +292,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_secure_storage_platform_interface
-      sha256: "8ceea1223bee3c6ac1a22dabd8feefc550e4729b3675de4b5900f55afcb435d6"
+      sha256: "4bc033841169d07f690d46d89dbc3f5305b6562820822445384c82e0866e2719"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.1"
+    version: "2.1.0"
   flutter_secure_storage_web:
     dependency: transitive
     description:
@@ -415,10 +415,10 @@ packages:
     dependency: "direct main"
     description:
       name: idb_shim
-      sha256: e36a748165663a165e1f292e9d85af6e3aa087f6e2291d16f86b2035103b2950
+      sha256: "6a478bf0928fa954512f2a1e7e56f09e2fb2e3e7d183eb051a59b5d6b39ec16f"
       url: "https://pub.dev"
     source: hosted
-    version: "2.9.8"
+    version: "2.9.9"
   image:
     dependency: transitive
     description:
@@ -764,10 +764,10 @@ packages:
     dependency: "direct main"
     description:
       name: sqflite_common_ffi
-      sha256: d5564f1308cafbf064be498f2beb1e993e742985a7cca9e2e228d6cbccd84a05
+      sha256: "4ec920a01788641fa1c9922e757c108427e7f8634cce3ce8a1073d573060f4a3"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.2+1"
+    version: "2.4.3"
   sqflite_common_ffi_web:
     dependency: transitive
     description:
@@ -957,10 +957,10 @@ packages:
     dependency: "direct dev"
     description:
       name: very_good_analysis
-      sha256: "481af67ab5877af20325251dc215a4ebac7666a1c8cf09198ffd457bc612b33d"
+      sha256: "0bd5eb8d6be76aa0d71e70cbdae6cac8f784f761170568e3c2214a6948c7f6d3"
       url: "https://pub.dev"
     source: hosted
-    version: "10.3.0"
+    version: "11.0.0"
   vm_service:
     dependency: transitive
     description:
@@ -1010,5 +1010,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.12.2 <4.0.0"
+  dart: ">=3.13.0 <4.0.0"
   flutter: ">=3.44.0"

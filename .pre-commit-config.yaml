@@ -44,7 +44,7 @@ repos:
       # unrelated commit never breaks; exits 1 rather than warning. No
       # baseline and no allowlist -- those are suppressions. The exemption
       # list (generated/vendored/data files) lives with the checker in
-      # ~/utils/file_length/config.py so the gate and the survey cannot
+      # ~/src/utils/file_length/config.py so the gate and the survey cannot
       # disagree.
       - id: file-length
         name: file length <= 250 lines
@@ -53,7 +53,7 @@ repos:
 
       # Four markdown namespaces (README / CLAUDE* / DOCS* / TODO*), plus the
       # rule that a TODO carries "REMOVE ME AFTER FINISH" and nothing else may.
-      # Shared gate in ~/utils owns the namespaces and the exemption list, so
+      # Shared gate in ~/src/utils owns the namespaces and the exemption list, so
       # one repo's idea of a valid name cannot drift from every other repo's.
       - id: md-naming
         name: markdown naming convention

@@ -69,7 +69,7 @@ class WebLogPersistence implements LogPersistence {
     // Nothing local yet (fresh profile, or the browser evicted the database).
     // Fall back to the wrapper's on-disk copy so a cleared profile recovers
     // instead of silently starting from an empty backlog.
-    return backup?.readLog();
+    return await backup?.readLog();
   }
 
   @override

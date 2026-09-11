@@ -72,7 +72,7 @@ void main() {
       tester,
     ) async {
       // Redirect HOME: this test does real file I/O, and without the
-      // override it overwrites the user's canonical ~/todo/BACKLOG.md with
+      // override it overwrites the user's canonical ~/src/todo/BACKLOG.md with
       // the fake note below on every test run.
       final home = Directory.systemTemp.createTempSync('todo_export_home');
       resolveExportHome = () => home.path;

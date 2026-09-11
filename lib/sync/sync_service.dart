@@ -182,7 +182,7 @@ class SyncService {
   /// depends on the optimisation being available.
   Future<Map<String, String>> _revisions(RemoteStore remote) async {
     if (remote is! BulkMapReader) return const {};
-    return (remote as BulkMapReader).getStringMap(revsDir);
+    return await (remote as BulkMapReader).getStringMap(revsDir);
   }
 
   /// Parses a remote note log, returning `null` for a corrupt or wrong-shape

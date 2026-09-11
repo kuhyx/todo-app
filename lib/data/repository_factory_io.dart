@@ -19,7 +19,7 @@ import 'package:uuid/uuid.dart';
 // run under test; [openRepositoryIn] holds all the logic and is covered.
 Future<NoteRepository> openRepository() async {
   final dir = await getApplicationSupportDirectory();
-  return openRepositoryIn(dir.path);
+  return await openRepositoryIn(dir.path);
 }
 // coverage:ignore-end
 
@@ -60,5 +60,8 @@ Future<NoteRepository> openRepositoryIn(String dirPath) async {
     nodeId = const Uuid().v4();
     await prefs.setString(NoteRepository.kNodeId, nodeId);
   }
-  return NoteRepository.openWith(persistence: persistence, nodeId: nodeId);
+  return await NoteRepository.openWith(
+    persistence: persistence,
+    nodeId: nodeId,
+  );
 }
