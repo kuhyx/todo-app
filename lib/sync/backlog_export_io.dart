@@ -35,7 +35,11 @@ Future<String> exportBacklog(String markdown, int noteCount) async {
   }
   // coverage:ignore-end
   final home = resolveExportHome();
-  final dir = Directory('$home/todo');
+  // `src/` since the 2026-09-11 ~ reorganisation: every repo lives under
+  // ~/src, and the path is built by interpolation, so the migration's
+  // reference rewriter could not see it — the app quietly recreated
+  // ~/todo on the next export.
+  final dir = Directory('$home/src/todo');
   if (!dir.existsSync()) dir.createSync(recursive: true);
   final file = File('${dir.path}/BACKLOG.md');
   await file.writeAsString(markdown);

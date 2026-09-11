@@ -21,7 +21,8 @@ LocalBackup createLocalBackup(NoteRepository repository) {
       return File('${dir.path}/todo-backlog.md');
     }
     final home = Platform.environment['HOME'] ?? Directory.current.path;
-    final dir = Directory('$home/todo')..createSync(recursive: true);
+    // See backlog_export_io.dart: canonical path is ~/src/todo.
+    final dir = Directory('$home/src/todo')..createSync(recursive: true);
     return File('${dir.path}/BACKLOG.md');
   }
 

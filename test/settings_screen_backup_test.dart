@@ -106,7 +106,7 @@ void main() {
       });
       await tester.pump();
 
-      final file = File('${home.path}/todo/BACKLOG.md');
+      final file = File('${home.path}/src/todo/BACKLOG.md');
       expect(file.existsSync(), isTrue);
       expect(file.readAsStringSync(), contains('an idea'));
     });
