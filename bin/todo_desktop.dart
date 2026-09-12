@@ -39,10 +39,12 @@ Future<void> main(List<String> args) async {
 
   // Overridable so a verification run cannot point at the real backlog: an
   // app that starts with an empty store would export over it.
+  //
+  // The default comes from [defaultBacklogPath] so it is unit-covered; this
+  // file is coverage:ignore-file and the path silently broke once already.
   final server = WrapperServer(
     webRoot: webRoot,
-    backlogPath:
-        _argValue(args, '--backlog-path') ?? p.join(home, 'todo', 'BACKLOG.md'),
+    backlogPath: _argValue(args, '--backlog-path') ?? defaultBacklogPath(home),
     logPath:
         _argValue(args, '--log-path') ??
         p.join(home, '.local', 'share', 'todo-desktop', 'todo_notes.json'),

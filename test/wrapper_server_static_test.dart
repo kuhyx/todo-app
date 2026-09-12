@@ -131,4 +131,17 @@ void main() {
     expect(kind('a.bin'), 'application/octet-stream');
     expect(kind('a.unknown'), 'application/octet-stream');
   });
+
+  // Regression: the 2026-09-11 `~` reorganisation moved every repo under
+  // `~/src`, and this path — assembled from segments — was invisible to the
+  // migration's literal-string rewriter. The wrapper exported to the dead
+  // `~/todo` while the `todo` MCP read `~/src/todo`, so every backlog read
+  // for a day came back stale. Assert the `src` segment, not just the tail.
+  test('default backlog path is the canonical ~/src/todo/BACKLOG.md', () {
+    expect(
+      defaultBacklogPath('/home/someone'),
+      '/home/someone/src/todo/BACKLOG.md',
+    );
+    expect(p.split(defaultBacklogPath('/h')), contains('src'));
+  });
 }

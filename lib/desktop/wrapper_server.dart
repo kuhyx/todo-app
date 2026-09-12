@@ -16,6 +16,19 @@ part 'wrapper_sync_routes.dart';
 /// [kSyncAccountEnvVar] as [kSyncAccountPath].
 const kSyncCredentialsPath = '/sync-credentials';
 
+/// The canonical backlog file for [home], i.e. `~/src/todo/BACKLOG.md`.
+///
+/// Lives here rather than in `bin/todo_desktop.dart` so it is covered: the
+/// entry point is `coverage:ignore-file` thin wiring, and this path silently
+/// broke once already. The 2026-09-11 `~` reorganisation moved every repo
+/// under `~/src`, but the migration's rewriter only matched *literal*
+/// `/home/kuhy/todo` strings — a path assembled from segments was invisible
+/// to it, so the wrapper went on exporting to the dead `~/todo` while the
+/// `todo` MCP read `~/src/todo`. Every backlog read between 2026-09-11 and
+/// 2026-09-12 got a stale file.
+String defaultBacklogPath(String home) =>
+    p.join(home, 'src', 'todo', 'BACKLOG.md');
+
 /// Local HTTP server backing the desktop app.
 ///
 /// The desktop app is a Flutter **web** build (Flutter's Linux embedder manages

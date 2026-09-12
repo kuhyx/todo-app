@@ -78,7 +78,9 @@ install_flutter_debian() {
         return
     fi
     log "no apt package named 'flutter'; cloning the Flutter SDK instead"
-    local install_dir="${HOME}/development/flutter"
+    # ~/sdk is the toolchain bucket since the 2026-09-11 ~ reorganisation;
+    # anything else at ~ root is swept to inbox/ within the hour.
+    local install_dir="${HOME}/sdk/flutter"
     if [[ ! -d "${install_dir}" ]]; then
         sudo apt-get install -y git curl
         git clone --depth 1 -b stable https://github.com/flutter/flutter.git "${install_dir}"
