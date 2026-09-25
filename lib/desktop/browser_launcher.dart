@@ -24,12 +24,14 @@ String profileDir(String home) =>
     p.join(home, '.local', 'share', 'todo-desktop', 'profile');
 
 /// Returns the first Chrome-family browser on this machine, or ''.
-String findBrowser() {
+///
+/// [override] defaults to `$TODO_BROWSER`; [exists] to a file check.
+String findBrowser({String? override, bool Function(String path)? exists}) {
   // Ordered by preference, and deliberately broad: this machine runs Thorium
   // behind /opt/google/chrome, and has a policy that uninstalls the `chromium`
   // package, so assuming any single browser is wrong. TODO_BROWSER overrides.
   final candidates = [
-    Platform.environment['TODO_BROWSER'] ?? '',
+    override ?? Platform.environment['TODO_BROWSER'] ?? '',
     '/opt/google/chrome/chrome',
     '/opt/thorium-browser/thorium-browser',
     '/usr/bin/google-chrome-stable',
@@ -37,17 +39,40 @@ String findBrowser() {
     '/usr/bin/brave',
   ];
   return candidates.firstWhere(
-    (path) => path.isNotEmpty && File(path).existsSync(),
+    (path) => path.isNotEmpty && (exists ?? (p) => File(p).existsSync())(path),
     orElse: () => '',
   );
 }
+
+/// Command-line arguments for the app window.
+List<String> browserArgs(String home) => [
+  '--app=http://localhost:$kWrapperPort',
+  '--user-data-dir=${profileDir(home)}',
+  // Sets WM_CLASS, which the .desktop entry matches on via StartupWMClass.
+  // Without it the window inherits the browser's class and the taskbar shows
+  // a browser icon instead of todo's.
+  '--class=todo',
+  '--no-first-run',
+  // Keep Chrome off the GNOME keyring. While the keyring is locked, Chrome
+  // blocks every non-incognito page load on its first cookie access, and an
+  // "Unlock Keyring" prompt waits on another workspace: the window stays a
+  // blank grey. Nothing in this profile needs OS-level encryption (the
+  // GitHub token is in localStorage, not the password store).
+  '--password-store=basic',
+];
 
 /// Launches the app in a Chrome-family browser with a **stable** profile
 /// directory, since the token and notes live in that profile.
 ///
 /// Returns true when the browser ran long enough to have owned the session.
-Future<bool> launchBrowser(String home) async {
-  final browser = findBrowser();
+/// [browser] and [start] exist for tests; they default to [findBrowser] and
+/// [Process.start].
+Future<bool> launchBrowser(
+  String home, {
+  String? browser,
+  Future<Process> Function(String executable, List<String> args)? start,
+}) async {
+  browser ??= findBrowser();
   if (browser.isEmpty) {
     stderr.writeln(
       'No Chrome-family browser found; open '
@@ -55,15 +80,7 @@ Future<bool> launchBrowser(String home) async {
     );
     return false;
   }
-  final process = await Process.start(browser, [
-    '--app=http://localhost:$kWrapperPort',
-    '--user-data-dir=${profileDir(home)}',
-    // Sets WM_CLASS, which the .desktop entry matches on via StartupWMClass.
-    // Without it the window inherits the browser's class and the taskbar shows
-    // a browser icon instead of todo's.
-    '--class=todo',
-    '--no-first-run',
-  ]);
+  final process = await (start ?? Process.start)(browser, browserArgs(home));
 
   final started = DateTime.now();
   await process.exitCode;

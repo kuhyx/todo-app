@@ -117,8 +117,8 @@ rewrites links to `~/data/cloud/todo-images/…` so an agent can open them.
 
 ## Testing
 
-- **The suite must stay quick and fully green.** It is currently **418 tests at
-  100% line coverage** (2494 lines), ~30s on this machine with
+- **The suite must stay quick and fully green.** It is currently **427 tests at
+  100% line coverage** (2512 lines), ~30s on this machine with
   `--concurrency=3` (unbounded concurrency under `capped.sh`'s 4 GiB gets its
   test processes SIGTERMed while the wrapper still exits 0 — check the last
   line says "All tests passed"). Don't regress either.
