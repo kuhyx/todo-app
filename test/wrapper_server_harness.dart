@@ -12,7 +12,9 @@ import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:todo/desktop/wrapper_image_routes.dart';
 import 'package:todo/desktop/wrapper_server.dart';
+import 'package:todo/images/image_cache_store.dart';
 
 /// One test's temp web root and the [WrapperServer] serving it.
 ///
@@ -45,6 +47,7 @@ class WrapperHarness {
         webRoot: webRoot.path,
         backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
         logPath: p.join(root.path, 'state', 'todo_notes.json'),
+        images: images(),
         // Without this, the default falls back to the real
         // $HOME/.config/todo/firebase_auth.json -- on a machine that has
         // actually signed in (a real desktop session), that file exists, so
@@ -67,6 +70,14 @@ class WrapperHarness {
     });
   }
 
+  /// Image routes rooted in this test's temp dir. Without them the server
+  /// defaults to the real `~/.local/share/todo-desktop/images` and the real
+  /// dufs login in `~/.config/dufs/logins/todo.env`.
+  WrapperImageRoutes images() => WrapperImageRoutes(
+    store: ImageCacheStore(Directory(p.join(root.path, 'images'))),
+    loginEnvPath: p.join(root.path, 'dufs', 'todo.env'),
+  );
+
   Future<String> enabledOrigin(
     Map<String, String> files, {
     String? credentialsJson,
@@ -87,6 +98,7 @@ class WrapperHarness {
       webRoot: p.join(root.path, 'web'),
       backlogPath: p.join(root.path, 'todo', 'BACKLOG.md'),
       logPath: p.join(root.path, 'state', 'todo_notes.json'),
+      images: images(),
       serveSyncAccount: true,
       syncConfigDir: configDir.path,
       todoCredentialsPath:

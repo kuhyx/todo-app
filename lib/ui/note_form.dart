@@ -12,12 +12,15 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/image_attach.dart';
+import 'package:todo/ui/images/image_strip.dart';
 import 'package:todo/ui/note_editor.dart';
 import 'package:todo/ui/note_form_chrome_gate.dart';
 import 'package:todo/ui/note_meta_row.dart';
 
-/// The metadata row above a [NoteEditor], gated on advanced mode.
-class NoteForm extends StatelessWidget {
+/// The metadata row above a [NoteEditor], gated on advanced mode, and the
+/// attached-image thumbnails below it.
+class NoteForm extends StatefulWidget {
   /// Creates the form for the given note values.
   const NoteForm({
     required this.advancedMode,
@@ -29,6 +32,7 @@ class NoteForm extends StatelessWidget {
     this.initialText = '',
     this.initialTemplate,
     this.autofocus = false,
+    this.attachController,
     super.key,
   });
 
@@ -60,10 +64,34 @@ class NoteForm extends StatelessWidget {
   /// Autofocus the editor, so a fresh capture needs zero taps before typing.
   final bool autofocus;
 
+  /// Where the screen's attach actions insert image links.
+  final ImageAttachController? attachController;
+
+  @override
+  State<NoteForm> createState() => _NoteFormState();
+}
+
+class _NoteFormState extends State<NoteForm> {
+  // The live text, for the thumbnail strip only: a notifier so a keystroke
+  // rebuilds the strip, not the editor.
+  late final ValueNotifier<String> _text = ValueNotifier(widget.initialText);
+  bool _previewing = false;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String text) {
+    _text.value = text;
+    widget.onChanged(text);
+  }
+
   @override
   Widget build(BuildContext context) {
     return NoteFormChromeGate(
-      advancedMode: advancedMode,
+      advancedMode: widget.advancedMode,
       builder:
           (context, {required chromeVisible, required onChromeVisibleChanged}) {
             return Column(
@@ -71,26 +99,38 @@ class NoteForm extends StatelessWidget {
               children: [
                 if (chromeVisible) ...[
                   NoteMetaRow(
-                    priority: priority,
-                    status: status,
-                    onPriorityChanged: onPriorityChanged,
-                    onStatusChanged: onStatusChanged,
+                    priority: widget.priority,
+                    status: widget.status,
+                    onPriorityChanged: widget.onPriorityChanged,
+                    onStatusChanged: widget.onStatusChanged,
                   ),
                   const SizedBox(height: 12),
                 ],
                 Expanded(
                   child: NoteEditor(
-                    initialText: initialText,
-                    initialTemplate: initialTemplate,
+                    initialText: widget.initialText,
+                    initialTemplate: widget.initialTemplate,
                     initialMode: NoteEditorMode.raw,
-                    advancedMode: advancedMode,
-                    priority: priority,
-                    onPriorityChanged: onPriorityChanged,
+                    advancedMode: widget.advancedMode,
+                    priority: widget.priority,
+                    onPriorityChanged: widget.onPriorityChanged,
                     onChromeVisibleChanged: onChromeVisibleChanged,
-                    autofocus: autofocus,
-                    onChanged: onChanged,
+                    autofocus: widget.autofocus,
+                    onChanged: _onChanged,
+                    attachController: widget.attachController,
+                    onModeChanged: (mode) => setState(
+                      () => _previewing = mode == NoteEditorMode.preview,
+                    ),
                   ),
                 ),
+                // A sibling of the editor's Expanded, not nested inside it:
+                // an extra Column around the expanding field breaks its
+                // height in release builds (see NoteEditorRawField).
+                if (!_previewing)
+                  ValueListenableBuilder<String>(
+                    valueListenable: _text,
+                    builder: (context, text, _) => ImageStrip(text: text),
+                  ),
               ],
             );
           },

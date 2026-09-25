@@ -14,7 +14,7 @@ Future<NoteRepository> openRepository() async {
   final database = await WebLogPersistence.openDatabase(idbFactoryBrowser);
   final persistence = WebLogPersistence(
     database: database,
-    backup: DesktopBackupClient(baseUrl: desktopWrapperOrigin),
+    backup: DesktopBackupClient(baseUrl: servingWrapperOrigin()),
   );
 
   final prefs = await SharedPreferences.getInstance();

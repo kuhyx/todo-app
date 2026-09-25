@@ -22,6 +22,7 @@ class CaptureScreen extends StatefulWidget {
     this.localBackup,
     this.firebaseFactory,
     this.stateStore,
+    this.imagePicking,
     super.key,
   });
 
@@ -54,6 +55,9 @@ class CaptureScreen extends StatefulWidget {
   /// Injectable local-disk backup. Production leaves this null (a platform
   /// file-backed instance is created); tests pass a fake with in-memory IO.
   final LocalBackup? localBackup;
+
+  /// The 📎 picker; null uses the platform one. Injected by tests.
+  final ImagePicking? imagePicking;
 
   /// How long focus must stay lost before a background sync fires. Public so
   /// tests can pump exactly past it.

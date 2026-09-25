@@ -68,6 +68,7 @@ Three layers under `lib/`, each single-purpose:
     token. `sync_settings.dart`: persisted owner/repo/token/clientId.
   - `notes_markdown.dart`: round-trippable single-file export/import format
     (HTML-comment `<!-- @note id=… priority=… status=… … -->` markers).
+- `images/` + `attachments/` — attached images (see "Images" below).
 - `ui/` — screens, all take an injected `NoteRepository`.
   - `capture_screen.dart`: landing screen; always-focused text box pre-filled
     with the structured template; lazy note creation on first keystroke.
@@ -98,11 +99,29 @@ that, the stepper would fold a retired section into its neighbour on the next
 save. `tool/migrate_backlog.dart` converts an old export (Settings → Export →
 migrate → Settings → Import).
 
+### Images
+
+A note never holds image bytes, only a line
+`![](https://kuhy-cloud.duckdns.org/todo-images/<noteId>/<uuid>.jpg)`
+(`lib/images/image_ref.dart` owns that shape), so sync and older builds are
+untouched. Every image is re-encoded before it leaves the device: ≤2560 px,
+JPEG q85, EXIF stripped after applying its rotation (`image_processing.dart`).
+`ImageCacheStore` keeps every linked image on-device (offline) plus a
+`.pending` marker per queued upload, and `reconcile` uploads, prefetches and
+evicts (never an empty ref set, never within 10 min). Android talks to dufs
+directly with the `todo` login's password (Settings → Cloud images); the
+desktop page never does — the wrapper's `/images/*` routes do, with
+`~/.config/dufs/logins/todo.env`, created by
+`~/src/dufs-cloud/scripts/add_dufs_login.sh todo /todo-images rw`. BACKLOG.md
+rewrites links to `~/data/cloud/todo-images/…` so an agent can open them.
+
 ## Testing
 
-- **The suite must stay quick and fully green.** It is currently **313 tests at
-  100% line coverage** (2005 lines), running well under a minute on this
-  machine. Don't regress either.
+- **The suite must stay quick and fully green.** It is currently **418 tests at
+  100% line coverage** (2494 lines), ~30s on this machine with
+  `--concurrency=3` (unbounded concurrency under `capped.sh`'s 4 GiB gets its
+  test processes SIGTERMed while the wrapper still exits 0 — check the last
+  line says "All tests passed"). Don't regress either.
   (The "~5s" figure this file used to quote had drifted well before the port
   guard was added; measure before quoting a new one.)
 - Widget tests use `test/fake_note_repository.dart` — a `FakeNoteRepository`

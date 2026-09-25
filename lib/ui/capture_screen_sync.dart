@@ -9,10 +9,18 @@
 part of 'capture_screen.dart';
 
 extension _CaptureSyncBehaviour on _CaptureScreenState {
+  /// Background sync, then an image reconcile over the notes it produced.
+  /// The reconcile runs even when sync is skipped (unconfigured, offline):
+  /// images have their own login and must still upload and prefetch.
+  Future<void> _autoSync() async {
+    await _autoSyncPass();
+    await _reconcileImages();
+  }
+
   /// Best-effort background sync: no snackbar, skips when unconfigured, and
   /// never overlaps itself. Failures are not swallowed silently — the outcome
   /// lands in the status line so drift can't go unnoticed for days.
-  Future<void> _autoSync() async {
+  Future<void> _autoSyncPass() async {
     final settings = _settings;
     if (_autoSyncing || settings == null) return;
     // Either backend counts. `isConfigured` means "has a GitHub token", so
@@ -50,6 +58,30 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
   void _adoptReconciledSettings(AppSettings? reconciled) {
     if (!mounted) return;
     widget.appSettings.value = widget.appSettings.value.adopt(reconciled);
+  }
+
+  /// Opens the settings screen and adopts any saved configuration.
+  Future<void> _openSettings() async {
+    _logEvent('screen_view', params: {'screen': 'settings'});
+    final current = _settings ?? await SyncSettings.load();
+    if (!mounted) return;
+    await Navigator.of(context).push<SyncSettings>(
+      MaterialPageRoute(
+        builder: (_) => SettingsScreen(
+          initial: current,
+          repository: widget.repository,
+          appSettings: widget.appSettings,
+          analytics: widget.analytics,
+          httpClient: widget.httpClient,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    // Always reload from storage: a device-flow "Connect" saves the token
+    // without popping a result, so relying on the pop value would miss it and
+    // leave us syncing with stale (token-less) settings.
+    final fresh = await SyncSettings.load();
+    _rebuild(() => _settings = fresh);
   }
 
   void _openList() {
@@ -95,8 +127,17 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
     if (recovered.isNotEmpty) await widget.repository.importNotes(recovered);
   }
 
-  /// The composer column: metadata row, editor, and status footer.
+  /// The composer column: metadata row, editor, and status footer. Images
+  /// pasted or dropped anywhere on the (desktop) page attach to the draft.
   Widget _captureBody({required bool advanced}) {
+    return ImageInputListener(
+      onImages: (images, rejected) =>
+          unawaited(_attachImages(images, rejected: rejected)),
+      child: _composer(advanced: advanced),
+    );
+  }
+
+  Widget _composer({required bool advanced}) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -120,6 +161,7 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
               onStatusChanged: _setStatus,
               autofocus: true,
               onChanged: _onChanged,
+              attachController: _attach,
             ),
           ),
           CaptureStatusFooter(

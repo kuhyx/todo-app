@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/image_attach.dart';
 import 'package:todo/ui/markdown_view.dart';
 import 'package:todo/ui/note_editor_chrome.dart';
 import 'package:todo/ui/note_editor_document.dart';
@@ -13,6 +14,7 @@ import 'package:todo/ui/note_editor_wizard.dart';
 
 export 'package:todo/ui/note_editor_mode.dart';
 
+part 'note_editor_images.dart';
 part 'note_editor_views.dart';
 part 'note_editor_widget.dart';
 
@@ -31,6 +33,9 @@ class _NoteEditorState extends State<NoteEditor> {
   /// [_retemplateDraft] from overriding that choice as they keep typing.
   bool _templatePickedByUser = false;
 
+  /// Detaches this editor from [NoteEditor.attachController].
+  VoidCallback? _unbindImages;
+
   @override
   void initState() {
     super.initState();
@@ -40,10 +45,20 @@ class _NoteEditorState extends State<NoteEditor> {
       openingRaw: widget.initialMode == NoteEditorMode.raw,
     );
     _mode = _resolveMode(widget.initialMode);
+    _unbindImages = widget.attachController?.bind(_insertImageLinks);
+  }
+
+  @override
+  void didUpdateWidget(NoteEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(oldWidget.attachController, widget.attachController)) return;
+    _unbindImages?.call();
+    _unbindImages = widget.attachController?.bind(_insertImageLinks);
   }
 
   @override
   void dispose() {
+    _unbindImages?.call();
     _doc.dispose();
     super.dispose();
   }
@@ -140,6 +155,7 @@ class _NoteEditorState extends State<NoteEditor> {
     widget.onChromeVisibleChanged(
       !_enteringGuided && _mode != NoteEditorMode.guided,
     );
+    widget.onModeChanged?.call(_mode);
   }
 
   /// Commits the wizard's template choice and enters the bare stepper.

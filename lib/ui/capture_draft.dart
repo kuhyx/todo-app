@@ -34,6 +34,10 @@ class CaptureDraft {
   String? _id;
   DateTime? _createdAt;
 
+  /// Whether [_id] was handed out by [reserveId] and no write has used it
+  /// yet, so the first write still reports the note as created.
+  bool _reserved = false;
+
   /// The draft's priority, applied to every write.
   Priority priority = Priority.defaultValue;
 
@@ -54,9 +58,25 @@ class CaptureDraft {
       _id = _uuid.v4();
       _createdAt = DateTime.now();
       created = true;
+    } else if (_reserved) {
+      if (text.trim().isEmpty) return false;
+      _reserved = false;
+      created = true;
     }
     await _save(live: live);
     return created;
+  }
+
+  /// The draft's note id, reserving one (without saving anything) when the
+  /// draft has none yet: an attached image is filed under its note's id
+  /// before the link that creates the note is inserted.
+  String reserveId() {
+    if (_id == null) {
+      _id = _uuid.v4();
+      _createdAt = DateTime.now();
+      _reserved = true;
+    }
+    return _id!;
   }
 
   /// Re-saves when only priority/status changed.
@@ -64,7 +84,7 @@ class CaptureDraft {
   /// Does nothing before the row exists: the new value is already held here
   /// and will be applied by the first keystroke that creates it.
   Future<void> persistMetadata({required bool Function() live}) async {
-    if (_id == null) return;
+    if (_id == null || _reserved) return;
     await _save(live: live);
   }
 
@@ -91,6 +111,7 @@ class CaptureDraft {
     _text = '';
     _id = null;
     _createdAt = null;
+    _reserved = false;
     priority = Priority.defaultValue;
     status = Status.todo;
     lastSavedAt.value = null;

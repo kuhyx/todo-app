@@ -1,4 +1,5 @@
 import 'package:todo/data/note.dart';
+import 'package:todo/images/image_ref.dart';
 import 'package:uuid/uuid.dart';
 
 /// Serialises notes to (and parses them back from) a single Markdown file.
@@ -9,6 +10,11 @@ import 'package:uuid/uuid.dart';
 /// lets [NoteRepository.importNotes] re-import a file as a *merge* (by id)
 /// rather than creating duplicates — the basis for "never lose ideas"
 /// recovery and round-tripping a backup.
+///
+/// Attached-image links are written as their on-disk path on kuhy's PC
+/// (`~/data/cloud/todo-images/…`) so an agent reading `BACKLOG.md` can open
+/// the picture directly; [parse] turns them back into the dufs URL, so a
+/// backup still round-trips exactly.
 class NotesMarkdown {
   // Private ctor: this is a static-only utility class, never instantiated.
   const NotesMarkdown._(); // coverage:ignore-line
@@ -41,7 +47,7 @@ class NotesMarkdown {
           'created="${note.createdAt.toIso8601String()}" '
           'updated="${note.updatedAt.toIso8601String()}" -->',
         )
-        ..writeln(note.text)
+        ..writeln(toBacklogImagePaths(note.text))
         ..writeln();
     }
     return buffer.toString();
@@ -62,7 +68,9 @@ class NotesMarkdown {
       final bodyEnd = i + 1 < markers.length
           ? markers[i + 1].start
           : content.length;
-      final body = content.substring(bodyStart, bodyEnd).trim();
+      final body = fromBacklogImagePaths(
+        content.substring(bodyStart, bodyEnd).trim(),
+      );
 
       final id = attrs['id'];
       notes.add(

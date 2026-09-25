@@ -4,6 +4,8 @@
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:todo/analytics/analytics_service.dart';
+import 'package:todo/attachments/image_store.dart';
+import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/repository_factory.dart';
@@ -20,12 +22,15 @@ Future<void> main() async {
   final repository = await openRepository();
   final appSettings = ValueNotifier(await AppSettings.load());
   final analytics = AnalyticsService(nodeId: repository.nodeId);
+  // App storage + direct dufs on Android; the wrapper's /images on desktop.
+  final imageStore = await openImageStore();
 
   runApp(
     TodoApp(
       repository: repository,
       appSettings: appSettings,
       analytics: analytics,
+      imageStore: imageStore,
     ),
   );
 }
@@ -39,6 +44,7 @@ class TodoApp extends StatelessWidget {
     required this.repository,
     required this.appSettings,
     required this.analytics,
+    required this.imageStore,
     super.key,
   });
 
@@ -53,16 +59,23 @@ class TodoApp extends StatelessWidget {
   /// reports interaction events.
   final AnalyticsService analytics;
 
+  /// The single, app-wide store for attached images.
+  final ImageStore imageStore;
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'todo',
-      theme: buildLightTheme(),
-      darkTheme: buildDarkTheme(),
-      home: CaptureScreen(
-        repository: repository,
-        appSettings: appSettings,
-        analytics: analytics,
+    // Above MaterialApp so pushed routes (note detail) see it too.
+    return ImageStoreScope(
+      store: imageStore,
+      child: MaterialApp(
+        title: 'todo',
+        theme: buildLightTheme(),
+        darkTheme: buildDarkTheme(),
+        home: CaptureScreen(
+          repository: repository,
+          appSettings: appSettings,
+          analytics: analytics,
+        ),
       ),
     );
   }

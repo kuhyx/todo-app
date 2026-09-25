@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/image_attach.dart';
+import 'package:todo/ui/image_input.dart';
+import 'package:todo/ui/image_picking.dart';
 import 'package:todo/ui/note_form.dart';
 
 /// Full-screen view of a single note: read it in full, edit its body through
@@ -18,6 +24,7 @@ class NoteDetailScreen extends StatefulWidget {
     required this.note,
     required this.repository,
     required this.appSettings,
+    this.imagePicking,
     super.key,
   });
 
@@ -32,12 +39,27 @@ class NoteDetailScreen extends StatefulWidget {
   /// exactly what made editing look different from capture.
   final ValueNotifier<AppSettings> appSettings;
 
+  /// The 📎 picker; null uses the platform one. Injected by tests.
+  final ImagePicking? imagePicking;
+
   @override
   State<NoteDetailScreen> createState() => _NoteDetailScreenState();
 }
 
 class _NoteDetailScreenState extends State<NoteDetailScreen> {
   late Note _note = widget.note;
+
+  /// Inserts attached-image links into the editor.
+  final ImageAttachController _attach = ImageAttachController();
+
+  Future<void> _attachImages(List<Uint8List> images, {int rejected = 0}) =>
+      attachImages(
+        context,
+        noteId: () => _note.id,
+        target: _attach,
+        images: images,
+        rejected: rejected,
+      );
 
   Future<void> _persist(Note next) async {
     setState(() => _note = next);
@@ -65,6 +87,10 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       appBar: AppBar(
         title: Text(title.isEmpty ? '(empty)' : title),
         actions: [
+          AttachImageButton(
+            onImages: _attachImages,
+            picking: widget.imagePicking,
+          ),
           IconButton(
             tooltip: 'Delete note',
             icon: const Icon(Icons.delete_outline),
@@ -72,23 +98,29 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        // The same form capture renders, gated on the same setting, so an
-        // edited note and a fresh one cannot look different.
-        child: ValueListenableBuilder<AppSettings>(
-          valueListenable: widget.appSettings,
-          builder: (context, settings, _) => NoteForm(
-            advancedMode: settings.advancedMode,
-            initialText: _note.text,
-            priority: _note.priority,
-            status: _note.status,
-            onPriorityChanged: (p) => _persist(
-              _note.copyWith(priority: p, updatedAt: DateTime.now()),
+      body: ImageInputListener(
+        onImages: (images, rejected) =>
+            unawaited(_attachImages(images, rejected: rejected)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          // The same form capture renders, gated on the same setting, so an
+          // edited note and a fresh one cannot look different.
+          child: ValueListenableBuilder<AppSettings>(
+            valueListenable: widget.appSettings,
+            builder: (context, settings, _) => NoteForm(
+              advancedMode: settings.advancedMode,
+              initialText: _note.text,
+              priority: _note.priority,
+              status: _note.status,
+              onPriorityChanged: (p) => _persist(
+                _note.copyWith(priority: p, updatedAt: DateTime.now()),
+              ),
+              onStatusChanged: (s) => _persist(
+                _note.copyWith(status: s, updatedAt: DateTime.now()),
+              ),
+              onChanged: _onTextChanged,
+              attachController: _attach,
             ),
-            onStatusChanged: (s) =>
-                _persist(_note.copyWith(status: s, updatedAt: DateTime.now())),
-            onChanged: _onTextChanged,
           ),
         ),
       ),

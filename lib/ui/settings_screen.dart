@@ -14,6 +14,7 @@ import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/google_sign_in_backend.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/sync_settings.dart';
+import 'package:todo/ui/cloud_images_settings.dart';
 import 'package:todo/ui/github_mirror_screen.dart';
 
 /// Settings screen: the "Enable advanced" toggle plus links to the two sync
@@ -177,11 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           googleFirebaseFactory:
               widget.googleFirebaseFactory ?? openFirebaseWithGoogle,
           googleAvailable: widget.googleAvailable ?? googleSignInSupported,
-          backup: BackupSlot(
-            label: 'notes',
-            export: _export,
-            import: _import,
-          ),
+          backup: BackupSlot(label: 'notes', export: _export, import: _import),
         ),
       ),
     );
@@ -231,6 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => unawaited(_openSyncSettings()),
           ),
+          CloudImagesTile(httpClient: widget.httpClient),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Advanced sync (GitHub)'),

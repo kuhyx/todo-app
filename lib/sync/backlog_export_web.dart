@@ -5,7 +5,7 @@ import 'package:todo/sync/desktop_wrapper.dart';
 /// Export still lands at the canonical `~/src/todo/BACKLOG.md` path the user's
 /// tooling reads — the browser itself cannot write there.
 Future<String> exportBacklog(String markdown, int noteCount) async {
-  final client = DesktopBackupClient(baseUrl: desktopWrapperOrigin);
+  final client = DesktopBackupClient(baseUrl: servingWrapperOrigin());
   await client.writeBacklog(markdown);
   return 'Exported $noteCount notes to ~/src/todo/BACKLOG.md';
 }

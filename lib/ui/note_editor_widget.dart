@@ -41,6 +41,8 @@ class NoteEditor extends StatefulWidget {
     this.initialMode = NoteEditorMode.guided,
     this.autofocus = false,
     this.advancedMode = true,
+    this.attachController,
+    this.onModeChanged,
     super.key,
   });
 
@@ -84,6 +86,14 @@ class NoteEditor extends StatefulWidget {
   /// then resolves to raw) — a transient, self-healing state, not a hole
   /// in the gating.
   final bool advancedMode;
+
+  /// Bound to this editor's insert-at-cursor while it is mounted, so the
+  /// screen can drop attached-image links into the field being edited.
+  final ImageAttachController? attachController;
+
+  /// Called with the displayed mode after each mode switch (the thumbnail
+  /// strip hides in View mode, which renders images inline).
+  final ValueChanged<NoteEditorMode>? onModeChanged;
 
   @override
   State<NoteEditor> createState() => _NoteEditorState();

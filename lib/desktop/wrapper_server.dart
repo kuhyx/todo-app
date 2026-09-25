@@ -5,6 +5,10 @@ import 'dart:io';
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:todo/desktop/wrapper_image_routes.dart';
+
+export 'wrapper_paths.dart';
+
 part 'wrapper_sync_routes.dart';
 
 /// Route serving `todo`'s own seeded Firebase session (a `FirebaseCredentials`
@@ -15,19 +19,6 @@ part 'wrapper_sync_routes.dart';
 /// surface area five other apps never use. Gated by the same
 /// [kSyncAccountEnvVar] as [kSyncAccountPath].
 const kSyncCredentialsPath = '/sync-credentials';
-
-/// The canonical backlog file for [home], i.e. `~/src/todo/BACKLOG.md`.
-///
-/// Lives here rather than in `bin/todo_desktop.dart` so it is covered: the
-/// entry point is `coverage:ignore-file` thin wiring, and this path silently
-/// broke once already. The 2026-09-11 `~` reorganisation moved every repo
-/// under `~/src`, but the migration's rewriter only matched *literal*
-/// `/home/kuhy/todo` strings — a path assembled from segments was invisible
-/// to it, so the wrapper went on exporting to the dead `~/todo` while the
-/// `todo` MCP read `~/src/todo`. Every backlog read between 2026-09-11 and
-/// 2026-09-12 got a stale file.
-String defaultBacklogPath(String home) =>
-    p.join(home, 'src', 'todo', 'BACKLOG.md');
 
 /// Local HTTP server backing the desktop app.
 ///
@@ -55,7 +46,11 @@ class WrapperServer {
     bool? serveSyncAccount,
     String? syncConfigDir,
     String? todoCredentialsPath,
-  }) : serveSyncAccount =
+    WrapperImageRoutes? images,
+  }) : images =
+           images ??
+           defaultWrapperImageRoutes(Platform.environment['HOME'] ?? ''),
+       serveSyncAccount =
            serveSyncAccount ??
            (Platform.environment[kSyncAccountEnvVar] ?? '').isNotEmpty,
        syncConfigDir =
@@ -69,6 +64,9 @@ class WrapperServer {
              'todo',
              'firebase_auth.json',
            );
+
+  /// The `/images/*` routes (attached images; see [WrapperImageRoutes]).
+  final WrapperImageRoutes images;
 
   /// Whether the sync-account route answers; off unless explicitly enabled.
   final bool serveSyncAccount;
@@ -152,6 +150,7 @@ class WrapperServer {
     if (path == kSyncCredentialsPath) {
       return await _syncCredentials(request);
     }
+    if (await images.handle(request)) return;
     return await _static(request, path);
   }
 
@@ -219,6 +218,8 @@ class WrapperServer {
         return ContentType('text', 'css', charset: 'utf-8');
       case '.png':
         return ContentType('image', 'png');
+      case '.jpg' || '.jpeg':
+        return ContentType('image', 'jpeg');
       case '.svg':
         return ContentType('image', 'svg+xml');
       case '.ttf':

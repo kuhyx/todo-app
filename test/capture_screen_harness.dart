@@ -17,6 +17,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/analytics/analytics_service.dart';
+import 'package:todo/attachments/image_store_api.dart';
+import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
@@ -24,6 +26,7 @@ import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/ui/capture_screen.dart';
 import 'package:todo/ui/github_mirror_screen.dart';
+import 'package:todo/ui/image_picking.dart';
 import 'package:todo/ui/settings_screen.dart';
 
 import 'fake_note_repository.dart';
@@ -46,6 +49,8 @@ Future<FakeNoteRepository> pumpCapture(
   // behavior pass advancedMode: false explicitly.
   ValueNotifier<AppSettings>? appSettings,
   AnalyticsService? analytics,
+  ImageStore? imageStore,
+  ImagePicking? imagePicking,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
   installFakeSecureStorage();
@@ -67,22 +72,24 @@ Future<FakeNoteRepository> pumpCapture(
         writer: (_) async {},
         debounce: Duration.zero,
       );
-  await tester.pumpWidget(
-    MaterialApp(
-      home: CaptureScreen(
-        repository: repo,
-        appSettings:
-            appSettings ?? ValueNotifier(const AppSettings(advancedMode: true)),
-        analytics: analytics,
-        httpClient: httpClient,
-        // Both injected so the widget never reaches for the platform: the
-        // real factories want the OS keystore and an application-support
-        // directory, neither of which exists under `flutter test`.
-        firebaseFactory: firebaseFactory ?? () async => null,
-        stateStore: InMemorySyncStateStore(),
-        localBackup: backup,
-      ),
+  final app = MaterialApp(
+    home: CaptureScreen(
+      repository: repo,
+      appSettings:
+          appSettings ?? ValueNotifier(const AppSettings(advancedMode: true)),
+      analytics: analytics,
+      httpClient: httpClient,
+      // Both injected so the widget never reaches for the platform: the
+      // real factories want the OS keystore and an application-support
+      // directory, neither of which exists under `flutter test`.
+      firebaseFactory: firebaseFactory ?? () async => null,
+      stateStore: InMemorySyncStateStore(),
+      localBackup: backup,
+      imagePicking: imagePicking,
     ),
+  );
+  await tester.pumpWidget(
+    imageStore == null ? app : ImageStoreScope(store: imageStore, child: app),
   );
   await tester.pump(); // flush initial stream + settings load
   return repo;

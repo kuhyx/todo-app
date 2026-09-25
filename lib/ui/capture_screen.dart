@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:todo/analytics/analytics_event.dart';
 import 'package:todo/analytics/analytics_service.dart';
+import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
@@ -17,10 +19,14 @@ import 'package:todo/ui/capture_draft.dart';
 import 'package:todo/ui/capture_status.dart';
 import 'package:todo/ui/capture_status_footer.dart';
 import 'package:todo/ui/capture_sync_runner.dart';
+import 'package:todo/ui/image_attach.dart';
+import 'package:todo/ui/image_input.dart';
+import 'package:todo/ui/image_picking.dart';
 import 'package:todo/ui/note_form.dart';
 import 'package:todo/ui/notes_list_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
 
+part 'capture_screen_images.dart';
 part 'capture_screen_sync.dart';
 part 'capture_screen_widget.dart';
 
@@ -58,6 +64,9 @@ class _CaptureScreenState extends State<CaptureScreen>
   /// happened just before the app closed is still visible on next launch.
   /// The note being captured, and its write-through to storage.
   late final CaptureDraft _draft = CaptureDraft(widget.repository);
+
+  /// Inserts attached-image links into the mounted editor.
+  final ImageAttachController _attach = ImageAttachController();
 
   final SyncStatusStore _syncStatus = SyncStatusStore();
 
@@ -138,6 +147,8 @@ class _CaptureScreenState extends State<CaptureScreen>
             onSync: _sync,
             onOpenList: _openList,
             onOpenSettings: _openSettings,
+            onAttachImages: _attachImages,
+            imagePicking: widget.imagePicking,
           ),
           body: _captureBody(advanced: advanced),
         );
@@ -167,31 +178,9 @@ class _CaptureScreenState extends State<CaptureScreen>
       // flicker doesn't fire a request per focus change.
       _autoSyncDebounce?.cancel();
       _autoSyncDebounce = Timer(CaptureScreen.autoSyncDebounce, _autoSync);
+    } else if (state == AppLifecycleState.resumed) {
+      unawaited(_reconcileImages());
     }
-  }
-
-  /// Opens the settings screen and adopts any saved configuration.
-  Future<void> _openSettings() async {
-    _logEvent('screen_view', params: {'screen': 'settings'});
-    final current = _settings ?? await SyncSettings.load();
-    if (!mounted) return;
-    await Navigator.of(context).push<SyncSettings>(
-      MaterialPageRoute(
-        builder: (_) => SettingsScreen(
-          initial: current,
-          repository: widget.repository,
-          appSettings: widget.appSettings,
-          analytics: widget.analytics,
-          httpClient: widget.httpClient,
-        ),
-      ),
-    );
-    if (!mounted) return;
-    // Always reload from storage: a device-flow "Connect" saves the token
-    // without popping a result, so relying on the pop value would miss it and
-    // leave us syncing with stale (token-less) settings.
-    final fresh = await SyncSettings.load();
-    setState(() => _settings = fresh);
   }
 
   /// Runs a full sync, routing to settings first if not yet configured.
@@ -210,6 +199,7 @@ class _CaptureScreenState extends State<CaptureScreen>
         live: () => mounted,
       );
       if (outcome.ok) _adoptReconciledSettings(outcome.reconciled);
+      unawaited(_reconcileImages());
       _logEvent(
         'sync_result',
         params: {

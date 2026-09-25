@@ -17,6 +17,7 @@
 library;
 
 import 'package:todo/data/note_template.dart';
+import 'package:todo/images/image_ref.dart';
 
 /// Matches a single `http(s)://…` token.
 final RegExp _linkPattern = RegExp(r'^https?://\S+$');
@@ -140,14 +141,25 @@ ParsedNote parse(NoteTemplate template, String text) {
 }
 
 /// The note's display title: the `#` heading text without its `#` marker, or
-/// the first non-empty line for freeform notes.
+/// the first non-empty line for freeform notes. Attached-image lines are
+/// skipped (a 120-char dufs URL is no title); a note of nothing but images
+/// is titled by their count.
 String noteTitle(String text) {
+  var images = 0;
   for (final line in text.split('\n')) {
     final trimmed = line.trim();
     if (trimmed.isEmpty) continue;
+    if (imageRefOfLine(trimmed) != null) {
+      images++;
+      continue;
+    }
     return trimmed.replaceFirst(RegExp(r'^#+\s*'), '');
   }
-  return '';
+  return switch (images) {
+    0 => '',
+    1 => 'Image',
+    _ => '$images images',
+  };
 }
 
 /// Returns the section whose `## label` heading is on [line], or null. Only

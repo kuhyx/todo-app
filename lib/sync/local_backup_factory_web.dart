@@ -10,7 +10,7 @@ import 'package:todo/sync/local_backup.dart';
 /// tooling and the `todo` MCP server read it, and without this the move to a
 /// web build would let it silently go stale.
 LocalBackup createLocalBackup(NoteRepository repository) {
-  final client = DesktopBackupClient(baseUrl: desktopWrapperOrigin);
+  final client = DesktopBackupClient(baseUrl: servingWrapperOrigin());
   return LocalBackup(
     fetch: repository.listNotes,
     // Recovery reads the same file back through the wrapper, so a cleared
