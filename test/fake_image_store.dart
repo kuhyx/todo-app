@@ -7,22 +7,22 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:todo/attachments/image_store_api.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 /// Records attaches and reconciles; every image is "local" at a fake path
 /// unless listed in [missing].
 class FakeImageStore extends ImageStore {
   /// Bytes accepted per ref, in attach order.
-  final Map<ImageRef, Uint8List> attached = {};
+  final Map<AttachmentRef, Uint8List> attached = {};
 
   /// Note texts passed to each reconcile.
   final List<List<String>> reconciles = [];
 
   /// Refs reported as not on this device.
-  final Set<ImageRef> missing = {};
+  final Set<AttachmentRef> missing = {};
 
   /// Refs reported as waiting to upload.
-  final Set<ImageRef> pending = {};
+  final Set<AttachmentRef> pending = {};
 
   /// Inputs whose first byte is this are "not an image".
   int notImageMarker = 0;
@@ -40,12 +40,12 @@ class FakeImageStore extends ImageStore {
   Future<void>? gate;
 
   @override
-  Future<ImageRef?> attach(String noteId, Uint8List bytes) async {
+  Future<AttachmentRef?> attach(String noteId, Uint8List bytes) async {
     await gate;
     final failure = this.failure;
     if (failure != null) throw failure;
     if (bytes.isNotEmpty && bytes.first == notImageMarker) return null;
-    final ref = ImageRef.create(noteId);
+    final ref = AttachmentRef.create(noteId);
     attached[ref] = bytes;
     return ref;
   }
@@ -55,7 +55,7 @@ class FakeImageStore extends ImageStore {
       reconciles.add(noteTexts.toList());
 
   @override
-  ImageSource sourceFor(ImageRef ref) {
+  ImageSource sourceFor(AttachmentRef ref) {
     if (missing.contains(ref)) return const MissingImageSource();
     return network
         ? NetworkImageSource('http://localhost/images/$ref')
@@ -63,7 +63,7 @@ class FakeImageStore extends ImageStore {
   }
 
   @override
-  bool isPending(ImageRef ref) => pending.contains(ref);
+  bool isPending(AttachmentRef ref) => pending.contains(ref);
 
   @override
   Future<ImageStoreStatus> status() async =>

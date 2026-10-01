@@ -9,7 +9,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'package:todo/attachments/image_store_api.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/sync/desktop_wrapper.dart';
 
 /// Opens the store against the wrapper that served this page.
@@ -34,8 +34,8 @@ class WebImageStore extends ImageStore {
   Uri _images(String rest) => Uri.parse('$origin/images/$rest');
 
   @override
-  Future<ImageRef?> attach(String noteId, Uint8List bytes) async {
-    final ref = ImageRef.create(noteId);
+  Future<AttachmentRef?> attach(String noteId, Uint8List bytes) async {
+    final ref = AttachmentRef.create(noteId);
     final http.Response response;
     try {
       response = await _http.post(_images(ref.relativePath), body: bytes);
@@ -60,7 +60,7 @@ class WebImageStore extends ImageStore {
   Future<void> reconcile(Iterable<String> noteTexts) =>
       _reconcile(imageRefsAcross(noteTexts));
 
-  Future<void> _reconcile(Set<ImageRef> refs) async {
+  Future<void> _reconcile(Set<AttachmentRef> refs) async {
     try {
       final response = await _http.post(
         _images('reconcile'),
@@ -81,11 +81,11 @@ class WebImageStore extends ImageStore {
   }
 
   @override
-  ImageSource sourceFor(ImageRef ref) =>
+  ImageSource sourceFor(AttachmentRef ref) =>
       NetworkImageSource('$origin/images/${ref.relativePath}?r=$_revision');
 
   @override
-  bool isPending(ImageRef ref) => false;
+  bool isPending(AttachmentRef ref) => false;
 
   @override
   Future<ImageStoreStatus> status() async {

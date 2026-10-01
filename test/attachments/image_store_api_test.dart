@@ -4,10 +4,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 void main() {
-  final ref = ImageRef.create('n1');
+  final ref = AttachmentRef.create('n1');
 
   test('NoImageStore refuses to attach and has nothing', () async {
     final store = NoImageStore();
@@ -27,7 +27,7 @@ void main() {
   });
 
   test('imageRefsAcross unions every note', () {
-    final other = ImageRef.create('n2');
+    final other = AttachmentRef.create('n2');
     expect(
       imageRefsAcross([ref.markdown, '${other.markdown}\n${ref.markdown}']),
       {ref, other},

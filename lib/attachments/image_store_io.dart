@@ -8,13 +8,12 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-
 import 'package:todo/attachments/image_password_store.dart';
 import 'package:todo/attachments/image_store_api.dart';
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/images/dufs_image_client.dart';
 import 'package:todo/images/image_cache_store.dart';
 import 'package:todo/images/image_processing.dart';
-import 'package:todo/images/image_ref.dart';
 
 /// Opens the store under the app-support directory's `images/`.
 // coverage:ignore-start
@@ -47,10 +46,10 @@ class IoImageStore extends ImageStore {
   final Future<Uint8List?> Function(Uint8List) _prepare;
 
   @override
-  Future<ImageRef?> attach(String noteId, Uint8List bytes) async {
+  Future<AttachmentRef?> attach(String noteId, Uint8List bytes) async {
     final jpeg = await _prepare(bytes);
     if (jpeg == null) return null;
-    final ref = ImageRef.create(noteId);
+    final ref = AttachmentRef.create(noteId);
     try {
       await cache.put(ref, jpeg);
     } on FileSystemException catch (e) {
@@ -67,7 +66,7 @@ class IoImageStore extends ImageStore {
   Future<void> reconcile(Iterable<String> noteTexts) =>
       _sync(imageRefsAcross(noteTexts));
 
-  Future<void> _sync(Set<ImageRef> refs) async {
+  Future<void> _sync(Set<AttachmentRef> refs) async {
     final login = await _passwords.login();
     final client = login == null
         ? null
@@ -83,7 +82,7 @@ class IoImageStore extends ImageStore {
   }
 
   @override
-  ImageSource sourceFor(ImageRef ref) {
+  ImageSource sourceFor(AttachmentRef ref) {
     final file = cache.fileFor(ref);
     return file.existsSync()
         ? LocalImageSource(file.path)
@@ -91,7 +90,7 @@ class IoImageStore extends ImageStore {
   }
 
   @override
-  bool isPending(ImageRef ref) => cache.isPending(ref);
+  bool isPending(AttachmentRef ref) => cache.isPending(ref);
 
   @override
   Future<ImageStoreStatus> status() async => ImageStoreStatus(

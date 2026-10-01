@@ -1,7 +1,7 @@
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/ui/images/image_embed.dart';
 
 /// Height of the thumbnail row under the editor.

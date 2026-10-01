@@ -40,17 +40,17 @@ final _wholeLine = RegExp('^\\s*${_urlLink.pattern}\\s*\$');
 ///
 /// An extension type over that relative path: equality and hashing are the
 /// string's, so refs drop straight into sets.
-extension type const ImageRef._(String relativePath) {
+extension type const AttachmentRef._(String relativePath) {
   /// A new, unique ref for an image being attached to [noteId].
-  factory ImageRef.create(String noteId) {
-    final ref = ImageRef.tryParse('$noteId/${const Uuid().v4()}.jpg');
+  factory AttachmentRef.create(String noteId) {
+    final ref = AttachmentRef.tryParse('$noteId/${const Uuid().v4()}.jpg');
     if (ref == null) throw ArgumentError.value(noteId, 'noteId');
     return ref;
   }
 
   /// Parses `<noteId>/<file>.jpg`, or null when it is not a safe image path.
-  static ImageRef? tryParse(String relativePath) =>
-      _refPath.hasMatch(relativePath) ? ImageRef._(relativePath) : null;
+  static AttachmentRef? tryParse(String relativePath) =>
+      _refPath.hasMatch(relativePath) ? AttachmentRef._(relativePath) : null;
 
   /// The note the image was attached to (it names the folder only).
   String get noteId => relativePath.substring(0, relativePath.indexOf('/'));
@@ -66,15 +66,15 @@ extension type const ImageRef._(String relativePath) {
 }
 
 /// Every image [text] links to, in order, without duplicates.
-Set<ImageRef> imageRefsIn(String text) => {
+Set<AttachmentRef> imageRefsIn(String text) => {
   for (final match in _urlLink.allMatches(text))
-    ImageRef.tryParse(match.group(1)!)!,
+    AttachmentRef.tryParse(match.group(1)!)!,
 };
 
 /// The image when [line] is nothing but one image link, else null.
-ImageRef? imageRefOfLine(String line) {
+AttachmentRef? imageRefOfLine(String line) {
   final match = _wholeLine.firstMatch(line);
-  return match == null ? null : ImageRef.tryParse(match.group(1)!);
+  return match == null ? null : AttachmentRef.tryParse(match.group(1)!);
 }
 
 /// Rewrites image links to their on-disk path under [kBacklogImagesRoot].

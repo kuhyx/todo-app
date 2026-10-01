@@ -13,7 +13,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 /// A scoped dufs login, e.g. `todo` → `/todo-images`.
 class DufsLogin {
@@ -66,7 +66,7 @@ class DufsImageClient {
       Uri.parse('${login.baseUrl}/$kImagesDir/$relative');
 
   /// PUTs [bytes] as [ref]; true on a 2xx.
-  Future<bool> upload(ImageRef ref, Uint8List bytes) async {
+  Future<bool> upload(AttachmentRef ref, Uint8List bytes) async {
     try {
       final response = await _http.put(
         _uri(ref.relativePath),
@@ -80,12 +80,9 @@ class DufsImageClient {
   }
 
   /// GETs [ref]'s bytes, or null when it is missing or unreachable.
-  Future<Uint8List?> download(ImageRef ref) async {
+  Future<Uint8List?> download(AttachmentRef ref) async {
     try {
-      final response = await _http.get(
-        _uri(ref.relativePath),
-        headers: _auth,
-      );
+      final response = await _http.get(_uri(ref.relativePath), headers: _auth);
       return response.statusCode == 200 ? response.bodyBytes : null;
     } on Exception {
       return null;

@@ -6,7 +6,7 @@ import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template_parser.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/sync/desktop_wrapper.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/ui/capture_draft.dart';
@@ -30,7 +30,7 @@ Note note(String text) => Note(
 );
 
 void main() {
-  final ref = ImageRef.create('n1');
+  final ref = AttachmentRef.create('n1');
 
   testWidgets('detail: 📎 inserts at the cursor and persists', (tester) async {
     tester.view.physicalSize = const Size(1200, 2400);

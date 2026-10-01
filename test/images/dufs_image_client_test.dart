@@ -6,10 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:todo/images/dufs_image_client.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 void main() {
-  final ref = ImageRef.tryParse('n1/a.jpg')!;
+  final ref = AttachmentRef.tryParse('n1/a.jpg')!;
   const login = DufsLogin(user: 'todo', password: 'pw', baseUrl: 'https://d');
   final auth = 'Basic ${base64.encode(utf8.encode('todo:pw'))}';
 

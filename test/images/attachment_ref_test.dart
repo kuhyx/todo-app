@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 void main() {
   const rel = 'note-1/0815ff8a-203e-4f54-9cc5-8a58b27982ec.jpg';
-  final ref = ImageRef.tryParse(rel)!;
+  final ref = AttachmentRef.tryParse(rel)!;
 
   test('a ref exposes its parts, url and markdown', () {
     expect(ref.noteId, 'note-1');
@@ -14,15 +14,15 @@ void main() {
   });
 
   test('create files a fresh uuid jpg under the note', () {
-    final a = ImageRef.create('n1');
-    final b = ImageRef.create('n1');
+    final a = AttachmentRef.create('n1');
+    final b = AttachmentRef.create('n1');
     expect(a.noteId, 'n1');
     expect(a.file, endsWith('.jpg'));
     expect(a, isNot(b));
   });
 
   test('create refuses an unsafe note id', () {
-    expect(() => ImageRef.create('../x'), throwsArgumentError);
+    expect(() => AttachmentRef.create('../x'), throwsArgumentError);
   });
 
   test('tryParse rejects traversal, nesting and other extensions', () {
@@ -35,16 +35,16 @@ void main() {
       '/a/b.jpg',
       'a b/c.jpg',
     ]) {
-      expect(ImageRef.tryParse(bad), isNull, reason: bad);
+      expect(AttachmentRef.tryParse(bad), isNull, reason: bad);
     }
   });
 
   test('refs compare by path, so sets dedupe', () {
-    expect({ref, ImageRef.tryParse(rel)!}, hasLength(1));
+    expect({ref, AttachmentRef.tryParse(rel)!}, hasLength(1));
   });
 
   test('imageRefsIn finds every dufs image link, in order, once', () {
-    final other = ImageRef.create('n2');
+    final other = AttachmentRef.create('n2');
     final text =
         'hi ${ref.markdown} and\n${other.markdown}\n${ref.markdown}\n'
         '![x](https://example.com/a.jpg) ![]($kDufsBaseUrl/Keepass/a.jpg)';

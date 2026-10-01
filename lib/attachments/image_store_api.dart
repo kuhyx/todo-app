@@ -8,7 +8,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 /// Where to draw an image from right now.
 sealed class ImageSource {
@@ -70,24 +70,24 @@ abstract class ImageStore extends ChangeNotifier {
   ///
   /// Returns the new ref, or null when [bytes] is not an image. Throws
   /// [ImageStoreException] when it cannot be stored.
-  Future<ImageRef?> attach(String noteId, Uint8List bytes);
+  Future<AttachmentRef?> attach(String noteId, Uint8List bytes);
 
   /// Uploads the queue, fetches every image [noteTexts] link to that this
   /// device lacks, and evicts cached images no note links to.
   Future<void> reconcile(Iterable<String> noteTexts);
 
   /// Where to draw [ref] from.
-  ImageSource sourceFor(ImageRef ref);
+  ImageSource sourceFor(AttachmentRef ref);
 
   /// Whether [ref] is still waiting to upload (always false when unknown).
-  bool isPending(ImageRef ref);
+  bool isPending(AttachmentRef ref);
 
   /// Login and queue summary.
   Future<ImageStoreStatus> status();
 }
 
 /// Every image ref across [noteTexts].
-Set<ImageRef> imageRefsAcross(Iterable<String> noteTexts) => {
+Set<AttachmentRef> imageRefsAcross(Iterable<String> noteTexts) => {
   for (final text in noteTexts) ...imageRefsIn(text),
 };
 
@@ -95,17 +95,17 @@ Set<ImageRef> imageRefsAcross(Iterable<String> noteTexts) => {
 /// outside the app root): attaching is refused, nothing is ever available.
 class NoImageStore extends ImageStore {
   @override
-  Future<ImageRef?> attach(String noteId, Uint8List bytes) async =>
+  Future<AttachmentRef?> attach(String noteId, Uint8List bytes) async =>
       throw const ImageStoreException('Images are not available here');
 
   @override
   Future<void> reconcile(Iterable<String> noteTexts) async {}
 
   @override
-  ImageSource sourceFor(ImageRef ref) => const MissingImageSource();
+  ImageSource sourceFor(AttachmentRef ref) => const MissingImageSource();
 
   @override
-  bool isPending(ImageRef ref) => false;
+  bool isPending(AttachmentRef ref) => false;
 
   @override
   Future<ImageStoreStatus> status() async =>

@@ -14,9 +14,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
-
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/images/dufs_image_client.dart';
-import 'package:todo/images/image_ref.dart';
 
 /// How long a cached, unreferenced image is kept before eviction.
 ///
@@ -79,15 +78,16 @@ class ImageCacheStore {
   _Pass? _scheduledPass;
 
   /// The cached file for [ref] (it may not exist).
-  File fileFor(ImageRef ref) => File(p.join(root.path, ref.noteId, ref.file));
+  File fileFor(AttachmentRef ref) =>
+      File(p.join(root.path, ref.noteId, ref.file));
 
-  File _marker(ImageRef ref) => File('${fileFor(ref).path}.pending');
+  File _marker(AttachmentRef ref) => File('${fileFor(ref).path}.pending');
 
   /// Whether [ref] is waiting to upload.
-  bool isPending(ImageRef ref) => _marker(ref).existsSync();
+  bool isPending(AttachmentRef ref) => _marker(ref).existsSync();
 
   /// Stores [bytes] as [ref] and queues it for upload.
-  Future<void> put(ImageRef ref, Uint8List bytes) async {
+  Future<void> put(AttachmentRef ref, Uint8List bytes) async {
     final file = fileFor(ref);
     await file.parent.create(recursive: true);
     // Marker first: a crash between the two writes then leaves a marker with
@@ -99,9 +99,9 @@ class ImageCacheStore {
   }
 
   /// Every image waiting to upload.
-  List<ImageRef> pending() => [
+  List<AttachmentRef> pending() => [
     for (final marker in _files('.pending'))
-      ?ImageRef.tryParse(_relative(marker).replaceFirst('.pending', '')),
+      ?AttachmentRef.tryParse(_relative(marker).replaceFirst('.pending', '')),
   ];
 
   /// Uploads the queue, fetches linked images this device lacks, and evicts
@@ -115,7 +115,7 @@ class ImageCacheStore {
   /// Overlapping calls do not run in parallel: calls made before the next
   /// pass starts share it, with their refs unioned and the newest client.
   Future<ReconcileReport> reconcile(
-    Set<ImageRef> referenced,
+    Set<AttachmentRef> referenced,
     DufsImageClient? client,
   ) {
     // Merge into a pass that has not started yet: union the refs (an
@@ -174,11 +174,11 @@ class ImageCacheStore {
     );
   }
 
-  int _evict(Set<ImageRef> referenced) {
+  int _evict(Set<AttachmentRef> referenced) {
     final cutoff = _now().subtract(kEvictionGrace);
     var evicted = 0;
     for (final file in _files('.jpg')) {
-      final ref = ImageRef.tryParse(_relative(file));
+      final ref = AttachmentRef.tryParse(_relative(file));
       if (ref == null || referenced.contains(ref) || isPending(ref)) continue;
       if (file.lastModifiedSync().isAfter(cutoff)) continue;
       file.deleteSync();
@@ -202,6 +202,6 @@ class ImageCacheStore {
 class _Pass {
   const _Pass(this.referenced, this.client);
 
-  final Set<ImageRef> referenced;
+  final Set<AttachmentRef> referenced;
   final DufsImageClient? client;
 }

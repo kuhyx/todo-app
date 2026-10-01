@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:todo/attachments/image_store_scope.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/ui/images/image_embed.dart';
 import 'package:todo/ui/images/image_strip.dart';
 import 'package:todo/ui/images/image_viewer_screen.dart';
@@ -12,7 +12,7 @@ import 'package:todo/ui/images/image_viewer_screen.dart';
 import '../fake_image_store.dart';
 
 void main() {
-  final ref = ImageRef.create('n1');
+  final ref = AttachmentRef.create('n1');
   late FakeImageStore store;
   late Directory dir;
 
@@ -82,7 +82,7 @@ void main() {
   });
 
   testWidgets('the strip shows one thumbnail per linked image', (tester) async {
-    final other = ImageRef.create('n2');
+    final other = AttachmentRef.create('n2');
     await pump(
       tester,
       ImageStrip(text: 'x\n${ref.markdown}\n${other.markdown}'),

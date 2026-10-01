@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/ui/images/image_viewer_screen.dart';
 import 'package:todo/ui/images/local_image.dart';
 
@@ -19,14 +19,10 @@ const kImageWaitingToUpload = 'Waiting to upload';
 /// Renders [ref] from the nearest [ImageStoreScope].
 class ImageEmbed extends StatelessWidget {
   /// Creates an embed; [fit] is `cover` for thumbnails, `contain` inline.
-  const ImageEmbed({
-    required this.ref,
-    this.fit = BoxFit.cover,
-    super.key,
-  });
+  const ImageEmbed({required this.ref, this.fit = BoxFit.cover, super.key});
 
   /// The image to show.
-  final ImageRef ref;
+  final AttachmentRef ref;
 
   /// How the picture fills the embed's box.
   final BoxFit fit;

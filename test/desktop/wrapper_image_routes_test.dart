@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:todo/desktop/wrapper_image_routes.dart';
 import 'package:todo/desktop/wrapper_server.dart';
 import 'package:todo/images/image_cache_store.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 import '../images/fake_dufs.dart';
 
@@ -71,7 +71,7 @@ void main() {
       body: Uint8List.fromList([0xFF, 1, 2]),
     );
     expect(post.statusCode, 204);
-    expect(store.isPending(ImageRef.tryParse(rel)!), isTrue);
+    expect(store.isPending(AttachmentRef.tryParse(rel)!), isTrue);
     final get = await http.get(Uri.parse('$base/images/$rel'));
     expect(get.statusCode, 200);
     expect(get.headers['content-type'], 'image/jpeg');

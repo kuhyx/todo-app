@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:todo/images/image_cache_store.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 import 'fake_dufs.dart';
 
@@ -15,8 +15,8 @@ void main() {
   late FakeDufs dufs;
   var now = DateTime(2026, 9, 25, 12);
 
-  final a = ImageRef.tryParse('n1/a.jpg')!;
-  final b = ImageRef.tryParse('n2/b.jpg')!;
+  final a = AttachmentRef.tryParse('n1/a.jpg')!;
+  final b = AttachmentRef.tryParse('n2/b.jpg')!;
   final bytes = Uint8List.fromList([1, 2, 3]);
 
   setUp(() {
@@ -27,7 +27,7 @@ void main() {
   });
   tearDown(() => root.deleteSync(recursive: true));
 
-  void age(ImageRef ref, Duration by) =>
+  void age(AttachmentRef ref, Duration by) =>
       store.fileFor(ref).setLastModifiedSync(now.subtract(by));
 
   test('put stores the file and queues it', () async {

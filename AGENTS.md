@@ -103,7 +103,7 @@ migrate → Settings → Import).
 
 A note never holds image bytes, only a line
 `![](https://kuhy-cloud.duckdns.org/todo-images/<noteId>/<uuid>.jpg)`
-(`lib/images/image_ref.dart` owns that shape), so sync and older builds are
+(`lib/images/attachment_ref.dart` owns that shape), so sync and older builds are
 untouched. Every image is re-encoded before it leaves the device: ≤2560 px,
 JPEG q85, EXIF stripped after applying its rotation (`image_processing.dart`).
 `ImageCacheStore` keeps every linked image on-device (offline) plus a

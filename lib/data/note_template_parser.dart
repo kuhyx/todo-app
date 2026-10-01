@@ -17,7 +17,7 @@
 library;
 
 import 'package:todo/data/note_template.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 /// Matches a single `http(s)://…` token.
 final RegExp _linkPattern = RegExp(r'^https?://\S+$');

@@ -21,13 +21,12 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
-
 import 'package:todo/desktop/dufs_login_env.dart';
 import 'package:todo/desktop/wrapper_paths.dart';
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/images/dufs_image_client.dart';
 import 'package:todo/images/image_cache_store.dart';
 import 'package:todo/images/image_processing.dart';
-import 'package:todo/images/image_ref.dart';
 
 /// Largest upload accepted from the page, before re-encoding (a raw 50 MP
 /// phone photo is ~25 MB).
@@ -77,7 +76,7 @@ class WrapperImageRoutes {
         'configured': _login() != null,
         'pending': store.pending().length,
       });
-    } else if (ImageRef.tryParse(rest) case final ref?) {
+    } else if (AttachmentRef.tryParse(rest) case final ref?) {
       if (method == 'GET') {
         await _serve(response, ref);
       } else if (method == 'POST') {
@@ -93,7 +92,7 @@ class WrapperImageRoutes {
 
   DufsLogin? _login() => readDufsLoginEnv(File(loginEnvPath));
 
-  Future<void> _serve(HttpResponse response, ImageRef ref) async {
+  Future<void> _serve(HttpResponse response, AttachmentRef ref) async {
     final file = store.fileFor(ref);
     if (!file.existsSync()) {
       response.statusCode = HttpStatus.notFound;
@@ -106,7 +105,7 @@ class WrapperImageRoutes {
     await response.addStream(file.openRead());
   }
 
-  Future<void> _put(HttpRequest request, ImageRef ref) async {
+  Future<void> _put(HttpRequest request, AttachmentRef ref) async {
     final builder = BytesBuilder(copy: false);
     var tooLarge = false;
     // Read to the end even once over the cap: answering while the browser
@@ -130,12 +129,12 @@ class WrapperImageRoutes {
   }
 
   Future<void> _reconcile(HttpRequest request) async {
-    final Set<ImageRef> refs;
+    final Set<AttachmentRef> refs;
     try {
       final body = jsonDecode(await utf8.decodeStream(request));
       refs = {
         for (final raw in (body as Map<String, dynamic>)['refs'] as List)
-          ?ImageRef.tryParse(raw as String),
+          ?AttachmentRef.tryParse(raw as String),
       };
     } on Object {
       request.response.statusCode = HttpStatus.badRequest;

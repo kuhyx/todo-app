@@ -1,7 +1,7 @@
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/ui/images/image_embed.dart';
 
 /// Tallest an image is drawn inside a rendered note.
@@ -11,10 +11,10 @@ const kInlineImageHeight = 320.0;
 ///
 /// The app's notes use a small, known Markdown subset — an `#` title, `##`
 /// section headings, italic `_guidance_` lines, `-` bullet lists and plain
-/// paragraphs, plus one attached image per line (see `image_ref.dart`) — so a
-/// tailored line-based renderer covers everything we emit
-/// without pulling in a full Markdown engine. It keeps the quick-capture app
-/// lean and is trivial to test.
+/// paragraphs, plus one attached image per line (see `attachment_ref.dart`)
+/// — so a tailored line-based renderer covers everything we emit without
+/// pulling in a full Markdown engine. It keeps the quick-capture app lean and
+/// is trivial to test.
 ///
 /// The whole rendered note is wrapped in a [SelectionArea] so it can be copied
 /// out in one go (the note is meant to be pasted into an LLM).

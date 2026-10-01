@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_web.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 void main() {
   final requests = <http.Request>[];
@@ -84,7 +84,7 @@ void main() {
   );
 
   test('reconcile sends every linked ref; a download bumps the url', () async {
-    final ref = ImageRef.create('n1');
+    final ref = AttachmentRef.create('n1');
     final store = make((_) async => report(downloaded: 1));
     await store.reconcile(['a ${ref.markdown}', 'none']);
     expect(jsonDecode(requests.single.body), {

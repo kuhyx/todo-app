@@ -12,7 +12,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
-import 'package:todo/images/image_ref.dart';
+import 'package:todo/images/attachment_ref.dart';
 
 /// Lets a screen insert lines into whichever editor is currently mounted.
 class ImageAttachController {
@@ -52,7 +52,7 @@ Future<void> attachImages(
   int rejected = 0,
 }) async {
   final store = ImageStoreScope.read(context);
-  final refs = <ImageRef>[];
+  final refs = <AttachmentRef>[];
   var notImages = rejected;
   String? failure;
   for (final bytes in images) {
