@@ -1,14 +1,19 @@
-/// What the UI asks of attached images, independent of platform.
+/// What the UI asks of attachments (images and any other file),
+/// independent of platform.
 ///
-/// Android keeps images itself (an `ImageCacheStore` in app storage, talking
-/// to dufs directly); the desktop web page delegates everything to the local
-/// wrapper's `/images/*` routes. Both implement [ImageStore], picked by the
-/// conditional export in `image_store.dart`.
+/// Android keeps attachments itself (an `ImageCacheStore` in app storage,
+/// talking to dufs directly); the desktop web page delegates everything to
+/// the local wrapper's `/images/*` routes. Both implement [ImageStore],
+/// picked by the conditional export in `image_store.dart`.
 library;
 
+import 'package:file_selector/file_selector.dart' show XFile;
 import 'package:flutter/foundation.dart';
 
+import 'package:todo/images/attachment_links.dart';
 import 'package:todo/images/attachment_ref.dart';
+
+export 'package:file_selector/file_selector.dart' show XFile;
 
 /// Where to draw an image from right now.
 sealed class ImageSource {
@@ -63,7 +68,7 @@ class ImageStoreException implements Exception {
   String toString() => message;
 }
 
-/// Stores, shows and syncs the images notes link to. Notifies when an image
+/// Stores, shows and syncs the attachments notes link to. Notifies when one
 /// becomes available or changes state, so embeds can redraw.
 abstract class ImageStore extends ChangeNotifier {
   /// Stores [bytes] (any image format) for [noteId] and queues the upload.
@@ -72,8 +77,13 @@ abstract class ImageStore extends ChangeNotifier {
   /// [ImageStoreException] when it cannot be stored.
   Future<AttachmentRef?> attach(String noteId, Uint8List bytes);
 
-  /// Uploads the queue, fetches every image [noteTexts] link to that this
-  /// device lacks, and evicts cached images no note links to.
+  /// Stores the picked or dropped [file] for [noteId] — re-encoded when it is
+  /// an image, byte-for-byte otherwise, whatever its size — and queues the
+  /// upload. Throws [ImageStoreException] when it cannot be stored.
+  Future<Attachment> attachFile(String noteId, XFile file);
+
+  /// Uploads the queue, fetches every attachment [noteTexts] link to that
+  /// this device lacks, and evicts cached ones no note links to.
   Future<void> reconcile(Iterable<String> noteTexts);
 
   /// Where to draw [ref] from.
@@ -82,13 +92,16 @@ abstract class ImageStore extends ChangeNotifier {
   /// Whether [ref] is still waiting to upload (always false when unknown).
   bool isPending(AttachmentRef ref);
 
+  /// Size in bytes of [ref] on this device, or null when it is not here yet.
+  Future<int?> sizeOf(AttachmentRef ref);
+
   /// Login and queue summary.
   Future<ImageStoreStatus> status();
 }
 
-/// Every image ref across [noteTexts].
-Set<AttachmentRef> imageRefsAcross(Iterable<String> noteTexts) => {
-  for (final text in noteTexts) ...imageRefsIn(text),
+/// Every attachment ref across [noteTexts].
+Set<AttachmentRef> attachmentRefsAcross(Iterable<String> noteTexts) => {
+  for (final text in noteTexts) ...attachmentRefsIn(text),
 };
 
 /// The store used where none was provided (tests, and any screen built
@@ -99,6 +112,10 @@ class NoImageStore extends ImageStore {
       throw const ImageStoreException('Images are not available here');
 
   @override
+  Future<Attachment> attachFile(String noteId, XFile file) async =>
+      throw const ImageStoreException('Attachments are not available here');
+
+  @override
   Future<void> reconcile(Iterable<String> noteTexts) async {}
 
   @override
@@ -106,6 +123,9 @@ class NoImageStore extends ImageStore {
 
   @override
   bool isPending(AttachmentRef ref) => false;
+
+  @override
+  Future<int?> sizeOf(AttachmentRef ref) async => null;
 
   @override
   Future<ImageStoreStatus> status() async =>

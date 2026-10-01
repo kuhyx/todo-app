@@ -7,9 +7,9 @@ import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/attachment_picking.dart';
 import 'package:todo/ui/image_attach.dart';
 import 'package:todo/ui/image_input.dart';
-import 'package:todo/ui/image_picking.dart';
 import 'package:todo/ui/note_form.dart';
 
 /// Full-screen view of a single note: read it in full, edit its body through
@@ -24,7 +24,7 @@ class NoteDetailScreen extends StatefulWidget {
     required this.note,
     required this.repository,
     required this.appSettings,
-    this.imagePicking,
+    this.attachmentPicking,
     super.key,
   });
 
@@ -40,7 +40,7 @@ class NoteDetailScreen extends StatefulWidget {
   final ValueNotifier<AppSettings> appSettings;
 
   /// The 📎 picker; null uses the platform one. Injected by tests.
-  final ImagePicking? imagePicking;
+  final AttachmentPicking? attachmentPicking;
 
   @override
   State<NoteDetailScreen> createState() => _NoteDetailScreenState();
@@ -60,6 +60,13 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
         images: images,
         rejected: rejected,
       );
+
+  Future<void> _attachFiles(List<XFile> files) => attachFiles(
+    context,
+    noteId: () => _note.id,
+    target: _attach,
+    files: files,
+  );
 
   Future<void> _persist(Note next) async {
     setState(() => _note = next);
@@ -87,9 +94,9 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       appBar: AppBar(
         title: Text(title.isEmpty ? '(empty)' : title),
         actions: [
-          AttachImageButton(
-            onImages: _attachImages,
-            picking: widget.imagePicking,
+          AttachButton(
+            onFiles: _attachFiles,
+            picking: widget.attachmentPicking,
           ),
           IconButton(
             tooltip: 'Delete note',
@@ -101,6 +108,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       body: ImageInputListener(
         onImages: (images, rejected) =>
             unawaited(_attachImages(images, rejected: rejected)),
+        onFiles: (files) => unawaited(_attachFiles(files)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           // The same form capture renders, gated on the same setting, so an

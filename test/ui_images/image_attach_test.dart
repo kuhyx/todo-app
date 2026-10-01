@@ -71,7 +71,7 @@ void main() {
     expect(asked, 2);
     expect(store.attached.values.map((b) => b.first), [1, 2]);
     expect(inserted.single, [
-      for (final ref in store.attached.keys) ref.markdown,
+      for (final ref in store.attached.keys) ref.imageMarkdown,
     ]);
     await tester.pump();
     expect(find.byType(SnackBar), findsNothing);

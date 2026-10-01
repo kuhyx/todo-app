@@ -1,16 +1,21 @@
-/// Ctrl+V and drag-and-drop of images onto the desktop (web) page.
+/// Ctrl+V of images and drag-and-drop of any file onto the desktop (web)
+/// page.
 ///
 /// Flutter web has no drop target of its own, so this listens on the DOM
 /// `document` directly (`package:web`, no native plugin): `dragover` must be
 /// cancelled for the page to accept a drop at all, and `drop` must be, or
 /// Chrome navigates away to the dropped file. A paste is only taken over when
 /// the clipboard carries files; plain-text pastes stay the text field's.
+///
+/// A dropped file is handed on as an [XFile] over an object URL, never read
+/// here, so its size does not matter (see `file_post_web.dart`).
 library;
 
 import 'dart:async';
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:file_selector/file_selector.dart' show XFile;
 import 'package:flutter/widgets.dart';
 import 'package:todo/ui/image_input_files.dart';
 import 'package:web/web.dart' as web;
@@ -19,18 +24,25 @@ import 'package:web/web.dart' as web;
 typedef ImageInputCallback =
     void Function(List<Uint8List> images, int rejected);
 
-/// Calls [onImages] for images pasted or dropped anywhere on the page while
-/// this widget's route is the visible one.
+/// Receives dropped files of any type.
+typedef FileInputCallback = void Function(List<XFile> files);
+
+/// Calls [onImages] for images pasted and [onFiles] for files dropped
+/// anywhere on the page while this widget's route is the visible one.
 class ImageInputListener extends StatefulWidget {
   /// Wraps [child], listening while mounted.
   const ImageInputListener({
     required this.onImages,
+    required this.onFiles,
     required this.child,
     super.key,
   });
 
-  /// Receives the image bytes in order, plus the non-image count.
+  /// Receives pasted image bytes in order, plus the non-image count.
   final ImageInputCallback onImages;
+
+  /// Receives dropped files in order.
+  final FileInputCallback onFiles;
 
   /// The screen body.
   final Widget child;
@@ -78,8 +90,17 @@ class _ImageInputListenerState extends State<ImageInputListener> {
     final files = event.dataTransfer?.files;
     if (!_active || files == null || files.length == 0) return;
     event.preventDefault();
-    unawaited(_take(files));
+    widget.onFiles([
+      for (var i = 0; i < files.length; i++) _xFile(files.item(i)!),
+    ]);
   }
+
+  XFile _xFile(web.File file) => XFile(
+    web.URL.createObjectURL(file),
+    name: file.name,
+    length: file.size,
+    mimeType: file.type,
+  );
 
   void _paste(web.ClipboardEvent event) {
     final files = event.clipboardData?.files;

@@ -15,9 +15,14 @@ void main() {
       store.attach('n1', Uint8List(1)),
       throwsA(isA<ImageStoreException>()),
     );
+    await expectLater(
+      store.attachFile('n1', XFile('/nonexistent')),
+      throwsA(isA<ImageStoreException>()),
+    );
     await store.reconcile(['x']);
     expect(store.sourceFor(ref), isA<MissingImageSource>());
     expect(store.isPending(ref), isFalse);
+    expect(await store.sizeOf(ref), isNull);
     final status = await store.status();
     expect((status.configured, status.pending), (false, 0));
   });
@@ -26,11 +31,16 @@ void main() {
     expect(const ImageStoreException('boom').toString(), 'boom');
   });
 
-  test('imageRefsAcross unions every note', () {
+  test('attachmentRefsAcross unions every note, images and files', () {
     final other = AttachmentRef.create('n2');
+    final pdf = AttachmentRef.forFile('n3', 'a.pdf');
     expect(
-      imageRefsAcross([ref.markdown, '${other.markdown}\n${ref.markdown}']),
-      {ref, other},
+      attachmentRefsAcross([
+        ref.imageMarkdown,
+        '${other.imageMarkdown}\n${ref.imageMarkdown}',
+        pdf.fileMarkdown('a.pdf'),
+      ]),
+      {ref, other, pdf},
     );
   });
 

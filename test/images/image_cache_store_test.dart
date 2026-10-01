@@ -4,8 +4,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:todo/images/image_cache_store.dart';
 import 'package:todo/images/attachment_ref.dart';
+import 'package:todo/images/image_cache_store.dart';
 
 import 'fake_dufs.dart';
 
@@ -36,6 +36,19 @@ void main() {
     expect(store.isPending(a), isTrue);
     expect(store.pending(), [a]);
     expect(File('${store.fileFor(a).path}.tmp').existsSync(), isFalse);
+  });
+
+  test('adopt moves a finished file into place and queues it', () async {
+    final pdf = AttachmentRef.tryParse('n1/c.pdf')!;
+    final tmp = store.tempFor(pdf);
+    await tmp.parent.create(recursive: true);
+    tmp.writeAsBytesSync([4, 5]);
+    await store.adopt(pdf, tmp);
+    expect(store.fileFor(pdf).readAsBytesSync(), [4, 5]);
+    expect(tmp.existsSync(), isFalse);
+    expect(store.pending(), [pdf]);
+    await store.reconcile({}, dufs.client());
+    expect(dufs.files['n1/c.pdf'], [4, 5]);
   });
 
   test('an empty or missing root has nothing pending', () {
@@ -92,6 +105,18 @@ void main() {
     expect(report.missing, 0);
   });
 
+  test('a download dropped mid-body leaves no file behind', () async {
+    dufs.files['n2/b.jpg'] = [9, 9];
+    dufs.dropMidBody.add('n2/b.jpg');
+    final report = await store.reconcile({b}, dufs.client());
+    expect(report.downloaded, 0);
+    expect(report.missing, 1);
+    expect(store.fileFor(b).existsSync(), isFalse);
+    expect(store.tempFor(b).existsSync(), isFalse);
+    dufs.dropMidBody.clear();
+    expect((await store.reconcile({b}, dufs.client())).downloaded, 1);
+  });
+
   test('an image missing on dufs stays missing', () async {
     final report = await store.reconcile({b}, dufs.client());
     expect(report.downloaded, 0);
@@ -126,6 +151,29 @@ void main() {
     expect((await store.reconcile({b}, dufs.client())).evicted, 1);
     expect(store.fileFor(a).existsSync(), isFalse);
     expect(File(p.join(root.path, 'n1', 'odd name.jpg')).existsSync(), isTrue);
+  });
+
+  test('evicts any kind of attachment, never a marker', () async {
+    final pdf = AttachmentRef.tryParse('n1/c.pdf')!;
+    dufs.files['n1/c.pdf'] = [1];
+    await store.reconcile({pdf}, dufs.client());
+    age(pdf, const Duration(hours: 1));
+    expect((await store.reconcile({b}, dufs.client())).evicted, 1);
+    expect(store.fileFor(pdf).existsSync(), isFalse);
+  });
+
+  test('sweeps abandoned .tmp files once they are old', () async {
+    final stale = store.tempFor(a);
+    final fresh = store.tempFor(b);
+    for (final tmp in [stale, fresh]) {
+      await tmp.parent.create(recursive: true);
+      tmp.writeAsBytesSync([1]);
+    }
+    stale.setLastModifiedSync(now.subtract(const Duration(hours: 1)));
+    final report = await store.reconcile({b}, null);
+    expect(report.evicted, 0, reason: 'a sweep is not an eviction');
+    expect(stale.existsSync(), isFalse);
+    expect(fresh.existsSync(), isTrue);
   });
 
   test('a young unlinked image survives the grace period', () async {
@@ -168,18 +216,16 @@ void main() {
   });
 
   test('a failing pass does not wedge the queue', () async {
-    final boom = ImageCacheStore(
-      Directory(p.join(root.path, 'file-not-dir')),
-      now: () => now,
-    );
-    File(boom.root.path).writeAsStringSync('x');
-    dufs.files['n1/a.jpg'] = [1]; // downloading it must create a dir: fails
+    // An unreadable folder makes listing the queue throw.
+    final locked = Directory(p.join(root.path, 'locked'))..createSync();
+    Process.runSync('chmod', ['000', locked.path]);
+    addTearDown(() => Process.runSync('chmod', ['755', locked.path]));
     await expectLater(
-      boom.reconcile({a}, dufs.client()),
+      store.reconcile({a}, dufs.client()),
       throwsA(isA<FileSystemException>()),
     );
-    File(boom.root.path).deleteSync();
-    final report = await boom.reconcile({}, null);
+    Process.runSync('chmod', ['755', locked.path]);
+    final report = await store.reconcile({}, null);
     expect(report.pending, 0);
   });
 }

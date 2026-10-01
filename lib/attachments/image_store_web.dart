@@ -1,4 +1,4 @@
-/// Desktop (web build): every image operation goes through the local
+/// Desktop (web build): every attachment operation goes through the local
 /// wrapper's `/images/*` routes; the page never sees the dufs password.
 library;
 
@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import 'package:todo/attachments/file_post.dart' as file_post;
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/sync/desktop_wrapper.dart';
@@ -16,16 +17,30 @@ import 'package:todo/sync/desktop_wrapper.dart';
 Future<ImageStore> openImageStore() async =>
     WebImageStore(origin: servingWrapperOrigin());
 
+/// Sends a file to the wrapper and returns its answer; injectable for tests.
+typedef FilePost =
+    Future<({int status, String body})> Function(Uri url, XFile file);
+
 /// [ImageStore] backed by the desktop wrapper at [origin].
 class WebImageStore extends ImageStore {
-  /// Creates a store talking to [origin]; [httpClient] is injectable.
-  WebImageStore({required this.origin, http.Client? httpClient})
-    : _http = httpClient ?? http.Client();
+  /// Creates a store talking to [origin]; [httpClient] and [postFile] are
+  /// injectable.
+  WebImageStore({
+    required this.origin,
+    http.Client? httpClient,
+    FilePost? postFile,
+  }) : _http = httpClient ?? http.Client(),
+       _postFile = postFile ?? file_post.postFile;
 
   /// The wrapper's origin, e.g. `http://localhost:8730`.
   final String origin;
 
   final http.Client _http;
+  final FilePost _postFile;
+
+  // Sizes the wrapper reported. A ref's bytes never change (a fresh uuid per
+  // attachment), so a known size never goes stale.
+  final Map<AttachmentRef, int> _sizes = {};
 
   // Bumped whenever the wrapper may hold new bytes, so an image that failed
   // to load (not downloaded yet) is requested again under a fresh URL.
@@ -57,8 +72,33 @@ class WebImageStore extends ImageStore {
   }
 
   @override
+  Future<Attachment> attachFile(String noteId, XFile file) async {
+    final url = _images(
+      'attach',
+    ).replace(queryParameters: {'note': noteId, 'name': file.name});
+    final ({int status, String body}) response;
+    try {
+      response = await _postFile(url, file);
+    } on Object {
+      throw ImageStoreException(
+        'The desktop helper is not running; ${file.name} was not saved',
+      );
+    }
+    if (response.status != 200) {
+      throw ImageStoreException(
+        'The desktop helper refused ${file.name} (${response.status})',
+      );
+    }
+    final attachment = Attachment.fromJson(jsonDecode(response.body));
+    _revision++;
+    notifyListeners();
+    unawaited(_reconcile(const {}));
+    return attachment;
+  }
+
+  @override
   Future<void> reconcile(Iterable<String> noteTexts) =>
-      _reconcile(imageRefsAcross(noteTexts));
+      _reconcile(attachmentRefsAcross(noteTexts));
 
   Future<void> _reconcile(Set<AttachmentRef> refs) async {
     try {
@@ -86,6 +126,21 @@ class WebImageStore extends ImageStore {
 
   @override
   bool isPending(AttachmentRef ref) => false;
+
+  @override
+  Future<int?> sizeOf(AttachmentRef ref) async {
+    if (_sizes[ref] case final known?) return known;
+    try {
+      final response = await _http.head(_images(ref.relativePath));
+      final length = response.statusCode == 200
+          ? int.tryParse(response.headers['content-length'] ?? '')
+          : null;
+      if (length != null) _sizes[ref] = length;
+      return length;
+    } on Exception {
+      return null;
+    }
+  }
 
   @override
   Future<ImageStoreStatus> status() async {

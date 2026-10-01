@@ -24,6 +24,40 @@ const kMaxImageSide = 2560;
 /// JPEG quality of a stored image.
 const kJpegQuality = 85;
 
+/// Largest attachment still tried as an image (a raw 50 MP phone photo is
+/// ~25 MB). Anything bigger is kept as a file: decoding it would need several
+/// times its size in memory.
+const int kMaxImageDecodeBytes = 64 * 1024 * 1024;
+
+/// How many leading bytes [looksLikeImage] needs.
+const kImageSniffBytes = 12;
+
+/// Whether [head] starts like a photo or screenshot format: JPEG, PNG, GIF,
+/// WebP, BMP or TIFF.
+///
+/// Only these are re-encoded. `package:image` also decodes PSD, TGA, EXR and
+/// ICO, but flattening those to a JPEG would destroy what they were attached
+/// for, so they stay files.
+bool looksLikeImage(List<int> head) {
+  bool starts(List<int> magic, [int at = 0]) {
+    if (head.length < at + magic.length) return false;
+    for (var i = 0; i < magic.length; i++) {
+      if (head[at + i] != magic[i]) return false;
+    }
+    return true;
+  }
+
+  const riff = [0x52, 0x49, 0x46, 0x46];
+  const webp = [0x57, 0x45, 0x42, 0x50];
+  return starts(const [0xFF, 0xD8, 0xFF]) ||
+      starts(const [0x89, 0x50, 0x4E, 0x47]) ||
+      starts(const [0x47, 0x49, 0x46, 0x38]) ||
+      (starts(riff) && starts(webp, 8)) ||
+      starts(const [0x42, 0x4D]) ||
+      starts(const [0x49, 0x49, 0x2A, 0x00]) ||
+      starts(const [0x4D, 0x4D, 0x00, 0x2A]);
+}
+
 /// Re-encodes [bytes] as a metadata-free JPEG no larger than [kMaxImageSide]
 /// on its long side, or returns null when [bytes] is not a decodable image.
 Uint8List? prepareImage(Uint8List bytes) {

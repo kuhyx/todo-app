@@ -68,7 +68,7 @@ Three layers under `lib/`, each single-purpose:
     token. `sync_settings.dart`: persisted owner/repo/token/clientId.
   - `notes_markdown.dart`: round-trippable single-file export/import format
     (HTML-comment `<!-- @note id=… priority=… status=… … -->` markers).
-- `images/` + `attachments/` — attached images (see "Images" below).
+- `images/` + `attachments/` — attached images and files (see "Images and other attachments" below).
 - `ui/` — screens, all take an injected `NoteRepository`.
   - `capture_screen.dart`: landing screen; always-focused text box pre-filled
     with the structured template; lazy note creation on first keystroke.
@@ -99,26 +99,38 @@ that, the stepper would fold a retired section into its neighbour on the next
 save. `tool/migrate_backlog.dart` converts an old export (Settings → Export →
 migrate → Settings → Import).
 
-### Images
+### Images and other attachments
 
-A note never holds image bytes, only a line
-`![](https://kuhy-cloud.duckdns.org/todo-images/<noteId>/<uuid>.jpg)`
-(`lib/images/attachment_ref.dart` owns that shape), so sync and older builds are
-untouched. Every image is re-encoded before it leaves the device: ≤2560 px,
-JPEG q85, EXIF stripped after applying its rotation (`image_processing.dart`).
-`ImageCacheStore` keeps every linked image on-device (offline) plus a
+A note never holds attachment bytes, only a line pointing at
+`https://kuhy-cloud.duckdns.org/todo-images/<noteId>/<uuid>.<ext>`: an image
+as `![](…)`, any other file as `[name](…)` (`lib/images/attachment_ref.dart`
+owns the path, `attachment_links.dart` the links), so sync and older builds are
+untouched. Anything picked or dropped goes through `AttachmentIngest`: a
+JPEG/PNG/GIF/WebP/BMP/TIFF of at most 64 MB is re-encoded (≤2560 px, JPEG q85,
+EXIF stripped after applying its rotation — `image_processing.dart`); every
+other file, of any size, is kept byte-for-byte. There is deliberately **no
+size cap**, so nothing may hold a file in memory: uploads and downloads stream
+(`DufsImageClient`), the desktop page POSTs the browser's own Blob with
+`fetch` (`file_post_web.dart`), and writes land in a `.tmp` renamed when whole.
+`ImageCacheStore` keeps every linked attachment on-device (offline) plus a
 `.pending` marker per queued upload, and `reconcile` uploads, prefetches and
-evicts (never an empty ref set, never within 10 min). Android talks to dufs
-directly with the `todo` login's password (Settings → Cloud images); the
-desktop page never does — the wrapper's `/images/*` routes do, with
+evicts (never an empty ref set, never within 10 min; stale `.tmp`s too).
+Android talks to dufs directly with the `todo` login's password (Settings →
+Cloud images) and opens files with `open_file`; the desktop page never talks
+to dufs — the wrapper's `/images/*` routes do, with
 `~/.config/dufs/logins/todo.env`, created by
-`~/src/dufs-cloud/scripts/add_dufs_login.sh todo /todo-images rw`. BACKLOG.md
-rewrites links to `~/data/cloud/todo-images/…` so an agent can open them.
+`~/src/dufs-cloud/scripts/add_dufs_login.sh todo /todo-images rw`. The wrapper
+serves attachments from the same origin as the notes and the GitHub token, so
+only script-free types (raster images, PDF, plain text, audio, video) are shown
+inline, always `nosniff`; everything else is a download
+(`wrapper_attachment_serving.dart`). Attachment routes run concurrently, the
+rest of the wrapper one request at a time. BACKLOG.md rewrites links to
+`~/data/cloud/todo-images/…` so an agent can open them.
 
 ## Testing
 
-- **The suite must stay quick and fully green.** It is currently **427 tests at
-  100% line coverage** (2512 lines), ~30s on this machine with
+- **The suite must stay quick and fully green.** It is currently **494 tests at
+  100% line coverage** (2870 lines), ~40s on this machine with
   `--concurrency=3` (unbounded concurrency under `capped.sh`'s 4 GiB gets its
   test processes SIGTERMed while the wrapper still exits 0 — check the last
   line says "All tests passed"). Don't regress either.

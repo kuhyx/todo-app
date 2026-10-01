@@ -21,24 +21,37 @@ class FakeDufs {
   /// Every request's `METHOD path`, in order.
   final List<String> requests = [];
 
-  /// The HTTP client the image client talks through.
-  http.Client httpClient() => MockClient((request) async {
+  /// Paths whose GET drops the connection after the first chunk.
+  final Set<String> dropMidBody = {};
+
+  /// The HTTP client the image client talks through. Streaming, like the
+  /// real one: bodies arrive and leave as streams.
+  http.Client httpClient() => MockClient.streaming((request, body) async {
     requests.add('${request.method} ${request.url.path}');
     if (!online) throw const SocketException('offline');
     final key = request.url.path.replaceFirst('/todo-images/', '');
     switch (request.method) {
       case 'PUT':
-        files[key] = request.bodyBytes;
-        return http.Response('', 201);
+        files[key] = await body.toBytes();
+        return http.StreamedResponse(const Stream.empty(), 201);
       case 'GET':
         final bytes = files[key];
-        return bytes == null
-            ? http.Response('', 404)
-            : http.Response.bytes(bytes, 200);
+        if (bytes == null) {
+          return http.StreamedResponse(const Stream.empty(), 404);
+        }
+        return http.StreamedResponse(
+          dropMidBody.contains(key) ? _dropped(bytes) : Stream.value(bytes),
+          200,
+        );
       default:
-        return http.Response('', 207);
+        return http.StreamedResponse(const Stream.empty(), 207);
     }
   });
+
+  Stream<List<int>> _dropped(List<int> bytes) async* {
+    yield bytes;
+    throw const SocketException('connection dropped');
+  }
 
   /// A client over this fake.
   DufsImageClient client() => DufsImageClient(

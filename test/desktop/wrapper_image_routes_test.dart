@@ -7,8 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:todo/desktop/wrapper_image_routes.dart';
 import 'package:todo/desktop/wrapper_server.dart';
-import 'package:todo/images/image_cache_store.dart';
 import 'package:todo/images/attachment_ref.dart';
+import 'package:todo/images/image_cache_store.dart';
+import 'package:todo/images/image_processing.dart';
 
 import '../images/fake_dufs.dart';
 
@@ -89,7 +90,7 @@ void main() {
   });
 
   test('oversized uploads are refused with 413', () async {
-    final big = Uint8List(kMaxImageUploadBytes + 1)..[0] = 0xFF;
+    final big = Uint8List(kMaxImageDecodeBytes + 1)..[0] = 0xFF;
     final post = await http.post(Uri.parse('$base/images/$rel'), body: big);
     expect(post.statusCode, 413);
   });
@@ -101,6 +102,14 @@ void main() {
       404,
     );
     expect((await http.delete(Uri.parse('$base/images/$rel'))).statusCode, 405);
+    // Only a pasted image may be POSTed to its own path.
+    expect(
+      (await http.post(
+        Uri.parse('$base/images/n1/x.pdf'),
+        body: [1],
+      )).statusCode,
+      405,
+    );
     expect(
       (await http.get(Uri.parse('$base/images/reconcile'))).statusCode,
       404,

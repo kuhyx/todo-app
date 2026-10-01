@@ -1,8 +1,10 @@
-/// Turning picked, pasted or dropped image bytes into links in the open note.
+/// Turning pasted image bytes and picked or dropped files into links in the
+/// open note.
 ///
 /// Shared by the capture and detail screens: each owns one
 /// [ImageAttachController], hands it to its [NoteEditor] (which binds the
-/// insert-at-cursor), and routes every image source through [attachImages].
+/// insert-at-cursor), and routes pastes through [attachImages] and picks and
+/// drops through [attachFiles].
 library;
 
 import 'dart:typed_data';
@@ -43,7 +45,7 @@ class ImageAttachController {
 /// once there is something to save; asking for it is what reserves one.
 /// Reserving writes nothing, so a rejected paste still never creates an
 /// empty note. [rejected] counts inputs already known
-/// not to be images (e.g. a dropped PDF), so one message covers both.
+/// not to be images (e.g. a pasted PDF), so one message covers both.
 Future<void> attachImages(
   BuildContext context, {
   required String Function() noteId,
@@ -68,7 +70,7 @@ Future<void> attachImages(
       break;
     }
   }
-  target.insert([for (final ref in refs) ref.markdown]);
+  target.insert([for (final ref in refs) ref.imageMarkdown]);
   if (!context.mounted) return;
   if (failure != null) {
     showError(context, failure);
@@ -78,4 +80,29 @@ Future<void> attachImages(
       notImages == 1 ? 'Not an image' : '$notImages files were not images',
     );
   }
+}
+
+/// Stores each of [files] (picked or dropped, any type and size) for the note
+/// [noteId] names and inserts their links, in order, through [target]:
+/// images inline, anything else as a file link. Stops at the first file that
+/// cannot be stored, keeping the ones before it.
+Future<void> attachFiles(
+  BuildContext context, {
+  required String Function() noteId,
+  required ImageAttachController target,
+  required List<XFile> files,
+}) async {
+  final store = ImageStoreScope.read(context);
+  final attached = <Attachment>[];
+  String? failure;
+  for (final file in files) {
+    try {
+      attached.add(await store.attachFile(noteId(), file));
+    } on ImageStoreException catch (e) {
+      failure = e.message;
+      break;
+    }
+  }
+  target.insert([for (final attachment in attached) attachment.markdown]);
+  if (failure != null && context.mounted) showError(context, failure);
 }

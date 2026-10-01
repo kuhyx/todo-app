@@ -17,6 +17,15 @@ extension _CaptureImages on _CaptureScreenState {
         rejected: rejected,
       );
 
+  /// Stores picked or dropped [files] under the draft's note (reserving its
+  /// id) and inserts their links at the cursor.
+  Future<void> _attachFiles(List<XFile> files) => attachFiles(
+    context,
+    noteId: _draft.reserveId,
+    target: _attach,
+    files: files,
+  );
+
   /// Uploads queued images, prefetches every image any note links to, and
   /// evicts what no note links to. Runs after every sync attempt, on resume
   /// and at launch (via the launch sync).

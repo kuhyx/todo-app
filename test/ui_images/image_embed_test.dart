@@ -6,7 +6,7 @@ import 'package:image/image.dart' as img;
 import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/ui/images/image_embed.dart';
-import 'package:todo/ui/images/image_strip.dart';
+import 'package:todo/ui/images/attachment_strip.dart';
 import 'package:todo/ui/images/image_viewer_screen.dart';
 
 import '../fake_image_store.dart';
@@ -85,13 +85,13 @@ void main() {
     final other = AttachmentRef.create('n2');
     await pump(
       tester,
-      ImageStrip(text: 'x\n${ref.markdown}\n${other.markdown}'),
+      AttachmentStrip(text: 'x\n${ref.imageMarkdown}\n${other.imageMarkdown}'),
     );
     expect(find.byType(ImageEmbed), findsNWidgets(2));
   });
 
   testWidgets('the strip is empty without images', (tester) async {
-    await pump(tester, const ImageStrip(text: 'no images'));
+    await pump(tester, const AttachmentStrip(text: 'no images'));
     expect(find.byType(ImageEmbed), findsNothing);
   });
 }

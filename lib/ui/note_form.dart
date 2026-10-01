@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/image_attach.dart';
-import 'package:todo/ui/images/image_strip.dart';
+import 'package:todo/ui/images/attachment_strip.dart';
 import 'package:todo/ui/note_editor.dart';
 import 'package:todo/ui/note_form_chrome_gate.dart';
 import 'package:todo/ui/note_meta_row.dart';
@@ -129,7 +129,7 @@ class _NoteFormState extends State<NoteForm> {
                 if (!_previewing)
                   ValueListenableBuilder<String>(
                     valueListenable: _text,
-                    builder: (context, text, _) => ImageStrip(text: text),
+                    builder: (context, text, _) => AttachmentStrip(text: text),
                   ),
               ],
             );

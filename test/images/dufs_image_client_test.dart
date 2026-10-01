@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:todo/images/dufs_image_client.dart';
 import 'package:todo/images/attachment_ref.dart';
+import 'package:todo/images/dufs_image_client.dart';
 
 void main() {
   final ref = AttachmentRef.tryParse('n1/a.jpg')!;
@@ -20,12 +19,14 @@ void main() {
     expect(const DufsLogin(user: 'u', password: 'p').baseUrl, kDufsBaseUrl);
   });
 
-  test('upload PUTs the bytes with basic auth; true on 2xx', () async {
+  Stream<List<int>> body(List<int> bytes) => Stream.value(bytes);
+
+  test('upload streams the body with basic auth and its length', () async {
     late http.Request seen;
     final ok = await client((r) async {
       seen = r;
       return http.Response('', 201);
-    }).upload(ref, Uint8List.fromList([1, 2]));
+    }).upload(ref, body([1, 2]), 2);
     expect(ok, isTrue);
     expect(seen.method, 'PUT');
     expect(seen.url.toString(), 'https://d/todo-images/n1/a.jpg');
@@ -34,35 +35,47 @@ void main() {
     expect(seen.bodyBytes, [1, 2]);
   });
 
+  test('upload declares the length up front, so nothing is buffered', () async {
+    final capture = _CapturingClient();
+    final file = AttachmentRef.tryParse('n1/b.pdf')!;
+    await DufsImageClient(
+      login,
+      httpClient: capture,
+    ).upload(file, body([1, 2, 3]), 3);
+    expect(capture.seen.contentLength, 3);
+    expect(capture.seen.headers['content-type'], 'application/octet-stream');
+  });
+
   test('upload is false on a refusal or a network error', () async {
     expect(
       await client(
         (_) async => http.Response('', 403),
-      ).upload(ref, Uint8List(1)),
+      ).upload(ref, body([1]), 1),
       isFalse,
     );
     expect(
       await client(
         (_) => throw const SocketException('down'),
-      ).upload(ref, Uint8List(1)),
+      ).upload(ref, body([1]), 1),
       isFalse,
     );
   });
 
-  test('download returns bytes on 200, null otherwise', () async {
+  test('openDownload streams the body on 200, null otherwise', () async {
+    final stream = await client((r) async {
+      expect(r.method, 'GET');
+      expect(r.headers['authorization'], auth);
+      return http.Response.bytes([7, 8], 200);
+    }).openDownload(ref);
+    expect(await stream!.expand((chunk) => chunk).toList(), [7, 8]);
     expect(
-      await client((r) async {
-        expect(r.headers['authorization'], auth);
-        return http.Response.bytes([7, 8], 200);
-      }).download(ref),
-      [7, 8],
-    );
-    expect(
-      await client((_) async => http.Response('', 404)).download(ref),
+      await client((_) async => http.Response('', 404)).openDownload(ref),
       isNull,
     );
     expect(
-      await client((_) => throw const SocketException('down')).download(ref),
+      await client(
+        (_) => throw const SocketException('down'),
+      ).openDownload(ref),
       isNull,
     );
   });
@@ -107,4 +120,16 @@ class _ClosingClient extends http.BaseClient {
 
   @override
   void close() => onClose();
+}
+
+/// Records the request as sent, before any mock flattens it.
+class _CapturingClient extends http.BaseClient {
+  late http.BaseRequest seen;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    seen = request;
+    await request.finalize().drain<void>();
+    return http.StreamedResponse(const Stream.empty(), 201);
+  }
 }

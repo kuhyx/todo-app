@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:todo/desktop/static_content_type.dart';
 import 'package:todo/desktop/wrapper_image_routes.dart';
 
 export 'wrapper_paths.dart';
@@ -127,13 +128,46 @@ class WrapperServer {
 
   Future<void> _serve(HttpServer server) async {
     await for (final request in server) {
-      try {
-        await _handle(request);
-      } on Exception {
-        request.response.statusCode = HttpStatus.internalServerError;
+      // Attachment routes can run for minutes (a multi-gigabyte upload, a
+      // video being watched, a reconcile fetching a large file) and are safe
+      // side by side, so they must not hold up the page's own requests.
+      // Everything else stays one at a time: the backup files are
+      // overwritten whole and must not interleave.
+      if (request.uri.path.startsWith(WrapperImageRoutes.prefix)) {
+        unawaited(_respond(request));
+      } else {
+        await _respond(request);
       }
-      await request.response.close();
     }
+  }
+
+  Future<void> _respond(HttpRequest request) async {
+    try {
+      if (_isCrossSiteWrite(request)) {
+        // Read the body anyway: answering mid-upload looks like a dropped
+        // connection, not a refusal.
+        await request.drain<void>();
+        request.response.statusCode = HttpStatus.forbidden;
+      } else {
+        await _handle(request);
+      }
+    } on Exception {
+      request.response.statusCode = HttpStatus.internalServerError;
+    }
+    await request.response.close();
+  }
+
+  /// A write sent by some other site's page. Any website open in the same
+  /// browser can POST here without a preflight (a CORS "simple request"),
+  /// which would let it overwrite the backups or push unbounded files into
+  /// the attachment store and on to dufs. The app's own page always sends its
+  /// own origin; local tools (curl, tests) send none.
+  bool _isCrossSiteWrite(HttpRequest request) {
+    if (request.method == 'GET' || request.method == 'HEAD') return false;
+    final origin = request.headers.value('origin');
+    return origin != null &&
+        origin != 'http://localhost:$port' &&
+        origin != 'http://127.0.0.1:$port';
   }
 
   Future<void> _handle(HttpRequest request) async {
@@ -199,39 +233,7 @@ class WrapperServer {
     await request.response.addStream(file.openRead());
   }
 
-  /// Content type for [filePath].
-  ///
-  /// Flutter web is strict here: CanvasKit refuses to instantiate a `.wasm`
-  /// served as anything but `application/wasm`, and the app silently fails to
-  /// render if the bootstrap `.js` is mislabelled.
-  static ContentType contentTypeFor(String filePath) {
-    switch (p.extension(filePath).toLowerCase()) {
-      case '.html':
-        return ContentType.html;
-      case '.js' || '.mjs':
-        return ContentType('text', 'javascript', charset: 'utf-8');
-      case '.json':
-        return ContentType.json;
-      case '.wasm':
-        return ContentType('application', 'wasm');
-      case '.css':
-        return ContentType('text', 'css', charset: 'utf-8');
-      case '.png':
-        return ContentType('image', 'png');
-      case '.jpg' || '.jpeg':
-        return ContentType('image', 'jpeg');
-      case '.svg':
-        return ContentType('image', 'svg+xml');
-      case '.ttf':
-        return ContentType('font', 'ttf');
-      case '.otf':
-        return ContentType('font', 'otf');
-      case '.woff2':
-        return ContentType('font', 'woff2');
-      case '.bin' || '.symbols':
-        return ContentType.binary;
-      default:
-        return ContentType.binary;
-    }
-  }
+  /// Content type for [filePath]; see [staticContentTypeFor].
+  static ContentType contentTypeFor(String filePath) =>
+      staticContentTypeFor(filePath);
 }

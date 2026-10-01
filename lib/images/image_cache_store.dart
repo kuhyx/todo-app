@@ -1,9 +1,15 @@
-/// The on-device copy of every image a note links to, plus the upload queue.
+/// The on-device copy of every attachment a note links to, plus the upload
+/// queue.
 ///
-/// One directory, `<root>/<noteId>/<uuid>.jpg`, mirrors dufs' `todo-images/`.
-/// An image attached while offline gets a `<uuid>.jpg.pending` marker next to
-/// it; the marker is the queue, so it survives restarts with no separate
-/// bookkeeping, and it is only removed after dufs has accepted the upload.
+/// One directory, `<root>/<noteId>/<uuid>.<ext>`, mirrors dufs'
+/// `todo-images/`. An attachment added while offline gets a
+/// `<uuid>.<ext>.pending` marker next to it; the marker is the queue, so it
+/// survives restarts with no separate bookkeeping, and it is only removed
+/// after dufs has accepted the upload.
+///
+/// Files are never held in memory whole: uploads stream from disk and
+/// downloads stream to a `.tmp` beside the target, renamed only once complete,
+/// so an interrupted download cannot leave a truncated file that looks done.
 ///
 /// Used as-is by the Android app and by the desktop wrapper (the web page
 /// never talks to dufs). Pure Dart + `dart:io`.
@@ -16,57 +22,25 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/images/dufs_image_client.dart';
+import 'package:todo/images/reconcile_report.dart';
 
-/// How long a cached, unreferenced image is kept before eviction.
+export 'package:todo/images/reconcile_report.dart';
+
+/// How long a cached, unreferenced attachment is kept before eviction, and
+/// how old an abandoned `.tmp` must be before it is swept.
 ///
-/// Covers the gap between writing an image and its link reaching the note
-/// store (and, on desktop, the page's next reconcile): without it a
-/// reconcile landing in that gap would delete a fresh image.
+/// Covers the gap between writing an attachment and its link reaching the
+/// note store (and, on desktop, the page's next reconcile): without it a
+/// reconcile landing in that gap would delete a fresh attachment.
 const kEvictionGrace = Duration(minutes: 10);
 
-/// Counts from one [ImageCacheStore.reconcile] pass.
-class ReconcileReport {
-  /// Creates a report.
-  const ReconcileReport({
-    this.uploaded = 0,
-    this.downloaded = 0,
-    this.evicted = 0,
-    this.pending = 0,
-    this.missing = 0,
-  });
-
-  /// Queued images dufs accepted this pass.
-  final int uploaded;
-
-  /// Linked images fetched from dufs this pass.
-  final int downloaded;
-
-  /// Unlinked cached images deleted.
-  final int evicted;
-
-  /// Images still waiting to upload after the pass.
-  final int pending;
-
-  /// Linked images still not on this device after the pass.
-  final int missing;
-
-  /// JSON form, for the wrapper's `/images/reconcile` response.
-  Map<String, int> toJson() => {
-    'uploaded': uploaded,
-    'downloaded': downloaded,
-    'evicted': evicted,
-    'pending': pending,
-    'missing': missing,
-  };
-}
-
-/// Local image files and their upload queue under [root].
+/// Local attachment files and their upload queue under [root].
 class ImageCacheStore {
   /// Creates a store rooted at [root]; [now] is injectable for tests.
   ImageCacheStore(this.root, {DateTime Function()? now})
     : _now = now ?? DateTime.now;
 
-  /// Directory holding `<noteId>/<uuid>.jpg`.
+  /// Directory holding `<noteId>/<uuid>.<ext>`.
   final Directory root;
 
   final DateTime Function() _now;
@@ -81,6 +55,9 @@ class ImageCacheStore {
   File fileFor(AttachmentRef ref) =>
       File(p.join(root.path, ref.noteId, ref.file));
 
+  /// Scratch file next to [ref]'s, for writes that must land whole.
+  File tempFor(AttachmentRef ref) => File('${fileFor(ref).path}.tmp');
+
   File _marker(AttachmentRef ref) => File('${fileFor(ref).path}.pending');
 
   /// Whether [ref] is waiting to upload.
@@ -88,29 +65,35 @@ class ImageCacheStore {
 
   /// Stores [bytes] as [ref] and queues it for upload.
   Future<void> put(AttachmentRef ref, Uint8List bytes) async {
-    final file = fileFor(ref);
-    await file.parent.create(recursive: true);
-    // Marker first: a crash between the two writes then leaves a marker with
-    // no file (skipped by reconcile), never a file that silently never uploads.
-    await _marker(ref).writeAsString('');
-    final tmp = File('${file.path}.tmp');
+    final tmp = tempFor(ref);
+    await tmp.parent.create(recursive: true);
     await tmp.writeAsBytes(bytes, flush: true);
-    await tmp.rename(file.path);
+    await adopt(ref, tmp);
   }
 
-  /// Every image waiting to upload.
+  /// Moves the complete file [tmp] into place as [ref] and queues it for
+  /// upload. [tmp] must be on the same filesystem (see [tempFor]).
+  Future<void> adopt(AttachmentRef ref, File tmp) async {
+    await fileFor(ref).parent.create(recursive: true);
+    // Marker first: a crash between the two then leaves a marker with no
+    // file (skipped by reconcile), never a file that silently never uploads.
+    await _marker(ref).writeAsString('');
+    await tmp.rename(fileFor(ref).path);
+  }
+
+  /// Every attachment waiting to upload.
   List<AttachmentRef> pending() => [
     for (final marker in _files('.pending'))
       ?AttachmentRef.tryParse(_relative(marker).replaceFirst('.pending', '')),
   ];
 
-  /// Uploads the queue, fetches linked images this device lacks, and evicts
-  /// cached images nothing links to any more.
+  /// Uploads the queue, fetches linked attachments this device lacks, and
+  /// evicts cached ones nothing links to any more.
   ///
   /// Without a [client] (no password set yet) only eviction runs. Eviction is
   /// skipped entirely when [referenced] is empty — an empty set far more
-  /// likely means "notes not loaded yet" than "every image unlinked" — and it
-  /// never touches a queued image or one younger than [kEvictionGrace].
+  /// likely means "notes not loaded yet" than "everything unlinked" — and it
+  /// never touches a queued attachment or one younger than [kEvictionGrace].
   ///
   /// Overlapping calls do not run in parallel: calls made before the next
   /// pass starts share it, with their refs unioned and the newest client.
@@ -149,19 +132,15 @@ class ImageCacheStore {
       for (final ref in pending()) {
         final file = fileFor(ref);
         if (!file.existsSync()) continue;
-        if (await client.upload(ref, await file.readAsBytes())) {
+        final length = await file.length();
+        if (await client.upload(ref, file.openRead(), length)) {
           await _marker(ref).delete();
           uploaded++;
         }
       }
       for (final ref in pass.referenced) {
         if (fileFor(ref).existsSync()) continue;
-        final bytes = await client.download(ref);
-        if (bytes == null) continue;
-        final file = fileFor(ref);
-        await file.parent.create(recursive: true);
-        await file.writeAsBytes(bytes, flush: true);
-        downloaded++;
+        if (await _download(ref, client)) downloaded++;
       }
     }
     final evicted = pass.referenced.isEmpty ? 0 : _evict(pass.referenced);
@@ -174,13 +153,40 @@ class ImageCacheStore {
     );
   }
 
+  Future<bool> _download(AttachmentRef ref, DufsImageClient client) async {
+    final body = await client.openDownload(ref);
+    if (body == null) return false;
+    final tmp = tempFor(ref);
+    try {
+      await tmp.parent.create(recursive: true);
+      final sink = tmp.openWrite();
+      try {
+        await sink.addStream(body);
+      } finally {
+        await sink.close();
+      }
+      await tmp.rename(fileFor(ref).path);
+      return true;
+    } on Exception {
+      // A dropped connection mid-body: retry from scratch next pass.
+      if (tmp.existsSync()) await tmp.delete();
+      return false;
+    }
+  }
+
   int _evict(Set<AttachmentRef> referenced) {
     final cutoff = _now().subtract(kEvictionGrace);
     var evicted = 0;
-    for (final file in _files('.jpg')) {
+    for (final file in _files('')) {
+      if (file.lastModifiedSync().isAfter(cutoff)) continue;
+      // An abandoned write (killed mid-download or mid-attach): unreachable
+      // by any ref, and possibly gigabytes.
+      if (file.path.endsWith('.tmp')) {
+        file.deleteSync();
+        continue;
+      }
       final ref = AttachmentRef.tryParse(_relative(file));
       if (ref == null || referenced.contains(ref) || isPending(ref)) continue;
-      if (file.lastModifiedSync().isAfter(cutoff)) continue;
       file.deleteSync();
       evicted++;
     }

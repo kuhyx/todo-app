@@ -54,4 +54,42 @@ void main() {
     expect(prepareImage(Uint8List.fromList('hello world'.codeUnits)), isNull);
     expect(prepareImage(Uint8List(0)), isNull);
   });
+
+  test('looksLikeImage knows the photo and screenshot formats', () {
+    final formats = {
+      'jpeg': img.encodeJpg(img.Image(width: 2, height: 2)),
+      'png': img.encodePng(img.Image(width: 2, height: 2)),
+      'gif': img.encodeGif(img.Image(width: 2, height: 2)),
+      'bmp': img.encodeBmp(img.Image(width: 2, height: 2)),
+      'tiff': img.encodeTiff(img.Image(width: 2, height: 2)),
+      'webp': Uint8List.fromList([
+        ...'RIFF'.codeUnits,
+        0,
+        0,
+        0,
+        0,
+        ...'WEBP'.codeUnits,
+      ]),
+      'tiff big-endian': Uint8List.fromList([0x4D, 0x4D, 0x00, 0x2A]),
+    };
+    formats.forEach((name, bytes) {
+      expect(
+        looksLikeImage(bytes.take(kImageSniffBytes).toList()),
+        isTrue,
+        reason: name,
+      );
+    });
+  });
+
+  test('looksLikeImage refuses everything else', () {
+    for (final head in [
+      '%PDF-1.7'.codeUnits,
+      'hello world'.codeUnits,
+      [...'RIFF'.codeUnits, 0, 0, 0, 0, ...'AVI '.codeUnits],
+      [0xFF, 0xD8],
+      <int>[],
+    ]) {
+      expect(looksLikeImage(head), isFalse, reason: '$head');
+    }
+  });
 }

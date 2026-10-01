@@ -34,7 +34,7 @@ class CloudImagesTile extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     contentPadding: EdgeInsets.zero,
     title: const Text('Cloud images'),
-    subtitle: const Text('Where attached images upload (dufs)'),
+    subtitle: const Text('Where attached images and files upload (dufs)'),
     trailing: const Icon(Icons.chevron_right),
     onTap: () => Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -166,7 +166,8 @@ class _CloudImagesScreenState extends State<CloudImagesScreen> {
           const SizedBox(height: 16),
           Text(
             'Images are shrunk to 2560px JPEGs without location data before '
-            'they leave this device.',
+            'they leave this device. Other files upload unchanged, at any '
+            'size.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

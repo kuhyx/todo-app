@@ -4,13 +4,11 @@
 /// screen still owns every action; this just lays the row out.
 library;
 
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/frame_stats.dart';
-import 'package:todo/ui/image_picking.dart';
+import 'package:todo/ui/attachment_picking.dart';
 
 /// App bar for the capture screen.
 class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -23,8 +21,8 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onSync,
     required this.onOpenList,
     required this.onOpenSettings,
-    required this.onAttachImages,
-    this.imagePicking,
+    required this.onAttachFiles,
+    this.attachmentPicking,
     super.key,
   });
 
@@ -49,11 +47,11 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// Opens the settings screen.
   final VoidCallback onOpenSettings;
 
-  /// Receives images picked with the 📎 action.
-  final ValueChanged<List<Uint8List>> onAttachImages;
+  /// Receives files picked with the 📎 action.
+  final ValueChanged<List<XFile>> onAttachFiles;
 
   /// The picker behind 📎; null uses the platform one.
-  final ImagePicking? imagePicking;
+  final AttachmentPicking? attachmentPicking;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -80,7 +78,7 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         // coverage:ignore-end
         // Not gated on advanced mode: attaching is basic capture.
-        AttachImageButton(onImages: onAttachImages, picking: imagePicking),
+        AttachButton(onFiles: onAttachFiles, picking: attachmentPicking),
         IconButton(
           tooltip: 'New note',
           onPressed: onNewNote,

@@ -1,5 +1,5 @@
 import 'package:todo/data/note.dart';
-import 'package:todo/images/attachment_ref.dart';
+import 'package:todo/images/attachment_links.dart';
 import 'package:uuid/uuid.dart';
 
 /// Serialises notes to (and parses them back from) a single Markdown file.
@@ -47,7 +47,7 @@ class NotesMarkdown {
           'created="${note.createdAt.toIso8601String()}" '
           'updated="${note.updatedAt.toIso8601String()}" -->',
         )
-        ..writeln(toBacklogImagePaths(note.text))
+        ..writeln(toBacklogAttachmentPaths(note.text))
         ..writeln();
     }
     return buffer.toString();
@@ -68,7 +68,7 @@ class NotesMarkdown {
       final bodyEnd = i + 1 < markers.length
           ? markers[i + 1].start
           : content.length;
-      final body = fromBacklogImagePaths(
+      final body = fromBacklogAttachmentPaths(
         content.substring(bodyStart, bodyEnd).trim(),
       );
 

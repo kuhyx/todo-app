@@ -22,7 +22,7 @@ class CaptureScreen extends StatefulWidget {
     this.localBackup,
     this.firebaseFactory,
     this.stateStore,
-    this.imagePicking,
+    this.attachmentPicking,
     super.key,
   });
 
@@ -57,7 +57,7 @@ class CaptureScreen extends StatefulWidget {
   final LocalBackup? localBackup;
 
   /// The 📎 picker; null uses the platform one. Injected by tests.
-  final ImagePicking? imagePicking;
+  final AttachmentPicking? attachmentPicking;
 
   /// How long focus must stay lost before a background sync fires. Public so
   /// tests can pump exactly past it.

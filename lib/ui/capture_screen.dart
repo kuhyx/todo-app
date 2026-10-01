@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:todo/data/note_template.dart';
 import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/sync_settings.dart';
+import 'package:todo/ui/attachment_picking.dart';
 import 'package:todo/ui/capture_app_bar.dart';
 import 'package:todo/ui/capture_draft.dart';
 import 'package:todo/ui/capture_status.dart';
@@ -21,7 +23,6 @@ import 'package:todo/ui/capture_status_footer.dart';
 import 'package:todo/ui/capture_sync_runner.dart';
 import 'package:todo/ui/image_attach.dart';
 import 'package:todo/ui/image_input.dart';
-import 'package:todo/ui/image_picking.dart';
 import 'package:todo/ui/note_form.dart';
 import 'package:todo/ui/notes_list_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
@@ -147,8 +148,8 @@ class _CaptureScreenState extends State<CaptureScreen>
             onSync: _sync,
             onOpenList: _openList,
             onOpenSettings: _openSettings,
-            onAttachImages: _attachImages,
-            imagePicking: widget.imagePicking,
+            onAttachFiles: _attachFiles,
+            attachmentPicking: widget.attachmentPicking,
           ),
           body: _captureBody(advanced: advanced),
         );

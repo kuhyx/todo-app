@@ -1,18 +1,22 @@
 /// The desktop wrapper's `/images/*` routes: the web page's only way to
-/// store, show and sync attached images.
+/// store, show and sync attachments (images and any other file).
 ///
 /// The page never talks to dufs itself. That keeps the dufs password out of
 /// the browser, needs no CORS on dufs, and gives the desktop the same offline
 /// store the phone has (an [ImageCacheStore] on disk). Same-origin with the
 /// page, so an `<img src="/images/…">` just works.
 ///
-/// * `POST /images/<noteId>/<uuid>.jpg` — raw bytes of any image; re-encoded
-///   here (the page must not decode on its UI thread), stored, queued.
-///   415 when the bytes are not an image.
-/// * `GET  /images/<noteId>/<uuid>.jpg` — the cached JPEG, 404 when absent.
-/// * `POST /images/reconcile` — `{"refs": ["<noteId>/<uuid>.jpg", …]}`: every
-///   image the notes link to. Uploads the queue, fetches what is missing,
-///   evicts the rest; answers with the [ReconcileReport].
+/// * `POST /images/attach?note=<noteId>&name=<file name>` — a picked or
+///   dropped file of any size, streamed to disk; stored as a re-encoded image
+///   when it is one, byte-for-byte otherwise. Answers with the [Attachment].
+/// * `POST /images/<noteId>/<uuid>.jpg` — raw bytes of a pasted image;
+///   re-encoded here (the page must not decode on its UI thread), stored,
+///   queued. 415 when the bytes are not an image.
+/// * `GET|HEAD /images/<noteId>/<uuid>.<ext>[?name=<file name>]` — the cached
+///   file (see `wrapper_attachment_serving.dart`), 404 when absent.
+/// * `POST /images/reconcile` — `{"refs": ["<noteId>/<uuid>.<ext>", …]}`:
+///   every attachment the notes link to. Uploads the queue, fetches what is
+///   missing, evicts the rest; answers with the [ReconcileReport].
 /// * `GET  /images/status` — `{"configured": bool, "pending": n}`.
 library;
 
@@ -22,15 +26,13 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:todo/desktop/dufs_login_env.dart';
+import 'package:todo/desktop/wrapper_attachment_serving.dart';
 import 'package:todo/desktop/wrapper_paths.dart';
+import 'package:todo/images/attachment_ingest.dart';
 import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/images/dufs_image_client.dart';
 import 'package:todo/images/image_cache_store.dart';
 import 'package:todo/images/image_processing.dart';
-
-/// Largest upload accepted from the page, before re-encoding (a raw 50 MP
-/// phone photo is ~25 MB).
-const int kMaxImageUploadBytes = 64 * 1024 * 1024;
 
 /// The routes the real wrapper uses: cache under
 /// `~/.local/share/todo-desktop/images`, login from `todo.env`.
@@ -49,9 +51,13 @@ class WrapperImageRoutes {
     http.Client Function()? httpClient,
     Future<Uint8List?> Function(Uint8List)? prepare,
   }) : _httpClient = httpClient ?? http.Client.new,
-       _prepare = prepare ?? prepareImageInBackground;
+       _prepare = prepare ?? prepareImageInBackground,
+       _ingest = AttachmentIngest(
+         store,
+         prepare: prepare ?? prepareImageInBackground,
+       );
 
-  /// The on-disk image cache and upload queue.
+  /// The on-disk attachment cache and upload queue.
   final ImageCacheStore store;
 
   /// `todo.env` written by `add_dufs_login.sh`.
@@ -59,17 +65,21 @@ class WrapperImageRoutes {
 
   final http.Client Function() _httpClient;
   final Future<Uint8List?> Function(Uint8List) _prepare;
+  final AttachmentIngest _ingest;
 
-  static const _prefix = '/images/';
+  /// Every path these routes answer starts with this.
+  static const prefix = '/images/';
 
   /// Answers [request] and returns true when it is an `/images/` route.
   Future<bool> handle(HttpRequest request) async {
     final path = request.uri.path;
-    if (!path.startsWith(_prefix)) return false;
-    final rest = path.substring(_prefix.length);
+    if (!path.startsWith(prefix)) return false;
+    final rest = path.substring(prefix.length);
     final response = request.response;
     final method = request.method;
-    if (rest == 'reconcile' && method == 'POST') {
+    if (rest == 'attach' && method == 'POST') {
+      await _attach(request);
+    } else if (rest == 'reconcile' && method == 'POST') {
       await _reconcile(request);
     } else if (rest == 'status' && method == 'GET') {
       _json(response, {
@@ -77,9 +87,14 @@ class WrapperImageRoutes {
         'pending': store.pending().length,
       });
     } else if (AttachmentRef.tryParse(rest) case final ref?) {
-      if (method == 'GET') {
-        await _serve(response, ref);
-      } else if (method == 'POST') {
+      if (method == 'GET' || method == 'HEAD') {
+        await serveAttachment(
+          request,
+          ref,
+          store.fileFor(ref),
+          fileName: request.uri.queryParameters['name'],
+        );
+      } else if (method == 'POST' && ref.extension == 'jpg') {
         await _put(request, ref);
       } else {
         response.statusCode = HttpStatus.methodNotAllowed;
@@ -92,17 +107,29 @@ class WrapperImageRoutes {
 
   DufsLogin? _login() => readDufsLoginEnv(File(loginEnvPath));
 
-  Future<void> _serve(HttpResponse response, AttachmentRef ref) async {
-    final file = store.fileFor(ref);
-    if (!file.existsSync()) {
-      response.statusCode = HttpStatus.notFound;
+  Future<void> _attach(HttpRequest request) async {
+    final query = request.uri.queryParameters;
+    final noteId = query['note'] ?? '';
+    final response = request.response;
+    if (!isSafeNoteId(noteId)) {
+      // Read the body anyway: answering mid-upload looks like a dropped
+      // connection to the browser, not a 400.
+      await request.drain<void>();
+      response.statusCode = HttpStatus.badRequest;
       return;
     }
-    response.headers
-      ..contentType = ContentType('image', 'jpeg')
-      // The name is a fresh uuid per image, so the bytes never change.
-      ..set(HttpHeaders.cacheControlHeader, 'private, max-age=31536000');
-    await response.addStream(file.openRead());
+    try {
+      final attachment = await _ingest.fromStream(
+        noteId,
+        query['name'] ?? '',
+        request,
+      );
+      _json(response, attachment.toJson());
+    } on FileSystemException catch (e) {
+      response
+        ..statusCode = HttpStatus.internalServerError
+        ..write(e.message);
+    }
   }
 
   Future<void> _put(HttpRequest request, AttachmentRef ref) async {
@@ -112,7 +139,7 @@ class WrapperImageRoutes {
     // is still sending makes it see a dropped connection, not the 413.
     await for (final chunk in request) {
       tooLarge =
-          tooLarge || builder.length + chunk.length > kMaxImageUploadBytes;
+          tooLarge || builder.length + chunk.length > kMaxImageDecodeBytes;
       if (!tooLarge) builder.add(chunk);
     }
     if (tooLarge) {

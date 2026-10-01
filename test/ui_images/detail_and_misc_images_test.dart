@@ -9,11 +9,13 @@ import 'package:todo/data/note_template_parser.dart';
 import 'package:todo/images/attachment_ref.dart';
 import 'package:todo/sync/desktop_wrapper.dart';
 import 'package:todo/sync/notes_markdown.dart';
+import 'package:todo/ui/attachment_picking.dart';
 import 'package:todo/ui/capture_draft.dart';
 import 'package:todo/ui/image_input.dart';
 import 'package:todo/ui/image_input_files.dart';
+import 'package:todo/ui/images/attachment_strip.dart';
+import 'package:todo/ui/images/file_embed.dart';
 import 'package:todo/ui/images/image_embed.dart';
-import 'package:todo/ui/images/image_strip.dart';
 import 'package:todo/ui/markdown_view.dart';
 import 'package:todo/ui/note_detail_screen.dart';
 
@@ -48,9 +50,7 @@ void main() {
             note: note('first\nsecond'),
             repository: repo,
             appSettings: ValueNotifier(const AppSettings(advancedMode: true)),
-            imagePicking: (_) async => [
-              Uint8List.fromList([1]),
-            ],
+            attachmentPicking: (_) async => [XFile('/picked/shot.png')],
           ),
         ),
       ),
@@ -58,41 +58,52 @@ void main() {
     await tester.pump();
     tester.widget<TextField>(find.byType(TextField)).controller!.selection =
         const TextSelection.collapsed(offset: 5);
-    await tester.tap(find.byTooltip('Attach image'));
+    await tester.tap(find.byTooltip('Attach'));
     await tester.pump();
     await tester.pump();
-    final added = store.attached.keys.single;
-    expect(added.noteId, 'n1');
     expect(
       (await repo.listNotes()).single.text,
-      'first\n${added.markdown}\nsecond',
+      matches(RegExp(r'^first\n!\[\]\(\S+/n1/\S+\.jpg\)\nsecond$')),
     );
-    expect(find.byType(ImageStrip), findsOneWidget);
-    // A paste or drop lands in the same note.
-    tester.widget<ImageInputListener>(find.byType(ImageInputListener)).onImages(
-      [
-        Uint8List.fromList([2]),
-      ],
-      0,
+    expect(find.byType(AttachmentStrip), findsOneWidget);
+    // A paste and a drop land in the same note.
+    final input = tester.widget<ImageInputListener>(
+      find.byType(ImageInputListener),
     );
+    input.onImages([
+      Uint8List.fromList([2]),
+    ], 0);
     await tester.pump();
     await tester.pump();
-    expect(store.attached, hasLength(2));
-    expect(store.attached.keys.last.noteId, 'n1');
+    expect(store.attached.keys.single.noteId, 'n1');
+    input.onFiles([XFile('/dropped/Raport.pdf')]);
+    await tester.pump();
+    await tester.pump();
+    expect((await repo.listNotes()).single.text, contains('[Raport.pdf]('));
     // View mode renders inline and hides the strip.
     await tester.tap(find.text('View'));
     await tester.pump();
-    expect(find.byType(ImageStrip), findsNothing);
+    expect(find.byType(AttachmentStrip), findsNothing);
     expect(find.byType(ImageEmbed), findsNWidgets(2));
+    expect(find.byType(FileEmbed), findsOneWidget);
   });
 
-  testWidgets('markdown view draws an image line as an embed', (tester) async {
+  testWidgets('markdown view draws image and file lines as embeds', (
+    tester,
+  ) async {
+    final pdf = AttachmentRef.forFile('n1', 'a.pdf');
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(body: MarkdownView(text: 'text\n${ref.markdown}\n')),
+        home: Scaffold(
+          body: MarkdownView(
+            text: 'text\n${ref.imageMarkdown}\n${pdf.fileMarkdown('a.pdf')}\n',
+          ),
+        ),
       ),
     );
+    await tester.pump();
     expect(find.byType(ImageEmbed), findsOneWidget);
+    expect(find.byType(FileEmbed), findsOneWidget);
     expect(find.text('text'), findsOneWidget);
   });
 
@@ -100,7 +111,11 @@ void main() {
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
-        child: ImageInputListener(onImages: (_, _) {}, child: const Text('x')),
+        child: ImageInputListener(
+          onImages: (_, _) {},
+          onFiles: (_) {},
+          child: const Text('x'),
+        ),
       ),
     );
     expect(find.text('x'), findsOneWidget);
@@ -117,17 +132,31 @@ void main() {
     expect(split.rejected, 2);
   });
 
-  test('noteTitle skips image lines', () {
-    expect(noteTitle('${ref.markdown}\n# Real title'), 'Real title');
-    expect(noteTitle(ref.markdown), 'Image');
-    expect(noteTitle('${ref.markdown}\n\n${ref.markdown}'), '2 images');
+  test('noteTitle skips attachment lines', () {
+    final pdf = AttachmentRef.forFile('n1', 'a.pdf');
+    final file = pdf.fileMarkdown('Raport.pdf');
+    expect(noteTitle('${ref.imageMarkdown}\n# Real title'), 'Real title');
+    expect(noteTitle('$file\n# Real title'), 'Real title');
+    expect(noteTitle(ref.imageMarkdown), 'Image');
+    expect(
+      noteTitle('${ref.imageMarkdown}\n\n${ref.imageMarkdown}'),
+      '2 images',
+    );
+    expect(noteTitle(file), 'Raport.pdf');
+    expect(noteTitle('$file\n${ref.imageMarkdown}'), '2 attachments');
     expect(noteTitle(''), '');
   });
 
   test('the backlog export uses disk paths and parses back', () {
-    final exported = NotesMarkdown.export([note('t\n${ref.markdown}')]);
+    final pdf = AttachmentRef.forFile('n1', 'a.pdf');
+    final text = 't\n${ref.imageMarkdown}\n${pdf.fileMarkdown('a.pdf')}';
+    final exported = NotesMarkdown.export([note(text)]);
     expect(exported, contains('![]($kBacklogImagesRoot/${ref.relativePath})'));
-    expect(NotesMarkdown.parse(exported).single.text, 't\n${ref.markdown}');
+    expect(
+      exported,
+      contains('[a.pdf]($kBacklogImagesRoot/${pdf.relativePath})'),
+    );
+    expect(NotesMarkdown.parse(exported).single.text, text);
   });
 
   test('the page talks to the wrapper that served it', () {

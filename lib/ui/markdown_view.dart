@@ -1,7 +1,8 @@
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
-import 'package:todo/images/attachment_ref.dart';
+import 'package:todo/images/attachment_links.dart';
+import 'package:todo/ui/images/file_embed.dart';
 import 'package:todo/ui/images/image_embed.dart';
 
 /// Tallest an image is drawn inside a rendered note.
@@ -11,7 +12,7 @@ const kInlineImageHeight = 320.0;
 ///
 /// The app's notes use a small, known Markdown subset — an `#` title, `##`
 /// section headings, italic `_guidance_` lines, `-` bullet lists and plain
-/// paragraphs, plus one attached image per line (see `attachment_ref.dart`)
+/// paragraphs, plus one attachment per line (see `attachment_links.dart`)
 /// — so a tailored line-based renderer covers everything we emit without
 /// pulling in a full Markdown engine. It keeps the quick-capture app lean and
 /// is trivial to test.
@@ -37,14 +38,18 @@ class MarkdownView extends StatelessWidget {
         widgets.add(const SizedBox(height: 8));
         continue;
       }
-      if (imageRefOfLine(trimmed) case final image?) {
+      if (attachmentOfLine(trimmed) case final attachment?) {
         widgets.add(
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: kInlineImageHeight),
-              child: ImageEmbed(ref: image, fit: BoxFit.contain),
-            ),
+            child: attachment.isImage
+                ? ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxHeight: kInlineImageHeight,
+                    ),
+                    child: ImageEmbed(ref: attachment.ref, fit: BoxFit.contain),
+                  )
+                : FileEmbed(attachment: attachment),
           ),
         );
         continue;

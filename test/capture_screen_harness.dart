@@ -24,9 +24,9 @@ import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/notes_markdown.dart';
+import 'package:todo/ui/attachment_picking.dart';
 import 'package:todo/ui/capture_screen.dart';
 import 'package:todo/ui/github_mirror_screen.dart';
-import 'package:todo/ui/image_picking.dart';
 import 'package:todo/ui/settings_screen.dart';
 
 import 'fake_note_repository.dart';
@@ -50,7 +50,7 @@ Future<FakeNoteRepository> pumpCapture(
   ValueNotifier<AppSettings>? appSettings,
   AnalyticsService? analytics,
   ImageStore? imageStore,
-  ImagePicking? imagePicking,
+  AttachmentPicking? attachmentPicking,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
   installFakeSecureStorage();
@@ -85,7 +85,7 @@ Future<FakeNoteRepository> pumpCapture(
       firebaseFactory: firebaseFactory ?? () async => null,
       stateStore: InMemorySyncStateStore(),
       localBackup: backup,
-      imagePicking: imagePicking,
+      attachmentPicking: attachmentPicking,
     ),
   );
   await tester.pumpWidget(

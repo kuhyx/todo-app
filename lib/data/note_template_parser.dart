@@ -17,6 +17,7 @@
 library;
 
 import 'package:todo/data/note_template.dart';
+import 'package:todo/images/attachment_links.dart';
 import 'package:todo/images/attachment_ref.dart';
 
 /// Matches a single `http(s)://…` token.
@@ -141,24 +142,27 @@ ParsedNote parse(NoteTemplate template, String text) {
 }
 
 /// The note's display title: the `#` heading text without its `#` marker, or
-/// the first non-empty line for freeform notes. Attached-image lines are
-/// skipped (a 120-char dufs URL is no title); a note of nothing but images
-/// is titled by their count.
+/// the first non-empty line for freeform notes. Attachment lines are skipped
+/// (a 120-char dufs URL is no title); a note of nothing but attachments is
+/// titled by their count, or by the file's name when it holds just one.
 String noteTitle(String text) {
-  var images = 0;
+  final attachments = <Attachment>[];
   for (final line in text.split('\n')) {
     final trimmed = line.trim();
     if (trimmed.isEmpty) continue;
-    if (imageRefOfLine(trimmed) != null) {
-      images++;
+    if (attachmentOfLine(trimmed) case final attachment?) {
+      attachments.add(attachment);
       continue;
     }
     return trimmed.replaceFirst(RegExp(r'^#+\s*'), '');
   }
-  return switch (images) {
-    0 => '',
-    1 => 'Image',
-    _ => '$images images',
+  final images = attachments.where((a) => a.isImage).length;
+  return switch ((attachments.length, images)) {
+    (0, _) => '',
+    (1, 1) => 'Image',
+    (1, _) => attachments.single.name,
+    (final n, final i) when i == n => '$n images',
+    (final n, _) => '$n attachments',
   };
 }
 

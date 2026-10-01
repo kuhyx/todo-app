@@ -128,11 +128,13 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
   }
 
   /// The composer column: metadata row, editor, and status footer. Images
-  /// pasted or dropped anywhere on the (desktop) page attach to the draft.
+  /// pasted and files dropped anywhere on the (desktop) page attach to the
+  /// draft.
   Widget _captureBody({required bool advanced}) {
     return ImageInputListener(
       onImages: (images, rejected) =>
           unawaited(_attachImages(images, rejected: rejected)),
+      onFiles: (files) => unawaited(_attachFiles(files)),
       child: _composer(advanced: advanced),
     );
   }

@@ -15,6 +15,12 @@ class FakeImageStore extends ImageStore {
   /// Bytes accepted per ref, in attach order.
   final Map<AttachmentRef, Uint8List> attached = {};
 
+  /// Files accepted through [attachFile], in order.
+  final List<XFile> attachedFiles = [];
+
+  /// What [sizeOf] reports for an attachment on this device.
+  int size = 2048;
+
   /// Note texts passed to each reconcile.
   final List<List<String>> reconciles = [];
 
@@ -49,6 +55,27 @@ class FakeImageStore extends ImageStore {
     attached[ref] = bytes;
     return ref;
   }
+
+  /// Files whose name ends in `.png` or `.jpg` come back as images.
+  @override
+  Future<Attachment> attachFile(String noteId, XFile file) async {
+    await gate;
+    final failure = this.failure;
+    if (failure != null) throw failure;
+    attachedFiles.add(file);
+    final isImage = file.name.endsWith('.png') || file.name.endsWith('.jpg');
+    return Attachment(
+      ref: isImage
+          ? AttachmentRef.create(noteId)
+          : AttachmentRef.forFile(noteId, file.name),
+      name: file.name,
+      isImage: isImage,
+    );
+  }
+
+  @override
+  Future<int?> sizeOf(AttachmentRef ref) async =>
+      missing.contains(ref) ? null : size;
 
   @override
   Future<void> reconcile(Iterable<String> noteTexts) async =>
