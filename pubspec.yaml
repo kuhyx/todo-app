@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.41+1
+version: 1.0.42+1
 
 environment:
   sdk: ^3.12.2
@@ -59,14 +59,14 @@ dependencies:
   github_device_auth:
     git:
       url: https://github.com/kuhyx/utils
-      ref: github_device_auth-v0.3.1
+      ref: github_device_auth-v0.3.2
       path: github_device_auth
   # One-tap sign-in for the sync account. Lives only in the app: `crdt_sync`
   # stays pure Dart so it keeps working on Linux desktop and headless, where
   # this plugin does not exist. See lib/sync/google_sign_in_backend.dart.
   google_sign_in: 7.2.0
   http: 1.6.0
-  idb_shim: 2.9.9
+  idb_shim: 2.9.10
   # Re-encodes attached images (resize, EXIF strip) in pure Dart, so the
   # phone and the desktop wrapper share one code path.
   image: 4.10.1
@@ -77,7 +77,7 @@ dependencies:
   open_file: 4.0.0
   path: 1.9.1
   path_provider: 2.1.6
-  share_plus: 13.3.0
+  share_plus: 13.3.1
   shared_preferences: 2.5.5
   sqflite_common_ffi: 2.4.3
   # Retained only to read the legacy on-device DB during the one-time
@@ -93,7 +93,7 @@ dependencies:
       url: https://github.com/kuhyx/utils
       ref: sync_settings_ui-v0.4.1
       path: sync_settings_ui
-  url_launcher: 6.3.2
+  url_launcher: 6.3.3
   uuid: 4.6.0
   # Paste and drag-and-drop listeners on the desktop (web) page.
   web: 1.1.1
