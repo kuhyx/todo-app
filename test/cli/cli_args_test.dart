@@ -45,6 +45,13 @@ void main() {
       expect(del.id, 'xyz');
     });
 
+    test('selects set-status with its id and status', () {
+      final set = CliArgs.parse(['--set-status', 'xyz', 'in_progress']);
+      expect(set.mode, CliMode.setStatus);
+      expect(set.id, 'xyz');
+      expect(set.status, Status.inProgress);
+    });
+
     test('help wins over everything else', () {
       expect(CliArgs.parse(['--list', '-h']).mode, CliMode.help);
       expect(CliArgs.parse(['--help']).mode, CliMode.help);
@@ -70,6 +77,14 @@ void main() {
       expectUsage(['--status', 'inProgress'], 'todo|in_progress|done');
       expectUsage(['--list', '--get', 'a'], 'mutually exclusive');
       expectUsage(['--list', '--text', 'x'], 'only applies when adding');
+      expectUsage(['--set-status', 'a'], '--set-status needs a value');
+      expectUsage(['--set-status', 'a', 'finished'], 'todo|in_progress|done');
+      expectUsage([
+        '--list',
+        '--set-status',
+        'a',
+        'done',
+      ], 'mutually exclusive');
     });
   });
 

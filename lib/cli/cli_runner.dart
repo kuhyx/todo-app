@@ -79,6 +79,7 @@ Future<int> runCli(
       CliMode.add => await cli.add(args, text!),
       CliMode.list => await cli.list(),
       CliMode.get => await cli.get(args.id!),
+      CliMode.setStatus => await cli.setStatus(args.id!, args.status),
       // Only delete is left: help returned above.
       _ => await cli.delete(args.id!),
     };
@@ -167,6 +168,25 @@ class _Cli {
       return 1;
     }
     out.writeln('deleted $id');
+    return 0;
+  }
+
+  Future<int> setStatus(String id, Status status) async {
+    // Pull first, as in [delete]: the note usually lives on another device.
+    _report(await session.sync(push: true));
+    final note = await _find(id);
+    if (note == null) {
+      err.writeln('error: no live note with id $id');
+      return 1;
+    }
+    await session.repository.upsert(
+      note.copyWith(status: status, updatedAt: DateTime.now()),
+    );
+    if (!_report(await session.sync(push: true)).pushed) {
+      err.writeln('error: status change saved locally but nothing was pushed');
+      return 1;
+    }
+    out.writeln('$id\t${CliArgs.statusName(status)}');
     return 0;
   }
 

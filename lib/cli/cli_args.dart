@@ -20,6 +20,9 @@ enum CliMode {
   /// Tombstone one note and push the deletion.
   delete,
 
+  /// Change one note's status and push it.
+  setStatus,
+
   /// Print usage.
   help,
 }
@@ -82,13 +85,19 @@ class CliArgs {
         case '--delete':
           modes.add(CliMode.delete);
           id = value();
+        case '--set-status':
+          modes.add(CliMode.setStatus);
+          id = value();
+          status = _byName(Status.values, value(), arg, _statusName);
         default:
           throw UsageError('unknown argument: $arg');
       }
     }
     if (modes.contains(CliMode.help)) return const CliArgs(mode: CliMode.help);
     if (modes.length > 1) {
-      throw UsageError('--list, --get and --delete are mutually exclusive');
+      throw UsageError(
+        '--list, --get, --delete and --set-status are mutually exclusive',
+      );
     }
     final mode = modes.isEmpty ? CliMode.add : modes.single;
     if (mode != CliMode.add && text != null) {
@@ -110,13 +119,13 @@ class CliArgs {
   /// Note text from `--text`; null means "read stdin" in [CliMode.add].
   final String? text;
 
-  /// Note id for [CliMode.get] / [CliMode.delete].
+  /// Note id for [CliMode.get] / [CliMode.delete] / [CliMode.setStatus].
   final String? id;
 
   /// Priority of a new note.
   final Priority priority;
 
-  /// Status of a new note.
+  /// Status of a new note, or the target status of [CliMode.setStatus].
   final Status status;
 
   /// Overrides the default data dir (a second, independent node).
@@ -158,6 +167,7 @@ ordinary CRDT change as this install's own node, pushes, and prints the id.
   --list                pull, then print live notes: id, priority, status, title
   --get <id>            pull, then print one note in full (exit 1 if absent)
   --delete <id>         pull, tombstone the note, push
+  --set-status <id> <s> pull, change the note's status (as --status), push
   --data-dir <dir>      local log + node id (default
                         $XDG_DATA_HOME/todo-cli or ~/.local/share/todo-cli)
   -h, --help            this text

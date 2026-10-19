@@ -1,67 +1,11 @@
 import 'dart:io';
 
-import 'package:crdt_sync/crdt_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:todo/cli/cli_runner.dart';
 import 'package:todo/cli/cli_session.dart';
-import 'package:todo/data/note.dart';
-import 'package:todo/data/note_repository.dart';
-import 'package:todo/sync/sync_service.dart';
 
 import 'fake_rtdb.dart';
-
-/// A session over an in-memory log whose [sync] reports a scripted `pushed`
-/// flag per call, optionally holding a note that already exists.
-class _ScriptedSession extends CliSession {
-  _ScriptedSession._(
-    NoteRepository repo,
-    FirebaseRestClient firebase,
-    this._pushed,
-  ) : super('unused', repo, firebase);
-
-  static Future<_ScriptedSession> create(
-    http.Client client,
-    List<bool> pushed, {
-    String? noteId,
-  }) async {
-    final repo = await NoteRepository.openInMemory();
-    if (noteId != null) {
-      final now = DateTime.utc(2026);
-      await repo.upsert(
-        Note(
-          id: noteId,
-          text: 'Stuck',
-          priority: Priority.medium,
-          status: Status.todo,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
-    }
-    final firebase = FirebaseRestClient(
-      databaseUrl: 'https://example.test',
-      auth: FirebaseTokenProvider(
-        apiKey: 'k',
-        store: InMemoryCredentialStore(
-          FirebaseCredentials(
-            idToken: 'id',
-            refreshToken: 'rt',
-            expiresAt: DateTime.utc(2099),
-          ),
-        ),
-      ),
-      httpClient: client,
-    );
-    return _ScriptedSession._(repo, firebase, pushed);
-  }
-
-  final List<bool> _pushed;
-
-  @override
-  Future<SyncResult> sync({required bool push}) async =>
-      SyncResult(mergedDevices: 0, pushed: _pushed.removeAt(0));
-}
+import 'scripted_session.dart';
 
 void main() {
   late Directory tmp;
@@ -159,7 +103,7 @@ void main() {
 
     test('fails when the push reports nothing published', () async {
       Future<CliSession> opener(String d, {required String seedCredentials}) =>
-          _ScriptedSession.create(db.client, [false]);
+          ScriptedSession.create(db.client, [false]);
       expect(await run(['--text', 'x'], opener: opener), 1);
       expect(err.toString(), contains('saved locally but nothing was pushed'));
     });
@@ -213,9 +157,40 @@ void main() {
 
     test('fails when the deletion push reports nothing published', () async {
       Future<CliSession> opener(String d, {required String seedCredentials}) =>
-          _ScriptedSession.create(db.client, [true, false], noteId: 'stuck');
+          ScriptedSession.create(db.client, [true, false], noteId: 'stuck');
       expect(await run(['--delete', 'stuck'], opener: opener), 1);
       expect(err.toString(), contains('deletion saved locally'));
+    });
+  });
+
+  group('set-status', () {
+    test('changes the status of a note created elsewhere and pushes', () async {
+      final id = await add('a', 'Ship it', ['--priority', 'high']);
+      expect(
+        await run(['--set-status', id, 'done', '--data-dir', dir('b')]),
+        0,
+      );
+      expect(out.toString().trim(), '$id\tdone');
+
+      expect(await run(['--get', id, '--data-dir', dir('c')]), 0);
+      expect(out.toString(), contains('status: done'));
+      expect(out.toString(), contains('priority: high'));
+      expect(out.toString(), contains('---\nShip it'));
+    });
+
+    test('an unknown id exits 1', () async {
+      expect(
+        await run(['--set-status', 'nope', 'done', '--data-dir', dir('b')]),
+        1,
+      );
+      expect(err.toString(), contains('no live note with id nope'));
+    });
+
+    test('fails when the status push reports nothing published', () async {
+      Future<CliSession> opener(String d, {required String seedCredentials}) =>
+          ScriptedSession.create(db.client, [true, false], noteId: 'stuck');
+      expect(await run(['--set-status', 'stuck', 'done'], opener: opener), 1);
+      expect(err.toString(), contains('status change saved locally'));
     });
   });
 
