@@ -20,6 +20,9 @@ Future<void> openNote(
   NoteRepository repository,
   ValueNotifier<AppSettings> appSettings,
 ) async {
+  // Drop the search box's focus first: a route remembers its focused field and
+  // re-focuses it on return, so backing out of a note would pop the keyboard.
+  FocusManager.instance.primaryFocus?.unfocus();
   await Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (_) => NoteDetailScreen(

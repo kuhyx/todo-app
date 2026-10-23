@@ -19,6 +19,10 @@ void main() {
     test('keeps Chrome off the keyring, whose lock blanks the window', () {
       expect(args, contains('--password-store=basic'));
     });
+
+    test('loads no extension, so none can open a second browser window', () {
+      expect(args, contains('--disable-extensions'));
+    });
   });
 
   group('findBrowser', () {

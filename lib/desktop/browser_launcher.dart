@@ -59,6 +59,11 @@ List<String> browserArgs(String home) => [
   // blank grey. Nothing in this profile needs OS-level encryption (the
   // GitHub token is in localStorage, not the password store).
   '--password-store=basic',
+  // The distro wrapper appends ~/.config/chromium-flags.conf to every launch,
+  // which here carries `--load-extension` for Claude in Chrome. Logged out in
+  // this profile, it opened a claude.ai login tab in a second, normal browser
+  // window on every start. This flag also drops command-line extensions.
+  '--disable-extensions',
 ];
 
 /// Launches the app in a Chrome-family browser with a **stable** profile

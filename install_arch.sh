@@ -29,8 +29,10 @@ echo "==> Compiling the desktop wrapper..."
 # `dart build cli`, not `dart compile exe`: the package pulls in dependencies
 # with native build hooks (sqlite3, objective_c), which `dart compile` refuses
 # to handle even though the wrapper itself uses none of them.
+# --target is required since bin/ also holds the todo_note CLI: with two
+# entry points `dart build cli` refuses to guess and the install aborts.
 rm -rf "$SCRIPT_DIR/build/cli"
-dart build cli -o "$SCRIPT_DIR/build/cli"
+dart build cli -t "$SCRIPT_DIR/bin/todo_desktop.dart" -o "$SCRIPT_DIR/build/cli"
 
 echo "==> Generating PKGBUILD..."
 # pkgname is 'todo-flutter', NOT 'todo': the AUR already ships an unrelated
