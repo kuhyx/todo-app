@@ -83,7 +83,7 @@ install_desktop_entry() {
     cat > "$DESKTOP_DIR/$ICON_NAME.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=todo
+Name=Todo
 Comment=Offline-first, CRDT-synced notes
 Exec=$LAUNCH_CMD
 Icon=$ICON_NAME

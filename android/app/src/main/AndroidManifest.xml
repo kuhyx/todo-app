@@ -4,7 +4,7 @@
          lose all network access. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="todo"
+        android:label="Todo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"

@@ -71,7 +71,7 @@ WRAPPER
   install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/todo.desktop" <<'DESKTOP'
 [Desktop Entry]
 Type=Application
-Name=todo
+Name=Todo
 Comment=Offline-first, CRDT-synced notes
 Exec=/usr/bin/todo
 Icon=todo
