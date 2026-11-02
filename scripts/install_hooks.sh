@@ -26,9 +26,10 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-readonly REPO_ROOT
-readonly HOOK="$REPO_ROOT/.git/hooks/pre-commit"
+# The common git dir, not <toplevel>/.git: in a worktree .git is a file.
+HOOKS_DIR="$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
+readonly HOOKS_DIR
+readonly HOOK="$HOOKS_DIR/pre-commit"
 readonly LEGACY_MARKER='bump_patch_version.sh'
 
 # The old hand-written hook has to go before pre-commit will install over it;
@@ -57,7 +58,7 @@ ensure_pre_commit() {
 # and only on success. pre-commit install --hook-type pre-commit writes the
 # generated script; we move it aside and call it from ours.
 install_wrapper() {
-    local generated="$REPO_ROOT/.git/hooks/pre-commit.pre-commit-generated"
+    local generated="$HOOKS_DIR/pre-commit.pre-commit-generated"
     mv "$HOOK" "$generated"
     cat > "$HOOK" <<'HOOK_BODY'
 #!/bin/bash
@@ -66,10 +67,13 @@ install_wrapper() {
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 readonly ROOT
+# The common git dir, not $ROOT/.git: in a worktree .git is a file.
+HOOKS_DIR="$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
+readonly HOOKS_DIR
 
 # The read-only gates. A non-zero exit here rejects the commit, and the bump
 # below never runs, so a rejected attempt leaves no stray version change.
-"$(dirname "${BASH_SOURCE[0]}")/pre-commit.pre-commit-generated" "$@"
+"$HOOKS_DIR/pre-commit.pre-commit-generated" "$@"
 
 exec bash "$ROOT/scripts/bump_patch_version.sh"
 HOOK_BODY
