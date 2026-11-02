@@ -3,8 +3,8 @@
 /// Why this is its own file: `crdt_sync` is deliberately pure Dart (only
 /// `crypto` and `http`), because the same library runs on Linux desktop and
 /// headless under systemd, where Android's AccountManager does not exist. So
-/// the platform channel lives in the app, and the library only ever receives
-/// a token string through a closure.
+/// the platform channel lives in the google_account_token plugin, and the
+/// library only ever receives a token string through a closure.
 ///
 /// What this buys: on a fresh install the sync account is reached by tapping
 /// one account-picker row instead of typing a long password on a phone
@@ -14,7 +14,7 @@ library;
 
 import 'dart:developer';
 
-import 'package:todo/sync/account_token.dart';
+import 'package:google_account_token/google_account_token.dart' as plugin;
 import 'package:todo/sync/google_platform.dart' as platform_gate;
 
 /// The account the security rules pin.
@@ -70,7 +70,7 @@ bool get googleSignInSupported =>
 /// an ordinary outcome, and the caller falls back to the password path.
 ///
 /// [signInFn] and [serverClientId] exist for tests, which cannot reach the
-/// platform channel `account_token.dart` uses.
+/// platform channel the plugin uses.
 Future<String?> googleIdToken({
   Future<String?> Function()? signInFn,
   String serverClientId = kServerClientId,
@@ -86,5 +86,5 @@ Future<String?> googleIdToken({
     );
     return null;
   }
-  return await accountManagerIdToken(serverClientId: serverClientId);
+  return await plugin.googleIdToken(serverClientId: serverClientId);
 }

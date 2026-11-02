@@ -61,6 +61,13 @@ dependencies:
       url: https://github.com/kuhyx/utils
       ref: github_device_auth-v0.3.2
       path: github_device_auth
+  # One-tap Google ID token via the framework AccountManager chooser (FOSS,
+  # no Play Services sign-in SDK). Used by the sync backend in lib/sync/.
+  google_account_token:
+    git:
+      url: https://github.com/kuhyx/utils
+      ref: google_account_token-v0.1.0
+      path: google_account_token
   http: 1.6.0
   idb_shim: 2.11.1
   # Re-encodes attached images (resize, EXIF strip) in pure Dart, so the
