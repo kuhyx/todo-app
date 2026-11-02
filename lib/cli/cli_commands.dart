@@ -45,7 +45,7 @@ class CliCommands {
       filter: NoteFilter(
         query: args.opts.query ?? '',
         statuses: {?args.status},
-        sources: {?args.opts.repo},
+        repo: args.opts.repo,
       ),
     );
     notes.map(listLine).forEach(_out.writeln);

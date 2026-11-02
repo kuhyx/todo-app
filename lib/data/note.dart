@@ -149,6 +149,9 @@ class Note {
   /// Whether this note is a repo task rather than a plain idea.
   bool get isRepoTask => repo != null;
 
+  /// The repo without its owner ("kartka" for "kuhyx/kartka"), or null.
+  String? get repoName => repo?.split('/').last;
+
   /// Returns a copy with selected fields replaced.
   Note copyWith({
     String? text,

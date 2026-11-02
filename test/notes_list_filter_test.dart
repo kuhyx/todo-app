@@ -8,6 +8,15 @@ import 'fake_note_repository.dart';
 
 import 'notes_list_harness.dart';
 
+/// Opens a date field's menu and picks [entry].
+Future<void> pickRange(WidgetTester tester, String field, String entry) async {
+  await tester.tap(find.byTooltip(field));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(find.text(entry).last);
+  await tester.pump();
+}
+
 void main() {
   testWidgets('a Created date preset sets a created range on the filter', (
     tester,
@@ -17,10 +26,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.filter_list));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    // "Today" appears under both Created and Last-updated; the first is
-    // Created.
-    await tester.tap(find.text('Today').first);
-    await tester.pump();
+    await pickRange(tester, 'Created', 'Today');
     await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -93,10 +99,8 @@ void main() {
     await tester.tap(find.byIcon(Icons.filter_list));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('7 days').first); // Created: last 7 days
-    await tester.pump();
-    await tester.tap(find.text('Any').first); // clear that range
-    await tester.pump();
+    await pickRange(tester, 'Created', '7 days');
+    await pickRange(tester, 'Created', 'Any'); // clear that range
     await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -112,8 +116,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.filter_list));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Custom…').first);
-    await tester.pump();
+    await pickRange(tester, 'Created', 'Custom…');
     await tester.pump(const Duration(milliseconds: 300)); // picker opens
     // The full-screen range picker dismisses via a close icon, not a label.
     await tester.tap(find.byIcon(Icons.close));
@@ -137,9 +140,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.tap(find.text('High')); // priority chip toggle
-    // Second "Today" belongs to the Last-updated section.
-    await tester.tap(find.text('Today').last);
-    await tester.pump();
+    await pickRange(tester, 'Last updated', 'Today');
     await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -158,12 +159,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('30 days').first); // _applyDays(30)
-    await tester.pump();
+    await pickRange(tester, 'Created', '30 days');
     // Custom… opens the range picker seeded with the 30-day range
     // (initialDateRange != null); confirming with Save returns that range.
-    await tester.tap(find.text('Custom…').first);
-    await tester.pump();
+    await pickRange(tester, 'Created', 'Custom…');
     await tester.pump(const Duration(milliseconds: 300)); // picker opens
     await tester.tap(find.text('Save'));
     await tester.pump();

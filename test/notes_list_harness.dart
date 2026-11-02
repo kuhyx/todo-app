@@ -34,8 +34,9 @@ Future<FakeNoteRepository> pumpList(
   WidgetTester tester, {
   List<Note> seed = const [],
   bool advancedMode = true,
+  bool applyFilter = false,
 }) async {
-  final repo = FakeNoteRepository(seed);
+  final repo = FakeNoteRepository(seed, applyFilter);
   addTearDown(repo.close);
   final settings = ValueNotifier(AppSettings(advancedMode: advancedMode));
   addTearDown(settings.dispose);

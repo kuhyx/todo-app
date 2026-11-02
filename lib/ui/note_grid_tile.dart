@@ -82,6 +82,13 @@ class NoteGridTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (note.repoName case final repo?)
+                Text(
+                  repo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: cue?.copyWith(color: scheme.onSurfaceVariant),
+                ),
               Row(
                 children: [
                   Icon(

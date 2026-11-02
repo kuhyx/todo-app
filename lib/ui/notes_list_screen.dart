@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
-import 'package:todo/ui/note_tile.dart';
+import 'package:todo/ui/app_route.dart';
 import 'package:todo/ui/notes_filter_sheet.dart';
-import 'package:todo/ui/notes_grid.dart';
+import 'package:todo/ui/notes_list_body.dart';
 import 'package:todo/ui/notes_list_defaults.dart';
 import 'package:todo/ui/notes_list_navigation.dart';
+import 'package:todo/ui/repo_group.dart';
+import 'package:todo/ui/repo_screen.dart';
 
 export 'package:todo/ui/notes_list_defaults.dart';
 
@@ -48,7 +50,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
 
   NoteSort _sort = NoteSort.priorityDesc;
 
-  /// Default view: open ideas only (no Done/Abandoned, no repo tasks).
+  /// Default view: open notes (no Done/Abandoned), ideas and repo tasks alike.
   NoteFilter _filter = kDefaultNoteFilter;
 
   /// Memoised stream; only replaced when [_sort]/[_filter] actually change.
@@ -92,20 +94,32 @@ class _NotesListScreenState extends State<NotesListScreen> {
   /// Opens the filter sheet and adopts the edited filter (text query is
   /// owned by the search box, so it is preserved across the round-trip).
   Future<void> _openFilters() async {
-    final repos = {
-      for (final n in await widget.repository.listNotes()) ?n.repo,
-    }.toList()..sort();
-    if (!mounted) return;
     final edited = await showModalBottomSheet<NoteFilter>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => FilterSheet(initial: _filter, repos: repos),
+      builder: (_) => FilterSheet(initial: _filter),
     );
     if (edited != null) {
       _filter = edited.copyWith(query: _searchController.text);
       _applyState();
     }
+  }
+
+  Future<void> _openRepo(String repo) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Navigator.of(context).push<void>(
+      appRoute(
+        context,
+        (_) => RepoScreen(
+          repo: repo,
+          filter: _filter,
+          sort: _sort,
+          repository: widget.repository,
+          appSettings: widget.appSettings,
+        ),
+      ),
+    );
   }
 
   @override
@@ -202,23 +216,12 @@ class _NotesListScreenState extends State<NotesListScreen> {
                     openNote(context, n, widget.repository, widget.appSettings);
                 void actions(Note n) =>
                     openNoteActions(context, n, widget.repository);
-                return LayoutBuilder(
-                  builder: (context, box) => box.maxWidth < kNotesGridMaxWidth
-                      ? NotesGrid(
-                          notes: notes,
-                          onOpen: open,
-                          onActions: actions,
-                        )
-                      : ListView.separated(
-                          itemCount: notes.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (context, i) => NoteTile(
-                            key: ValueKey(notes[i].id),
-                            note: notes[i],
-                            onTap: () => open(notes[i]),
-                            onActions: () => actions(notes[i]),
-                          ),
-                        ),
+                void openRepo(RepoEntry r) => _openRepo(r.repo);
+                return NotesListBody(
+                  entries: groupByRepo(notes),
+                  onOpen: open,
+                  onActions: actions,
+                  onOpenRepo: openRepo,
                 );
               },
             ),

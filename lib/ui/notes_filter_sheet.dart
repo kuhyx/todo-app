@@ -14,31 +14,22 @@ import 'package:todo/ui/note_date_range_field.dart';
 import 'package:todo/ui/notes_list_defaults.dart';
 
 /// The filter editing sheet: priority + status multi-select and Created /
-/// Last-updated date ranges (presets + a custom range picker). Edits a
+/// Last-updated date ranges (one compact preset menu + custom picker). Edits a
 /// working copy and returns it via [Navigator.pop] on "Apply".
 class FilterSheet extends StatefulWidget {
   /// Creates the sheet seeded with the currently applied [initial] filter.
-  const FilterSheet({required this.initial, this.repos = const [], super.key});
+  const FilterSheet({required this.initial, super.key});
 
   /// The filter the sheet opens with; edits are made to a working copy.
   final NoteFilter initial;
-
-  /// Distinct repos of the stored repo tasks, one chip each.
-  final List<String> repos;
 
   @override
   State<FilterSheet> createState() => _FilterSheetState();
 }
 
-const Map<String, String> _sourceLabels = {
-  kIdeasSource: 'Ideas',
-  kRepoTasksSource: 'Repo tasks',
-};
-
 class _FilterSheetState extends State<FilterSheet> {
   late Set<Priority> _priorities = {...widget.initial.priorities};
   late Set<Status> _statuses = {...widget.initial.statuses};
-  late Set<String> _sources = {...widget.initial.sources};
   late DateTime? _createdFrom = widget.initial.createdFrom;
   late DateTime? _createdTo = widget.initial.createdTo;
   late DateTime? _updatedFrom = widget.initial.updatedFrom;
@@ -54,7 +45,6 @@ class _FilterSheetState extends State<FilterSheet> {
       // Reset to the default view (hide Done/Abandoned), not an empty set,
       // so "Clear all" matches the app's unfiltered baseline.
       _statuses = {...kDefaultStatuses};
-      _sources = {...kDefaultSources};
       _createdFrom = null;
       _createdTo = null;
       _updatedFrom = null;
@@ -67,7 +57,6 @@ class _FilterSheetState extends State<FilterSheet> {
     return NoteFilter(
       priorities: _priorities,
       statuses: _statuses,
-      sources: _sources,
       createdFrom: _createdFrom,
       createdTo: _createdTo,
       updatedFrom: _updatedFrom,
@@ -102,16 +91,6 @@ class _FilterSheetState extends State<FilterSheet> {
                 ],
               ),
               const SizedBox(height: 8),
-              if (widget.repos.isNotEmpty) ...[
-                _MultiChips<String>(
-                  label: 'Show',
-                  values: [kIdeasSource, kRepoTasksSource, ...widget.repos],
-                  selected: _sources,
-                  labelOf: (s) => _sourceLabels[s] ?? s,
-                  onToggle: (s) => _toggle(_sources, s),
-                ),
-                const SizedBox(height: 12),
-              ],
               _MultiChips<Status>(
                 label: 'Status',
                 values: Status.values,

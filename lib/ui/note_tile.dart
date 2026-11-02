@@ -16,6 +16,7 @@ class NoteTile extends StatelessWidget {
     required this.note,
     required this.onTap,
     required this.onActions,
+    this.showRepo = true,
     super.key,
   });
 
@@ -30,6 +31,9 @@ class NoteTile extends StatelessWidget {
   /// Called when the trailing actions button is tapped.
   final VoidCallback onActions;
 
+  /// Whether the repo name joins the metadata line (off on its own screen).
+  final bool showRepo;
+
   @override
   Widget build(BuildContext context) {
     final firstLine = noteTitle(note.text);
@@ -38,6 +42,7 @@ class NoteTile extends StatelessWidget {
       note.status.label,
       note.priority.label,
       'edited ${_relative(note.updatedAt)}',
+      if (showRepo) ?note.repoName,
     ].join(' · ');
     return ListTile(
       title: Text(

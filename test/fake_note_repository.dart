@@ -15,7 +15,12 @@ import 'package:todo/data/note_repository.dart';
 /// so list-screen tests can assert the UI built the right query without
 /// re-testing the repository's SQL (covered separately by unit tests).
 class FakeNoteRepository implements NoteRepository {
-  FakeNoteRepository([List<Note>? initial]) : _notes = [...?initial];
+  FakeNoteRepository([List<Note>? initial, this.applyFilter = false])
+    : _notes = [...?initial];
+
+  /// When true, [watchNotes] applies the real filter + sort like the SQL
+  /// repository; off by default so older tests keep seeing every note.
+  final bool applyFilter;
 
   final List<Note> _notes;
   final _controller = StreamController<List<Note>>.broadcast();
@@ -87,7 +92,13 @@ class FakeNoteRepository implements NoteRepository {
   }) {
     lastSort = sort;
     lastFilter = filter;
-    return _snapshots();
+    if (!applyFilter) return _snapshots();
+    return _snapshots().map(
+      (all) => [
+        for (final n in all)
+          if (matchesFilter(n, filter)) n,
+      ]..sort(comparatorFor(sort)),
+    );
   }
 
   @override

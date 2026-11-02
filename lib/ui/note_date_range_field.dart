@@ -5,9 +5,11 @@
 /// different file.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-/// A labelled date range shown as presets plus a custom-range picker.
+/// A labelled date range shown as one preset menu plus a custom picker.
 class DateRangeField extends StatelessWidget {
   /// Creates a labelled date-range control.
   const DateRangeField({
@@ -52,49 +54,60 @@ class DateRangeField extends StatelessWidget {
     if (picked != null) onChanged(picked.start, picked.end);
   }
 
+  /// Which menu entry describes the current range.
+  _Preset get _current {
+    if (!_hasRange) return _Preset.any;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    for (final p in _Preset.dayPresets) {
+      final days = p.days!;
+      if (to == today && from == today.subtract(Duration(days: days - 1))) {
+        return p;
+      }
+    }
+    return _Preset.custom;
+  }
+
+  void _select(BuildContext context, _Preset preset) {
+    switch (preset) {
+      case _Preset.any:
+        onChanged(null, null);
+      case _Preset.custom:
+        unawaited(_pickCustom(context));
+      case _Preset.today || _Preset.week || _Preset.month:
+        _applyDays(preset.days!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(label, style: theme.textTheme.labelLarge),
-            const Spacer(),
-            if (_hasRange)
-              Text(_rangeLabel(), style: theme.textTheme.bodySmall),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            ActionChip(
-              label: const Text('Today'),
-              onPressed: () => _applyDays(1),
-            ),
-            ActionChip(
-              label: const Text('7 days'),
-              onPressed: () => _applyDays(7),
-            ),
-            ActionChip(
-              label: const Text('30 days'),
-              onPressed: () => _applyDays(30),
-            ),
-            ActionChip(
-              label: const Text('Custom…'),
-              onPressed: () => _pickCustom(context),
-            ),
-            if (_hasRange)
-              ActionChip(
-                avatar: const Icon(Icons.clear, size: 16),
-                label: const Text('Any'),
-                onPressed: () => onChanged(null, null),
-              ),
-          ],
-        ),
+    final current = _current;
+    // A popup menu rather than DropdownButton: re-picking "Custom…" while a
+    // custom range is shown must still reopen the picker.
+    return PopupMenuButton<_Preset>(
+      tooltip: label,
+      onSelected: (p) => _select(context, p),
+      itemBuilder: (_) => [
+        for (final p in _Preset.values)
+          PopupMenuItem(value: p, child: Text(p.label)),
       ],
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          isDense: true,
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+        ),
+        child: Text(
+          current == _Preset.custom ? _rangeLabel() : current.label,
+          style: theme.textTheme.bodyMedium,
+        ),
+      ),
     );
   }
 
@@ -106,4 +119,20 @@ class DateRangeField extends StatelessWidget {
   }
 
   String _two(int n) => n.toString().padLeft(2, '0');
+}
+
+/// Entries of the range menu, in display order.
+enum _Preset {
+  any('Any', null),
+  today('Today', 1),
+  week('7 days', 7),
+  month('30 days', 30),
+  custom('Custom…', null);
+
+  const _Preset(this.label, this.days);
+
+  final String label;
+  final int? days;
+
+  static const List<_Preset> dayPresets = [today, week, month];
 }

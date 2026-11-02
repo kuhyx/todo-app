@@ -72,10 +72,7 @@ class TaskService {
     await _pull();
     return _lines(
       await _session.repository.listNotes(
-        filter: NoteFilter(
-          statuses: statuses,
-          sources: {repo ?? kRepoTasksSource},
-        ),
+        filter: NoteFilter(statuses: statuses, repo: repo, repoTasksOnly: true),
       ),
     );
   });
@@ -86,7 +83,7 @@ class TaskService {
     await _pull();
     return _lines(
       await _session.repository.listNotes(
-        filter: NoteFilter(query: query, sources: {kRepoTasksSource}),
+        filter: NoteFilter(query: query, repoTasksOnly: true),
       ),
     );
   });

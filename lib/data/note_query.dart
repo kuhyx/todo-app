@@ -9,12 +9,6 @@ library;
 
 import 'package:todo/data/note.dart';
 
-/// [NoteFilter.sources] entry for plain ideas (notes without a repo).
-const kIdeasSource = '';
-
-/// [NoteFilter.sources] entry admitting every repo task.
-const kRepoTasksSource = '*';
-
 /// How the history list should be ordered.
 enum NoteSort {
   /// Newest created first.
@@ -41,7 +35,8 @@ class NoteFilter {
     this.query = '',
     this.priorities = const {},
     this.statuses = const {},
-    this.sources = const {},
+    this.repo,
+    this.repoTasksOnly = false,
     this.createdFrom,
     this.createdTo,
     this.updatedFrom,
@@ -57,9 +52,11 @@ class NoteFilter {
   /// Notes must have one of these statuses. Empty means "any status".
   final Set<Status> statuses;
 
-  /// Which notes may show: [kIdeasSource], [kRepoTasksSource] and/or repo
-  /// names. Empty means every note.
-  final Set<String> sources;
+  /// Only notes whose repo equals this. Null means any repo (or none).
+  final String? repo;
+
+  /// Only notes that have a repo (repo tasks). Ideas are excluded.
+  final bool repoTasksOnly;
 
   /// Inclusive lower bound (by calendar day) on the creation date.
   final DateTime? createdFrom;
@@ -78,7 +75,8 @@ class NoteFilter {
       query.trim().isEmpty &&
       priorities.isEmpty &&
       statuses.isEmpty &&
-      sources.isEmpty &&
+      repo == null &&
+      !repoTasksOnly &&
       createdFrom == null &&
       createdTo == null &&
       updatedFrom == null &&
@@ -90,7 +88,8 @@ class NoteFilter {
     if (query.trim().isNotEmpty) n++;
     if (priorities.isNotEmpty) n++;
     if (statuses.isNotEmpty) n++;
-    if (sources.isNotEmpty) n++;
+    if (repo != null) n++;
+    if (repoTasksOnly) n++;
     if (createdFrom != null || createdTo != null) n++;
     if (updatedFrom != null || updatedTo != null) n++;
     return n;
@@ -103,7 +102,8 @@ class NoteFilter {
     String? query,
     Set<Priority>? priorities,
     Set<Status>? statuses,
-    Set<String>? sources,
+    String? repo,
+    bool? repoTasksOnly,
     DateTime? createdFrom,
     DateTime? createdTo,
     DateTime? updatedFrom,
@@ -115,7 +115,8 @@ class NoteFilter {
       query: query ?? this.query,
       priorities: priorities ?? this.priorities,
       statuses: statuses ?? this.statuses,
-      sources: sources ?? this.sources,
+      repo: repo ?? this.repo,
+      repoTasksOnly: repoTasksOnly ?? this.repoTasksOnly,
       createdFrom: clearCreated ? null : (createdFrom ?? this.createdFrom),
       createdTo: clearCreated ? null : (createdTo ?? this.createdTo),
       updatedFrom: clearUpdated ? null : (updatedFrom ?? this.updatedFrom),
@@ -135,9 +136,8 @@ bool matchesFilter(Note note, NoteFilter filter) {
       !(note.repo?.toLowerCase().contains(query) ?? false)) {
     return false;
   }
-  if (filter.sources.isNotEmpty && !_sourceAllowed(note, filter.sources)) {
-    return false;
-  }
+  if (filter.repo != null && note.repo != filter.repo) return false;
+  if (filter.repoTasksOnly && note.repo == null) return false;
   if (filter.priorities.isNotEmpty &&
       !filter.priorities.contains(note.priority)) {
     return false;
@@ -152,12 +152,6 @@ bool matchesFilter(Note note, NoteFilter filter) {
     return false;
   }
   return true;
-}
-
-bool _sourceAllowed(Note note, Set<String> sources) {
-  final repo = note.repo;
-  if (repo == null) return sources.contains(kIdeasSource);
-  return sources.contains(kRepoTasksSource) || sources.contains(repo);
 }
 
 /// Inclusive day-granularity range check, matching the old SQL bounds:

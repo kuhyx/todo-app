@@ -46,45 +46,43 @@ void main() {
     });
   });
 
-  group('NoteFilter.sources', () {
+  group('NoteFilter repo facets', () {
     final idea = _note('idea');
     final todo = _note('t', repo: 'kuhyx/todo');
     final utils = _note('u', repo: 'kuhyx/utils');
-    List<String> pass(Set<String> sources) => [
+    List<String> pass(NoteFilter f) => [
       for (final n in [idea, todo, utils])
-        if (matchesFilter(n, NoteFilter(sources: sources))) n.id,
+        if (matchesFilter(n, f)) n.id,
     ];
 
-    test('empty means every note', () {
-      expect(pass({}), ['idea', 't', 'u']);
+    test('empty means every note, ideas included', () {
+      expect(pass(const NoteFilter()), ['idea', 't', 'u']);
       expect(const NoteFilter().isEmpty, isTrue);
     });
 
-    test('ideas only', () => expect(pass({kIdeasSource}), ['idea']));
-
-    test('the Repo tasks source lets every repo task in', () {
-      expect(pass({kRepoTasksSource}), ['t', 'u']);
-      expect(pass({kIdeasSource, kRepoTasksSource}), ['idea', 't', 'u']);
+    test('repoTasksOnly drops ideas', () {
+      expect(pass(const NoteFilter(repoTasksOnly: true)), ['t', 'u']);
     });
 
-    test('a repo source lets only that repo in', () {
-      expect(pass({'kuhyx/utils'}), ['u']);
-      expect(pass({kIdeasSource, 'kuhyx/todo'}), ['idea', 't']);
+    test('repo is plain equality', () {
+      expect(pass(const NoteFilter(repo: 'kuhyx/utils')), ['u']);
+      expect(pass(const NoteFilter(repo: 'utils')), isEmpty);
     });
 
     test('ANDs with the other facets', () {
-      final f = const NoteFilter(
-        sources: {kRepoTasksSource},
-      ).copyWith(query: 'zzz');
+      const f = NoteFilter(repoTasksOnly: true, query: 'zzz');
       expect(matchesFilter(todo, f), isFalse);
     });
 
-    test('counts as one facet and survives copyWith', () {
-      const f = NoteFilter(sources: {kIdeasSource});
+    test('each counts as one facet and survives copyWith', () {
+      const f = NoteFilter(repo: 'a/b', repoTasksOnly: true);
       expect(f.isEmpty, isFalse);
-      expect(f.activeCount, 1);
-      expect(f.copyWith(query: 'q').sources, {kIdeasSource});
-      expect(f.copyWith(sources: {}).sources, isEmpty);
+      expect(f.activeCount, 2);
+      final g = f.copyWith(query: 'q');
+      expect(g.repo, 'a/b');
+      expect(g.repoTasksOnly, isTrue);
+      expect(f.copyWith(repo: 'c/d', repoTasksOnly: false).repo, 'c/d');
+      expect(f.copyWith(repoTasksOnly: false).repoTasksOnly, isFalse);
     });
 
     test('search also matches the repo name', () {

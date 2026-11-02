@@ -66,7 +66,7 @@ Three layers under `lib/`, each single-purpose:
     `by`, `evidence`, written only when set, so an idea's record stays
     v3-identical: `note_repository_sync_compat_test.dart`). The old sqlite
     schema (v3) survives only in `legacy_sqlite_migration.dart`. Also defines
-    `NoteFilter` (query / priorities / statuses / sources / date ranges,
+    `NoteFilter` (query / priorities / statuses / repo / date ranges,
     AND-combined), `NoteSort`, `watchNotes`/`watchCount` streams, and
     `importNotes` (safe newer-wins merge by id).
 - `sync/` — GitHub-as-storage sync.
@@ -85,7 +85,7 @@ Three layers under `lib/`, each single-purpose:
   - `capture_screen.dart`: landing screen; always-focused text box pre-filled
     with the structured template; lazy note creation on first keystroke.
   - `notes_list_screen.dart`: list + search + sort + filter sheet + per-note
-    sheet. **Default view hides Done/Abandoned and shows no filter badge**
+    sheet. Notes sharing a `repo` collapse into one row (`repo_group.dart`). **Default view hides Done/Abandoned and shows no filter badge**
     (looks unfiltered). Under 600dp wide (`kNotesGridMaxWidth`) the notes are
     a 2-column `NotesGrid` of compact `NoteGridTile`s (title + priority/status
     cues; body and dates are in the long-press sheet). The tile height is
