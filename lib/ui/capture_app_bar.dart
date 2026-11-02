@@ -4,11 +4,13 @@
 /// screen still owns every action; this just lays the row out.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/frame_stats.dart';
 import 'package:todo/ui/attachment_picking.dart';
+import 'package:todo/ui/capture_confirm_mark.dart';
 
 /// App bar for the capture screen.
 class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -22,6 +24,7 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onOpenList,
     required this.onOpenSettings,
     required this.onAttachFiles,
+    required this.captured,
     this.attachmentPicking,
     super.key,
   });
@@ -49,6 +52,9 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   /// Receives files picked with the 📎 action.
   final ValueChanged<List<XFile>> onAttachFiles;
+
+  /// Counts committed captures; each change plays the confirmation mark.
+  final ValueListenable<int> captured;
 
   /// The picker behind 📎; null uses the platform one.
   final AttachmentPicking? attachmentPicking;
@@ -114,6 +120,7 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
             );
           },
         ),
+        CaptureConfirmMark(captured: captured),
         IconButton(
           tooltip: 'Settings',
           onPressed: onOpenSettings,

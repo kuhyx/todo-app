@@ -14,6 +14,7 @@ import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/google_sign_in_backend.dart';
 import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/sync_settings.dart';
+import 'package:todo/ui/app_route.dart';
 import 'package:todo/ui/cloud_images_settings.dart';
 import 'package:todo/ui/github_mirror_screen.dart';
 
@@ -168,8 +169,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _openSyncSettings() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => SyncSettingsScreen(
+      appRoute(
+        context,
+        (_) => SyncSettingsScreen(
           accountLoader: widget.accountLoader ?? loadAccount,
           accountSaver: widget.accountSaver ?? saveAccount,
           accountClearer: widget.accountClearer ?? clearAccount,
@@ -186,8 +188,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _openGitHubMirror() async {
     await Navigator.of(context).push<SyncSettings>(
-      MaterialPageRoute(
-        builder: (_) => GitHubMirrorScreen(
+      appRoute(
+        context,
+        (_) => GitHubMirrorScreen(
           initial: widget.initial,
           repository: widget.repository,
           appSettings: widget.appSettings,

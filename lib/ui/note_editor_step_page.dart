@@ -11,9 +11,11 @@
 /// structure here is load-bearing rather than incidental.
 library;
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/motion.dart';
 
 /// One step of the guided editor: label, guidance, input, and navigation.
 class NoteEditorStepPage extends StatelessWidget {
@@ -77,7 +79,13 @@ class NoteEditorStepPage extends StatelessWidget {
               Text('${index + 1} / $total', style: theme.textTheme.labelMedium),
               const SizedBox(width: 8),
               Expanded(
-                child: LinearProgressIndicator(value: (index + 1) / total),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(end: (index + 1) / total),
+                  duration: motionDuration(context, AppDuration.base),
+                  curve: AppCurve.standard,
+                  builder: (_, value, _) =>
+                      LinearProgressIndicator(value: value),
+                ),
               ),
             ],
           ),

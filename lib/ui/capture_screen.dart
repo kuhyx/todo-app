@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:todo/analytics/analytics_event.dart';
 import 'package:todo/analytics/analytics_service.dart';
@@ -15,6 +15,7 @@ import 'package:todo/data/note_template.dart';
 import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/local_backup.dart';
 import 'package:todo/sync/sync_settings.dart';
+import 'package:todo/ui/app_route.dart';
 import 'package:todo/ui/attachment_picking.dart';
 import 'package:todo/ui/capture_app_bar.dart';
 import 'package:todo/ui/capture_draft.dart';
@@ -70,6 +71,9 @@ class _CaptureScreenState extends State<CaptureScreen>
   final ImageAttachController _attach = ImageAttachController();
 
   final SyncStatusStore _syncStatus = SyncStatusStore();
+
+  /// Bumped once per committed capture; drives the confirmation checkmark.
+  final ValueNotifier<int> _captures = ValueNotifier<int>(0);
 
   /// Runs sync passes and records their outcome; see [CaptureSyncRunner].
   late final CaptureSyncRunner _runner = CaptureSyncRunner(
@@ -130,6 +134,7 @@ class _CaptureScreenState extends State<CaptureScreen>
     _localBackup.dispose();
     _draft.dispose();
     _syncStatus.dispose();
+    _captures.dispose();
     super.dispose();
   }
 
@@ -150,6 +155,7 @@ class _CaptureScreenState extends State<CaptureScreen>
             onOpenSettings: _openSettings,
             onAttachFiles: _attachFiles,
             attachmentPicking: widget.attachmentPicking,
+            captured: _captures,
           ),
           body: _captureBody(advanced: advanced),
         );

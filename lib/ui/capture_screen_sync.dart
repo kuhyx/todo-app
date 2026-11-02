@@ -66,8 +66,9 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
     final current = _settings ?? await SyncSettings.load();
     if (!mounted) return;
     await Navigator.of(context).push<SyncSettings>(
-      MaterialPageRoute(
-        builder: (_) => SettingsScreen(
+      appRoute(
+        context,
+        (_) => SettingsScreen(
           initial: current,
           repository: widget.repository,
           appSettings: widget.appSettings,
@@ -87,8 +88,9 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
   void _openList() {
     _logEvent('screen_view', params: {'screen': 'notes_list'});
     Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => NotesListScreen(
+      appRoute(
+        context,
+        (_) => NotesListScreen(
           repository: widget.repository,
           appSettings: widget.appSettings,
         ),
@@ -206,10 +208,15 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
   }
 
   /// Finalises the current idea and resets the field to a fresh template.
-  /// The field going blank is the only feedback needed — autosave already
-  /// persisted every keystroke, so there is nothing left to confirm.
+  /// Autosave already persisted every keystroke, so the only thing left to
+  /// give is the confirmation -- and only when a note was really captured.
+  /// The haptic fires here, on the tap, before anything touches the network.
   void _saveAndReset() {
     _logEvent('new_note_reset');
+    if (_draft.hasCapture) {
+      unawaited(HapticFeedback.lightImpact());
+      _captures.value++;
+    }
     _rebuild(() {
       // Bumping the generation remounts NoteForm, which resets the chrome
       // gate to visible for free -- no separate flag to keep in step.

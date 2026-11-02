@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/images/attachment_ref.dart';
+import 'package:todo/ui/app_route.dart';
 import 'package:todo/ui/images/image_viewer_screen.dart';
 import 'package:todo/ui/images/local_image.dart';
 
@@ -39,9 +40,7 @@ class ImageEmbed extends StatelessWidget {
         onTap: source is MissingImageSource
             ? null
             : () => Navigator.of(context).push<void>(
-                MaterialPageRoute(
-                  builder: (_) => ImageViewerScreen(source: source),
-                ),
+                appRoute(context, (_) => ImageViewerScreen(source: source)),
               ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),

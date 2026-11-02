@@ -17,6 +17,7 @@ import 'package:todo/attachments/image_password_store.dart';
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/images/dufs_image_client.dart';
+import 'package:todo/ui/app_route.dart';
 
 /// The command that creates the login, shown wherever it is missing.
 const kAddLoginCommand =
@@ -37,9 +38,7 @@ class CloudImagesTile extends StatelessWidget {
     subtitle: const Text('Where attached images and files upload (dufs)'),
     trailing: const Icon(Icons.chevron_right),
     onTap: () => Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => CloudImagesScreen(httpClient: httpClient),
-      ),
+      appRoute(context, (_) => CloudImagesScreen(httpClient: httpClient)),
     ),
   );
 }

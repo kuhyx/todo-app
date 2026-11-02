@@ -38,6 +38,10 @@ class CaptureDraft {
   /// yet, so the first write still reports the note as created.
   bool _reserved = false;
 
+  /// Whether a note with content has been persisted for this draft, i.e.
+  /// whether committing it is a real capture.
+  bool get hasCapture => _id != null && !_reserved && _text.trim().isNotEmpty;
+
   /// The draft's priority, applied to every write.
   Priority priority = Priority.defaultValue;
 

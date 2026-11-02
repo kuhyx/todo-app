@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/ui/app_route.dart';
 import 'package:todo/ui/note_actions_sheet.dart';
 import 'package:todo/ui/note_detail_screen.dart';
 
@@ -24,8 +25,9 @@ Future<void> openNote(
   // re-focuses it on return, so backing out of a note would pop the keyboard.
   FocusManager.instance.primaryFocus?.unfocus();
   await Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (_) => NoteDetailScreen(
+    appRoute(
+      context,
+      (_) => NoteDetailScreen(
         note: note,
         repository: repository,
         appSettings: appSettings,
