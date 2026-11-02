@@ -4,7 +4,6 @@ library;
 
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
-import 'package:todo/data/note_template.dart';
 import 'package:uuid/uuid.dart';
 
 /// Statuses that count as open.
@@ -31,8 +30,15 @@ String repoSection(String title, String body) {
 Priority maxPriority(Priority a, Priority b) => a.value >= b.value ? a : b;
 
 /// Title line and rest of a note's text.
-({String title, String body}) splitNote(String text) =>
-    (title: noteTitle(text), body: text.split('\n').skip(1).join('\n').trim());
+({String title, String body}) splitNote(String text) {
+  final lines = text.split('\n');
+  final first = lines.indexWhere((l) => l.trim().isNotEmpty);
+  if (first < 0) return (title: '', body: '');
+  return (
+    title: lines[first].trim().replaceFirst(RegExp(r'^#+\s*'), ''),
+    body: lines.skip(first + 1).join('\n').trim(),
+  );
+}
 
 /// Oldest first; ties broken by id so the choice is deterministic.
 int byAge(Note a, Note b) {

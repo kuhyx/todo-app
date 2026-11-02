@@ -41,6 +41,10 @@ void main() {
     });
   });
 
+  test('splitNote of blank text is empty', () {
+    expect(splitNote(' \n'), (title: '', body: ''));
+  });
+
   group('addRepoTask', () {
     late NoteRepository repo;
     setUp(() async => repo = await NoteRepository.openInMemory());
@@ -163,6 +167,11 @@ void main() {
         plan.single.kept.text,
         'wake-alarm todos\n\n## One\nx\n\n## Two\ny',
       );
+    });
+
+    test('a leading blank line and a # prefix do not leak into sections', () {
+      final plan = planRepoMerges([_n('a', '\n# Title\nbody')]);
+      expect(plan.single.kept.text, 'wake-alarm todos\n\n## Title\nbody');
     });
 
     test('closed notes and plain ideas are ignored', () {
