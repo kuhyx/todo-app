@@ -73,6 +73,30 @@ repos:
         language: system
         files: \.(md|markdown)$
 
+      - id: todo-closer
+        name: close Todo trailer tasks
+        entry: scripts/todo_hooks.sh closer
+        language: system
+        stages: [post-commit]
+        always_run: true
+        pass_filenames: false
+
+      - id: todo-import-pr-merge
+        name: import PR Todo sections (pull)
+        entry: scripts/todo_hooks.sh import-pr post-merge
+        language: system
+        stages: [post-merge]
+        always_run: true
+        pass_filenames: false
+
+      - id: todo-import-pr-rewrite
+        name: import PR Todo sections (pull --rebase)
+        entry: scripts/todo_hooks.sh import-pr post-rewrite
+        language: system
+        stages: [post-rewrite]
+        always_run: true
+        pass_filenames: false
+
       # Every dependency on its ecosystem's newest STABLE release, exact-pinned
       # so the question is mechanically answerable at all.
       #
