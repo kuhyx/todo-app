@@ -109,11 +109,11 @@ packages:
     dependency: "direct main"
     description:
       path: crdt_sync_dart
-      ref: "crdt_sync_dart-v0.11.2"
-      resolved-ref: "1b5515fd8b1192207896c409212483aeb09704ea"
+      ref: "crdt_sync_dart-v0.11.3"
+      resolved-ref: a2e7334dfec5131170a084510d70361d53dc40bc
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.11.2"
+    version: "0.11.3"
   cross_file:
     dependency: transitive
     description:
@@ -126,10 +126,10 @@ packages:
     dependency: transitive
     description:
       name: crypto
-      sha256: c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf
+      sha256: e3626ae6270383c9e3a549f34c9e4cd26c09ae6a9adaab2bf4737a00340efdc4
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.7"
+    version: "3.0.8"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -138,6 +138,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  data_transfer_flutter:
+    dependency: transitive
+    description:
+      path: data_transfer_flutter
+      ref: "data_transfer_flutter-v0.2.0"
+      resolved-ref: bbb7f0f0c0cd891518418472955c8a2ac6cbca4d
+      url: "https://github.com/kuhyx/utils"
+    source: git
+    version: "0.2.0"
   dbus:
     dependency: transitive
     description:
@@ -997,11 +1006,11 @@ packages:
     dependency: "direct main"
     description:
       path: sync_settings_ui
-      ref: "sync_settings_ui-v0.4.2"
-      resolved-ref: a4c7d29595bb9cf75f06877545249ed77d5560a9
+      ref: "sync_settings_ui-v0.5.2"
+      resolved-ref: "648bde44b1756485d95ca3c3a8714cd2015d5be4"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.4.2"
+    version: "0.5.2"
   synchronized:
     dependency: transitive
     description:
