@@ -45,7 +45,8 @@ class NotesMarkdown {
           '<!-- @note id="${note.id}" priority="${note.priority.name}" '
           'status="${note.status.name}" '
           'created="${note.createdAt.toIso8601String()}" '
-          'updated="${note.updatedAt.toIso8601String()}" -->',
+          'updated="${note.updatedAt.toIso8601String()}"'
+          '${_taskAttrs(note)} -->',
         )
         ..writeln(toBacklogAttachmentPaths(note.text))
         ..writeln();
@@ -87,18 +88,55 @@ class NotesMarkdown {
               DateTime.tryParse(attrs['created'] ?? '') ?? DateTime.now(),
           updatedAt:
               DateTime.tryParse(attrs['updated'] ?? '') ?? DateTime.now(),
+          repo: attrs['repo'],
+          doneCheck: attrs['done_check'],
+          by: attrs['by'],
+          evidence: attrs['evidence'],
         ),
       );
     }
     return notes;
   }
 
-  /// Extracts `key="value"` pairs from a marker's attribute string.
+  /// Extracts `key="value"` pairs; an empty value counts as absent.
   static Map<String, String> _parseAttrs(String raw) {
     return {
-      for (final m in _attrPattern.allMatches(raw)) m.group(1)!: m.group(2)!,
+      for (final m in _attrPattern.allMatches(raw))
+        if (m.group(2)!.isNotEmpty) m.group(1)!: _unescape(m.group(2)!),
     };
   }
+
+  /// Set task fields only, so an idea's marker is unchanged from v3.
+  static String _taskAttrs(Note note) => [
+    for (final (name, value) in [
+      ('repo', note.repo),
+      ('done_check', note.doneCheck),
+      ('by', note.by),
+      ('evidence', note.evidence),
+    ])
+      if (value != null) ' $name="${_escape(value)}"',
+  ].join();
+
+  // Entities keep a value on one line, inside its quotes and the comment.
+  static const _entities = {
+    '&': '&amp;',
+    '"': '&quot;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '\n': '&#10;',
+    '\r': '&#13;',
+  };
+  static final _escapable = RegExp('[&"<>\n\r]');
+  static final _entity = RegExp('&(amp|quot|lt|gt|#10|#13);');
+  static final Map<String, String> _decode = {
+    for (final e in _entities.entries) e.value: e.key,
+  };
+
+  static String _escape(String v) =>
+      v.replaceAllMapped(_escapable, (m) => _entities[m[0]]!);
+
+  static String _unescape(String v) =>
+      v.replaceAllMapped(_entity, (m) => _decode[m[0]]!);
 
   /// Resolves an enum value by its [Enum.name], falling back to [fallback].
   static T _enumByName<T extends Enum>(

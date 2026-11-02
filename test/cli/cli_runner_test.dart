@@ -93,7 +93,7 @@ void main() {
     test('reads the text from stdin when --text is absent', () async {
       expect(await run(['--data-dir', dir('a')], stdin: 'From stdin'), 0);
       expect(await run(['--list', '--data-dir', dir('a')]), 0);
-      expect(out.toString(), contains('\tmedium\ttodo\tFrom stdin'));
+      expect(out.toString(), contains('\ttodo\tmedium\t-\tFrom stdin'));
     });
 
     test('uses the XDG data dir by default', () async {
@@ -119,7 +119,10 @@ void main() {
       ]);
 
       expect(await run(['--list', '--data-dir', dir('b')]), 0);
-      expect(out.toString().trim(), '$id\thigh\tin_progress\tTitle');
+      expect(
+        out.toString().trim(),
+        '${id.substring(0, 8)}\tin_progress\thigh\t-\tTitle',
+      );
 
       expect(await run(['--get', id, '--data-dir', dir('b')]), 0);
       expect(out.toString(), contains('id: $id'));

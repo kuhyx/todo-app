@@ -1,9 +1,8 @@
 /// Domain model for a single idea/note.
 ///
-/// Notes are stored locally in a CRDT-backed SQLite table (see
-/// [NoteRepository]). The CRDT layer manages its own metadata columns
-/// (`hlc`, `node_id`, `modified`, `is_deleted`); the fields here are the
-/// user-facing data only.
+/// Notes are stored as crdt_sync records (see [NoteRepository] and
+/// `note_record.dart`); the clocks and tombstones live there, the fields
+/// here are the user-facing data only.
 library;
 
 /// Priority tier for a note, used for sorting and visual grouping.
@@ -77,7 +76,16 @@ enum Status {
   }
 }
 
+/// The values the optional `by` field may hold: who owns a repo task.
+const Set<String> kNoteAuthors = {'claude', 'kuhy'};
+
 /// An immutable idea/note record.
+///
+/// A note with a [repo] is a *repo task* (an outstanding piece of work in
+/// that repository, closable with [evidence]); one without is a plain idea.
+/// The four task fields are optional and set-once in practice: they are
+/// written only when a user or the CLI sets them, never by ordinary edits of
+/// an idea, which keeps such edits wire-identical to the v3 build.
 class Note {
   /// Creates a [Note] from its stored fields.
   const Note({
@@ -87,6 +95,10 @@ class Note {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.repo,
+    this.doneCheck,
+    this.by,
+    this.evidence,
   });
 
   /// Builds a [Note] from a raw CRDT query row.
@@ -122,12 +134,31 @@ class Note {
   /// When the note's content was last modified locally.
   final DateTime updatedAt;
 
+  /// Repository a task belongs to (`kuhyx/<name>`); null for a plain idea.
+  final String? repo;
+
+  /// Shell command, run from the repo root, whose exit 0 proves the task done.
+  final String? doneCheck;
+
+  /// Who does the task: one of [kNoteAuthors].
+  final String? by;
+
+  /// Proof the task was closed (commit sha + the done check's exit code).
+  final String? evidence;
+
+  /// Whether this note is a repo task rather than a plain idea.
+  bool get isRepoTask => repo != null;
+
   /// Returns a copy with selected fields replaced.
   Note copyWith({
     String? text,
     Priority? priority,
     Status? status,
     DateTime? updatedAt,
+    String? repo,
+    String? doneCheck,
+    String? by,
+    String? evidence,
   }) {
     return Note(
       id: id,
@@ -136,6 +167,10 @@ class Note {
       status: status ?? this.status,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      repo: repo ?? this.repo,
+      doneCheck: doneCheck ?? this.doneCheck,
+      by: by ?? this.by,
+      evidence: evidence ?? this.evidence,
     );
   }
 }

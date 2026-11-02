@@ -9,7 +9,7 @@ void main() {
       expect(args.mode, CliMode.add);
       expect(args.text, isNull);
       expect(args.priority, Priority.medium);
-      expect(args.status, Status.todo);
+      expect(args.status, isNull);
       expect(args.dataDir, isNull);
     });
 

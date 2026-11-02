@@ -10,6 +10,7 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/note_task_details.dart';
 
 /// The per-note bottom sheet: status/priority chips, and delete.
 class NoteActionsSheet extends StatefulWidget {
@@ -54,57 +55,60 @@ class _NoteActionsSheetState extends State<NoteActionsSheet> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              firstLine.isEmpty ? '(empty)' : firstLine,
-              style: Theme.of(context).textTheme.titleMedium,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 16),
-            _EnumChips<Status>(
-              label: 'Status',
-              values: Status.values,
-              selected: {_status},
-              labelOf: (s) => s.label,
-              onSelected: (s) {
-                setState(() => _status = s);
-                unawaited(_persist());
-              },
-            ),
-            const SizedBox(height: 12),
-            _EnumChips<Priority>(
-              label: 'Priority',
-              values: Priority.values,
-              selected: {_priority},
-              labelOf: (p) => p.label,
-              onSelected: (p) {
-                setState(() => _priority = p);
-                unawaited(_persist());
-              },
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('Delete note'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                firstLine.isEmpty ? '(empty)' : firstLine,
+                style: Theme.of(context).textTheme.titleMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              onPressed: () async {
-                final confirmed = await confirmDestructive(
-                  context,
-                  title: 'Delete note?',
-                  message: 'This cannot be undone.',
-                );
-                if (!confirmed) return;
-                await widget.onDelete();
-                if (context.mounted) Navigator.of(context).pop();
-              },
-            ),
-          ],
+              const SizedBox(height: 16),
+              _EnumChips<Status>(
+                label: 'Status',
+                values: Status.values,
+                selected: {_status},
+                labelOf: (s) => s.label,
+                onSelected: (s) {
+                  setState(() => _status = s);
+                  unawaited(_persist());
+                },
+              ),
+              const SizedBox(height: 12),
+              _EnumChips<Priority>(
+                label: 'Priority',
+                values: Priority.values,
+                selected: {_priority},
+                labelOf: (p) => p.label,
+                onSelected: (p) {
+                  setState(() => _priority = p);
+                  unawaited(_persist());
+                },
+              ),
+              NoteTaskDetails(note: widget.note),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Delete note'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                ),
+                onPressed: () async {
+                  final confirmed = await confirmDestructive(
+                    context,
+                    title: 'Delete note?',
+                    message: 'This cannot be undone.',
+                  );
+                  if (!confirmed) return;
+                  await widget.onDelete();
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

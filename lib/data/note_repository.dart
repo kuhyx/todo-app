@@ -4,9 +4,11 @@ import 'package:crdt_sync/crdt_sync.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_import.dart';
 import 'package:todo/data/note_query.dart';
+import 'package:todo/data/note_record.dart';
 
 export 'package:todo/data/note_import.dart';
 export 'package:todo/data/note_query.dart';
+export 'package:todo/data/note_record.dart';
 
 // Deliberately free of `dart:io`: the desktop app is a web build, and a single
 // `dart:io` import anywhere in the graph makes the whole app fail to compile
@@ -34,14 +36,6 @@ class NoteRepository {
   /// Fires after each successful write ([upsert], [delete], [importLog], and
   /// transitively [importNotes]). Emits `void` — pull the data on demand.
   Stream<void> get changes => _store.changes;
-
-  // Field names inside each note [Record]; kept identical to the legacy SQL
-  // column names so a migrated log round-trips through the same [Note] mapping.
-  static const _fText = 'text';
-  static const _fPriority = 'priority';
-  static const _fStatus = 'status';
-  static const _fCreatedAt = 'created_at';
-  static const _fUpdatedAt = 'updated_at';
 
   /// SharedPreferences key holding this device's stable CRDT node id.
   static const kNodeId = 'crdt.nodeId';
@@ -108,7 +102,7 @@ class NoteRepository {
     );
     return Record(
       id: note.id,
-      fields: _fieldsFor(note, hlc),
+      fields: noteFields(note, hlc),
       deleted: deleted,
       deletedHlc: deleted ? hlc : null,
     );
@@ -121,7 +115,7 @@ class NoteRepository {
   /// share one fresh monotonic clock (they are written together).
   Future<void> upsert(Note note) async {
     await _store.upsert(
-      Record(id: note.id, fields: _fieldsFor(note, _store.nextHlc())),
+      Record(id: note.id, fields: noteFields(note, _store.nextHlc())),
     );
   }
 
@@ -209,34 +203,10 @@ class NoteRepository {
   /// Closes the underlying log and its change stream.
   Future<void> close() => _store.close();
 
-  // --- note <-> record mapping & querying ------------------------------------
-
-  static Map<String, Field> _fieldsFor(Note note, Hlc hlc) => {
-    _fText: (note.text, hlc),
-    _fPriority: (note.priority.value, hlc),
-    _fStatus: (note.status.value, hlc),
-    _fCreatedAt: (note.createdAt.toIso8601String(), hlc),
-    _fUpdatedAt: (note.updatedAt.toIso8601String(), hlc),
-  };
-
-  Note _toNote(Record record) {
-    final fields = record.fields;
-    return Note(
-      id: record.id,
-      text: fields[_fText]?.$1 as String? ?? '',
-      priority: Priority.fromValue(fields[_fPriority]?.$1 as int?),
-      status: Status.fromValue(fields[_fStatus]?.$1 as int?),
-      createdAt: _parseDate(fields[_fCreatedAt]?.$1 as String?),
-      updatedAt: _parseDate(fields[_fUpdatedAt]?.$1 as String?),
-    );
-  }
-
-  static DateTime _parseDate(String? iso) => iso == null
-      ? DateTime.fromMillisecondsSinceEpoch(0)
-      : DateTime.parse(iso);
+  // --- querying (the note <-> record mapping is in note_record.dart) --------
 
   Iterable<Note> _liveNotes() =>
-      _store.values.where((r) => !r.deleted).map(_toNote);
+      _store.values.where((r) => !r.deleted).map(noteFromRecord);
 
   int _liveCount() => _store.values.where((r) => !r.deleted).length;
 

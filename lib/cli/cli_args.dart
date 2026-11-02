@@ -6,6 +6,8 @@ library;
 
 import 'package:todo/data/note.dart';
 
+export 'package:todo/cli/cli_usage.dart';
+
 /// What the CLI was asked to do.
 enum CliMode {
   /// Create a note and push it.
@@ -22,6 +24,12 @@ enum CliMode {
 
   /// Change one note's status and push it.
   setStatus,
+
+  /// Set a task done with evidence and push it.
+  close,
+
+  /// Print the notes matching a query, as [list] does.
+  search,
 
   /// Print usage.
   help,
@@ -47,17 +55,21 @@ class CliArgs {
     this.text,
     this.id,
     this.priority = Priority.medium,
-    this.status = Status.todo,
+    this.status,
     this.dataDir,
+    this.opts = (
+      repo: null,
+      query: null,
+      doneCheck: null,
+      by: null,
+      evidence: null,
+    ),
   });
 
   /// Parses [argv]. Throws [UsageError] on anything it does not understand.
   factory CliArgs.parse(List<String> argv) {
-    String? text;
+    final opts = <String, String>{};
     String? id;
-    String? dataDir;
-    var priority = Priority.medium;
-    var status = Status.todo;
     final modes = <CliMode>{};
     for (var i = 0; i < argv.length; i++) {
       final arg = argv[i];
@@ -69,26 +81,21 @@ class CliArgs {
       switch (arg) {
         case '-h' || '--help':
           modes.add(CliMode.help);
-        case '--text':
-          text = value();
-        case '--priority':
-          priority = _byName(Priority.values, value(), arg);
-        case '--status':
-          status = _byName(Status.values, value(), arg, _statusName);
-        case '--data-dir':
-          dataDir = value();
+        case '--text' || '--priority' || '--status' || '--data-dir':
+        case '--repo' || '--done-check' || '--by' || '--evidence':
+          opts[arg] = value();
         case '--list':
           modes.add(CliMode.list);
-        case '--get':
-          modes.add(CliMode.get);
-          id = value();
-        case '--delete':
-          modes.add(CliMode.delete);
+        case '--search':
+          modes.add(CliMode.search);
+          opts[arg] = value();
+        case '--get' || '--delete' || '--close':
+          modes.add(CliMode.values.byName(arg.substring(2)));
           id = value();
         case '--set-status':
           modes.add(CliMode.setStatus);
           id = value();
-          status = _byName(Status.values, value(), arg, _statusName);
+          opts[arg] = value();
         default:
           throw UsageError('unknown argument: $arg');
       }
@@ -96,20 +103,31 @@ class CliArgs {
     if (modes.contains(CliMode.help)) return const CliArgs(mode: CliMode.help);
     if (modes.length > 1) {
       throw UsageError(
-        '--list, --get, --delete and --set-status are mutually exclusive',
+        '--list, --search, --get, --delete, --set-status and --close are '
+        'mutually exclusive',
       );
     }
     final mode = modes.isEmpty ? CliMode.add : modes.single;
-    if (mode != CliMode.add && text != null) {
-      throw UsageError('--text only applies when adding a note');
-    }
+    _checkScopes(opts.keys, mode);
+    final rawStatus = opts['--set-status'] ?? opts['--status'];
     return CliArgs(
       mode: mode,
-      text: text,
+      text: opts['--text'],
       id: id,
-      priority: priority,
-      status: status,
-      dataDir: dataDir,
+      priority: opts['--priority'] == null
+          ? Priority.medium
+          : _byName(Priority.values, opts['--priority']!, '--priority'),
+      status: rawStatus == null
+          ? null
+          : _byName(Status.values, rawStatus, '--status', _statusName),
+      dataDir: opts['--data-dir'],
+      opts: (
+        repo: _repo(opts['--repo']),
+        query: _nonBlank(opts['--search'], '--search'),
+        doneCheck: _nonBlank(opts['--done-check'], '--done-check'),
+        by: opts['--by'] == null ? null : _by(opts['--by']!),
+        evidence: _evidence(opts['--evidence'], mode),
+      ),
     );
   }
 
@@ -119,20 +137,84 @@ class CliArgs {
   /// Note text from `--text`; null means "read stdin" in [CliMode.add].
   final String? text;
 
-  /// Note id for [CliMode.get] / [CliMode.delete] / [CliMode.setStatus].
+  /// Full id or 8+ character prefix of the note an id mode acts on.
   final String? id;
 
   /// Priority of a new note.
   final Priority priority;
 
-  /// Status of a new note, or the target status of [CliMode.setStatus].
-  final Status status;
+  /// New note's status, [CliMode.setStatus]'s target, or a list filter.
+  final Status? status;
 
   /// Overrides the default data dir (a second, independent node).
   final String? dataDir;
 
+  /// `--repo`, `--search`, `--done-check`, `--by` and `--evidence` values.
+  final ({
+    String? repo,
+    String? query,
+    String? doneCheck,
+    String? by,
+    String? evidence,
+  })
+  opts;
+
   /// The command-line spelling of [status] (`in_progress`, not `inProgress`).
   static String statusName(Status status) => _statusName(status);
+
+  static const _adding = 'when adding a note';
+  static const Map<String, (String, Set<CliMode>)> _scopes = {
+    '--text': (_adding, {CliMode.add}),
+    '--done-check': (_adding, {CliMode.add}),
+    '--by': (_adding, {CliMode.add}),
+    '--repo': (
+      '$_adding, to --list or to --search',
+      {CliMode.add, CliMode.list, CliMode.search},
+    ),
+    '--evidence': ('to --close', {CliMode.close}),
+  };
+
+  static void _checkScopes(Iterable<String> flags, CliMode mode) {
+    for (final flag in flags) {
+      final scope = _scopes[flag];
+      if (scope != null && !scope.$2.contains(mode)) {
+        throw UsageError('$flag only applies ${scope.$1}');
+      }
+    }
+  }
+
+  static final _repoShape = RegExp(r'^[\w.-]+/[\w.-]+$');
+
+  static String? _repo(String? raw) {
+    if (raw == null || _repoShape.hasMatch(raw)) return raw;
+    throw UsageError(
+      '--repo must look like owner/name (e.g. kuhyx/todo), got "$raw"',
+    );
+  }
+
+  static String _by(String raw) {
+    if (kNoteAuthors.contains(raw)) return raw;
+    throw UsageError(
+      '--by must be one of ${kNoteAuthors.join('|')}, got "$raw"',
+    );
+  }
+
+  static String? _evidence(String? raw, CliMode mode) {
+    if (mode == CliMode.close && (raw == null || raw.trim().isEmpty)) {
+      throw UsageError(
+        '--close needs --evidence <commit sha + done check exit code>: '
+        'a task is only closed with proof',
+      );
+    }
+    return raw;
+  }
+
+  static String? _nonBlank(String? raw, String flag) {
+    if (raw != null && raw.trim().isEmpty) {
+      throw UsageError('$flag must not be empty');
+    }
+    return raw;
+  }
 
   static String _statusName(Enum value) =>
       value == Status.inProgress ? 'in_progress' : value.name;
@@ -153,24 +235,3 @@ class CliArgs {
 
   static String _plainName(Enum value) => value.name;
 }
-
-/// Usage text printed by `--help` and after a [UsageError].
-const kUsage = r'''
-Usage: dart run bin/todo_note.dart [options]
-
-Adds a note to the todo app headlessly: pulls from Firebase RTDB, writes an
-ordinary CRDT change as this install's own node, pushes, and prints the id.
-
-  --text <markdown>     note text (first line = title); default: read stdin
-  --priority <p>        low|medium|high (default medium)
-  --status <s>          todo|in_progress|done|abandoned (default todo)
-  --list                pull, then print live notes: id, priority, status, title
-  --get <id>            pull, then print one note in full (exit 1 if absent)
-  --delete <id>         pull, tombstone the note, push
-  --set-status <id> <s> pull, change the note's status (as --status), push
-  --data-dir <dir>      local log + node id (default
-                        $XDG_DATA_HOME/todo-cli or ~/.local/share/todo-cli)
-  -h, --help            this text
-
---list and --get never push, so a throwaway --data-dir leaves nothing behind.
-Exit codes: 0 ok, 1 sync/auth failure or note not found, 2 bad arguments.''';

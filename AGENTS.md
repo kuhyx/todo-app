@@ -57,10 +57,15 @@ Three layers under `lib/`, each single-purpose:
 - `data/` — domain + local storage.
   - `note.dart`: `Note` model; `Priority` enum (low/medium/high, **default
     medium**, no "none"); `Status` enum (todo/inProgress/done/abandoned).
-  - `note_repository.dart`: CRDT storage over `sqlite_crdt`. Schema is at
-    **version 3** with `onCreate`/`onUpgrade` migrations (v1→v2 adds the
-    `status` column; v2→v3 backfills legacy priority `0`→medium). Also defines
-    `NoteFilter` (query / priorities / statuses / created+updated date ranges,
+    Optional repo-task fields `repo`/`doneCheck`/`by`/`evidence`: a note
+    with `repo` is a repo task, one without is a plain idea.
+  - `note_repository.dart`: CRDT storage over the schemaless `crdt_sync`
+    `LogStore`; `note_record.dart` maps a note to record fields `text`,
+    `priority`, `status`, `created_at`, `updated_at` (+ `repo`, `done_check`,
+    `by`, `evidence`, written only when set, so an idea's record stays
+    v3-identical: `note_repository_sync_compat_test.dart`). The old sqlite
+    schema (v3) survives only in `legacy_sqlite_migration.dart`. Also defines
+    `NoteFilter` (query / priorities / statuses / sources / date ranges,
     AND-combined), `NoteSort`, `watchNotes`/`watchCount` streams, and
     `importNotes` (safe newer-wins merge by id).
 - `sync/` — GitHub-as-storage sync.
@@ -135,8 +140,8 @@ rest of the wrapper one request at a time. BACKLOG.md rewrites links to
 
 ## Testing
 
-- **The suite must stay quick and fully green.** It is currently **494 tests at
-  100% line coverage** (2870 lines), ~40s on this machine with
+- **The suite must stay quick and fully green.** It is currently **587 tests at
+  100% line coverage** (3213 lines), ~40s on this machine with
   `--concurrency=3` (unbounded concurrency under `capped.sh`'s 4 GiB gets its
   test processes SIGTERMed while the wrapper still exits 0 — check the last
   line says "All tests passed"). Don't regress either.

@@ -7,12 +7,10 @@ import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/ui/note_tile.dart';
 import 'package:todo/ui/notes_filter_sheet.dart';
+import 'package:todo/ui/notes_list_defaults.dart';
 import 'package:todo/ui/notes_list_navigation.dart';
 
-/// The default status selection: hide completed/dropped work. This is the
-/// app's notion of "unfiltered", so it does not count towards the filter
-/// badge and is what "Clear all" resets to.
-const Set<Status> kDefaultStatuses = {Status.todo, Status.inProgress};
+export 'package:todo/ui/notes_list_defaults.dart';
 
 /// Searchable, filterable, sortable list of stored/synced notes.
 ///
@@ -49,23 +47,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
 
   NoteSort _sort = NoteSort.priorityDesc;
 
-  /// Default view hides completed/dropped work: only To do + In progress.
-  /// The user can widen this (or clear it) via the filter sheet.
-  NoteFilter _filter = const NoteFilter(statuses: kDefaultStatuses);
-
-  /// Whether [statuses] is exactly the default selection (so the badge can
-  /// treat the default view as "unfiltered").
-  static bool _statusesAreDefault(Set<Status> statuses) =>
-      statuses.length == kDefaultStatuses.length &&
-      statuses.containsAll(kDefaultStatuses);
-
-  /// Number of *user-applied* filter facets, for the badge. Excludes the
-  /// default status selection so a fresh list shows no badge.
-  int get _badgeCount {
-    var count = _filter.activeCount;
-    if (_statusesAreDefault(_filter.statuses)) count -= 1;
-    return count;
-  }
+  /// Default view: open ideas only (no Done/Abandoned, no repo tasks).
+  NoteFilter _filter = kDefaultNoteFilter;
 
   /// Memoised stream; only replaced when [_sort]/[_filter] actually change.
   late Stream<List<Note>> _stream;
@@ -108,11 +91,15 @@ class _NotesListScreenState extends State<NotesListScreen> {
   /// Opens the filter sheet and adopts the edited filter (text query is
   /// owned by the search box, so it is preserved across the round-trip).
   Future<void> _openFilters() async {
+    final repos = {
+      for (final n in await widget.repository.listNotes()) ?n.repo,
+    }.toList()..sort();
+    if (!mounted) return;
     final edited = await showModalBottomSheet<NoteFilter>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => FilterSheet(initial: _filter),
+      builder: (_) => FilterSheet(initial: _filter, repos: repos),
     );
     if (edited != null) {
       _filter = edited.copyWith(query: _searchController.text);
@@ -122,7 +109,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final badgeCount = _badgeCount;
+    final badgeCount = userFacetCount(_filter);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notes'),

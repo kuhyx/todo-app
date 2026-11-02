@@ -69,7 +69,7 @@ readonly ROOT
 
 # The read-only gates. A non-zero exit here rejects the commit, and the bump
 # below never runs, so a rejected attempt leaves no stray version change.
-"$ROOT/.git/hooks/pre-commit.pre-commit-generated" "$@"
+"$(dirname "${BASH_SOURCE[0]}")/pre-commit.pre-commit-generated" "$@"
 
 exec bash "$ROOT/scripts/bump_patch_version.sh"
 HOOK_BODY
