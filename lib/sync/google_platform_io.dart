@@ -1,6 +1,6 @@
 /// Whether the programmatic Google sign-in flow exists on this platform.
 ///
-/// The io half: Android has the Credential Manager flow; Linux desktop does
+/// The io half: Android has the AccountManager flow; Linux desktop does
 /// not, and this app's desktop build is the web one anyway.
 library;
 

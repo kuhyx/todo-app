@@ -61,10 +61,6 @@ dependencies:
       url: https://github.com/kuhyx/utils
       ref: github_device_auth-v0.3.2
       path: github_device_auth
-  # One-tap sign-in for the sync account. Lives only in the app: `crdt_sync`
-  # stays pure Dart so it keeps working on Linux desktop and headless, where
-  # this plugin does not exist. See lib/sync/google_sign_in_backend.dart.
-  google_sign_in: 7.2.0
   http: 1.6.0
   idb_shim: 2.11.1
   # Re-encodes attached images (resize, EXIF strip) in pure Dart, so the
