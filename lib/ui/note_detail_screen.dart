@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
@@ -52,6 +52,14 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
   /// Inserts attached-image links into the editor.
   final ImageAttachController _attach = ImageAttachController();
 
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: _note.text));
+    await HapticFeedback.lightImpact();
+    if (mounted) setState(() => _copied = true);
+  }
+
   Future<void> _attachImages(List<Uint8List> images, {int rejected = 0}) =>
       attachImages(
         context,
@@ -97,6 +105,13 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
           AttachButton(
             onFiles: _attachFiles,
             picking: widget.attachmentPicking,
+          ),
+          IconButton(
+            icon: Icon(
+              _copied ? Icons.check : Icons.copy_all,
+              semanticLabel: 'Copy',
+            ),
+            onPressed: _copy,
           ),
           IconButton(
             tooltip: 'Delete note',

@@ -85,7 +85,7 @@ Three layers under `lib/`, each single-purpose:
   - `capture_screen.dart`: landing screen; always-focused text box pre-filled
     with the structured template; lazy note creation on first keystroke.
   - `notes_list_screen.dart`: list + search + sort + filter sheet + per-note
-    sheet. Notes sharing a `repo` collapse into one row (`repo_group.dart`). **Default view hides Done/Abandoned and shows no filter badge**
+    sheet. One open note per repo (`data/repo_note.dart`). **Default view hides Done/Abandoned and shows no filter badge**
     (looks unfiltered). Under 600dp wide (`kNotesGridMaxWidth`) the notes are
     a 2-column `NotesGrid` of compact `NoteGridTile`s (title + priority/status
     cues; body and dates are in the long-press sheet). The tile height is

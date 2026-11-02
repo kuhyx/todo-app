@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/note_grid_tile.dart';
-import 'package:todo/ui/repo_group.dart';
-import 'package:todo/ui/repo_tiles.dart';
 
 /// Below this width the notes list is a grid; at or above it, the list.
 const double kNotesGridMaxWidth = 600;
@@ -25,15 +23,14 @@ double _tileHeightFor(double height) {
 class NotesGrid extends StatelessWidget {
   /// Creates the grid; [onOpen] and [onActions] get the tapped note.
   const NotesGrid({
-    required this.entries,
+    required this.notes,
     required this.onOpen,
     required this.onActions,
-    required this.onOpenRepo,
     super.key,
   });
 
-  /// Rows in display order: single notes and repo groups.
-  final List<ListEntry> entries;
+  /// Notes in display order.
+  final List<Note> notes;
 
   /// Tap on a tile.
   final ValueChanged<Note> onOpen;
@@ -41,22 +38,14 @@ class NotesGrid extends StatelessWidget {
   /// Long-press on a tile.
   final ValueChanged<Note> onActions;
 
-  /// Tap on a repo group tile.
-  final ValueChanged<RepoEntry> onOpenRepo;
-
-  Widget _tile(ListEntry entry) => switch (entry) {
-    NoteEntry(:final note) => NoteGridTile(
+  Widget _tile(Note note) {
+    return NoteGridTile(
       key: ValueKey(note.id),
       note: note,
       onTap: () => onOpen(note),
       onActions: () => onActions(note),
-    ),
-    final RepoEntry repo => RepoGridTile(
-      key: ValueKey(repo.repo),
-      entry: repo,
-      onTap: () => onOpenRepo(repo),
-    ),
-  };
+    );
+  }
 
   SliverGridDelegate _delegate(double viewportHeight) {
     return SliverGridDelegateWithFixedCrossAxisCount(
@@ -77,8 +66,8 @@ class NotesGrid extends StatelessWidget {
           builder: (context, box) => GridView.builder(
             padding: const EdgeInsets.symmetric(horizontal: _sidePadding),
             gridDelegate: _delegate(box.maxHeight),
-            itemCount: entries.length,
-            itemBuilder: (context, i) => _tile(entries[i]),
+            itemCount: notes.length,
+            itemBuilder: (context, i) => _tile(notes[i]),
           ),
         ),
       ),

@@ -1,4 +1,4 @@
-// One list: ideas and repo groups together, repo searchable, and a filter
+// One list: ideas and repo notes together, one row each, repo searchable, and a filter
 // sheet that fits a Pixel 6a screen without scrolling.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,47 +30,35 @@ void _pixel6a(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('an idea and a repo group share the default list', (
-    tester,
-  ) async {
+  testWidgets('every open note is its own row; no group rows', (tester) async {
     _pixel6a(tester);
     await pumpList(tester, seed: _seed, applyFilter: true);
     expect(find.text('An idea about tea'), findsOneWidget);
-    // Two open tasks of one repo collapse to ONE row; the done one is
-    // filtered out before grouping.
-    expect(find.text('kartka · 2'), findsOneWidget);
-    expect(find.text('Fix the scanner'), findsNothing);
+    expect(find.text('Fix the scanner'), findsOneWidget);
+    expect(find.text('Add barcode cache'), findsOneWidget);
+    // The done one is filtered out; nothing says "kartka · 2".
+    expect(find.text('Closed chore'), findsNothing);
+    expect(find.textContaining(' · 2'), findsNothing);
+    // The repo name shows as a small label on each repo note's card.
+    expect(find.text('kartka'), findsNWidgets(2));
   });
 
-  testWidgets('searching a repo name finds its group only', (tester) async {
+  testWidgets('searching a repo name finds its notes only', (tester) async {
     _pixel6a(tester);
     await pumpList(tester, seed: _seed, applyFilter: true);
     await tester.enterText(find.byType(TextField), 'kartka');
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();
-    expect(find.text('kartka · 2'), findsOneWidget);
+    expect(find.text('Fix the scanner'), findsOneWidget);
+    expect(find.text('Add barcode cache'), findsOneWidget);
     expect(find.text('An idea about tea'), findsNothing);
   });
 
-  testWidgets('search narrows a group and hides it when nothing passes', (
-    tester,
-  ) async {
-    _pixel6a(tester);
+  testWidgets('wide windows list one row per note', (tester) async {
     await pumpList(tester, seed: _seed, applyFilter: true);
-    await tester.enterText(find.byType(TextField), 'scanner');
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump();
-    expect(find.text('kartka · 1'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'zzz');
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump();
-    expect(find.textContaining('kartka'), findsNothing);
-  });
-
-  testWidgets('wide windows group too, in list rows', (tester) async {
-    await pumpList(tester, seed: _seed, applyFilter: true);
-    expect(find.text('kartka · 2'), findsOneWidget);
-    expect(find.text('Fix the scanner'), findsNothing);
+    expect(find.text('Fix the scanner'), findsOneWidget);
+    expect(find.text('Add barcode cache'), findsOneWidget);
+    expect(find.byType(ListTile), findsNWidgets(3));
   });
 
   testWidgets('a filter sheet fits a Pixel 6a screen with no scrolling', (

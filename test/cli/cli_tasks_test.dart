@@ -41,7 +41,7 @@ void main() {
     expect(await h.run(['--list', '--repo', 'kuhyx/todo']), 0);
     expect(
       h.out.toString(),
-      '${todo.substring(0, 8)}\ttodo\tmedium\tkuhyx/todo\tFix gate\n',
+      '${todo.substring(0, 8)}\ttodo\tmedium\tkuhyx/todo\ttodo todos\n',
     );
     expect(await h.run(['--list', '--status', 'done']), 0);
     expect(h.out.toString(), isEmpty);
@@ -53,10 +53,10 @@ void main() {
     await addTask('Fix the GATE', 'kuhyx/todo');
     await addTask('Other', 'kuhyx/utils');
     expect(await h.run(['--search', 'gate']), 0);
-    expect(h.out.toString(), contains('\tkuhyx/todo\tFix the GATE'));
-    expect(h.out.toString(), isNot(contains('Other')));
+    expect(h.out.toString(), contains('\tkuhyx/todo\ttodo todos'));
+    expect(h.out.toString(), isNot(contains('utils todos')));
     expect(await h.run(['--search', 'UTILS', '--repo', 'kuhyx/utils']), 0);
-    expect(h.out.toString(), contains('Other'));
+    expect(h.out.toString(), contains('utils todos'));
   });
 
   test('--close without evidence exits 2 before any network', () async {

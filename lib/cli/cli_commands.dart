@@ -3,6 +3,7 @@ import 'package:todo/cli/cli_session.dart';
 import 'package:todo/cli/note_lookup.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/data/repo_note.dart';
 import 'package:todo/sync/sync_service.dart';
 import 'package:uuid/uuid.dart';
 
@@ -18,23 +19,47 @@ class CliCommands {
   final StringSink _out;
   final StringSink _err;
 
-  /// Creates a note (a repo task when `--repo` is set) and pushes it.
+  /// Creates a note and pushes it. A `--repo` add joins the repo's open note.
   Future<int> add(CliArgs args, String text) async {
+    final repo = args.opts.repo;
+    final status = args.status ?? Status.todo;
+    if (repo != null && kOpenStatuses.contains(status)) {
+      return await _addRepoTask(args, repo, text);
+    }
     final now = DateTime.now();
     final note = Note(
       id: const Uuid().v4(),
       text: text,
       priority: args.priority,
-      status: args.status ?? Status.todo,
+      status: status,
       createdAt: now,
       updatedAt: now,
-      repo: args.opts.repo,
+      repo: repo,
       doneCheck: args.opts.doneCheck,
       by: args.opts.by,
     );
     await session.repository.upsert(note);
     if (!await _push('note')) return 1;
     _out.writeln(note.id);
+    return 0;
+  }
+
+  Future<int> _addRepoTask(CliArgs args, String repo, String text) async {
+    _report(await session.sync(push: true));
+    final (:title, :body) = splitNote(text);
+    final added = await addRepoTask(
+      session.repository,
+      repo: repo,
+      title: title,
+      body: body,
+      doneCheck: args.opts.doneCheck,
+      priority: args.priority,
+      by: args.opts.by,
+    );
+    await _save(added.note);
+    if (!await _push('note')) return 1;
+    if (added.appended) _err.writeln('appended to the open note for $repo');
+    _out.writeln(added.note.id);
     return 0;
   }
 

@@ -3,7 +3,7 @@ import 'package:todo/cli/cli_session.dart';
 import 'package:todo/cli/note_lookup.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
-import 'package:uuid/uuid.dart';
+import 'package:todo/data/repo_note.dart';
 
 /// The six task tools over one persistent sync node; calls run one at a time.
 class TaskService {
@@ -40,28 +40,22 @@ class TaskService {
     }
   }
 
-  /// `add_task`: a new repo task by claude; returns its full id.
+  /// `add_task`: joins the repo's open note (by: claude), or creates it.
   Future<String> add(Map<String, dynamic> args) => _serial(() async {
     final a = _Args(args);
     final repo = a.repo(required: true)!;
     final title = a.required('title');
-    final body = a.optional('body') ?? '';
-    final now = DateTime.now();
     await _pull();
-    return await _save(
-      Note(
-        id: const Uuid().v4(),
-        text: body.isEmpty ? title : '$title\n\n$body',
-        priority: a.priority() ?? Priority.medium,
-        status: Status.todo,
-        createdAt: now,
-        updatedAt: now,
-        repo: repo,
-        doneCheck: a.optional('done_check'),
-        by: 'claude',
-      ),
-      'added',
+    final added = await addRepoTask(
+      _session.repository,
+      repo: repo,
+      title: title,
+      body: a.optional('body') ?? '',
+      doneCheck: a.optional('done_check'),
+      priority: a.priority() ?? Priority.medium,
+      by: 'claude',
     );
+    return await _save(added.note, added.appended ? 'appended to' : 'added');
   });
 
   /// `list_tasks`: repo tasks, open ones unless `status` says otherwise.

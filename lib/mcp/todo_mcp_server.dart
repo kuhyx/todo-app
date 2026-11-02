@@ -14,9 +14,12 @@ Tasks for kuhy's repos live in the todo app (not in TODO*.md files, which are
 banned). Use this server instead of writing a TODO file.
 - At session start in a repo, call list_tasks(repo: "kuhyx/<name>") to see
   its open tasks.
+- A repo has ONE open note, "<repo> todos", holding all its tasks as
+  "## title" sections. add_task appends to it (or creates it) and returns its id.
 - When you find work you will not finish now, call add_task with the repo,
   a one-line title, the body (what / where / done / verify) and a done_check:
   a shell command run from the repo root that exits 0 once the work is done.
+  Done checks of appended tasks are joined with &&.
 - When a task's work lands, run its done_check; only if it exits 0 call
   close_task with evidence "<commit sha> done_check exit 0". Never close
   without running it.
@@ -90,8 +93,10 @@ McpServer _server(TaskService tasks) {
 
   tool(
     'add_task',
-    'Add an open task for a repo (by: claude). Returns "added <full id>" and '
-        'its list line. Use when you find work you will not finish now.',
+    "Add a task to the repo's single open note (by: claude): appended as a "
+        '"## title" section, or the note is created. Returns "added <full id>" '
+        'or "appended to <full id>", then its list line. Use when you find '
+        'work you will not finish now.',
     {
       'repo': repo,
       'title': JsonSchema.string(description: 'One-line title.'),

@@ -42,14 +42,17 @@ class CliHarness {
       err: err,
       readStdin: () async => '',
       open:
-          opener ??
-          (d, {required seedCredentials}) => CliSession.open(
-            d,
-            seedCredentials: seedCredentials,
-            httpClient: db.client,
-          ),
+          opener ?? (d, {required seedCredentials}) => open(d, seedCredentials),
     );
   }
+
+  /// A real session over the fake RTDB.
+  Future<CliSession> open(String dataDir, String seedCredentials) =>
+      CliSession.open(
+        dataDir,
+        seedCredentials: seedCredentials,
+        httpClient: db.client,
+      );
 
   /// Adds a note from node [node] and returns its id.
   Future<String> add(String text, [List<String> extra = const []]) async {

@@ -39,10 +39,11 @@ void main() {
 
     final listed = await h.call(c, 'list_tasks', {'repo': _repo});
     expect(listed, contains(prefix));
-    expect(listed, contains('Fix the "quoted" thing'));
+    expect(listed, contains('todo todos'));
     expect(listed, isNot(contains('&quot;')));
 
     var got = await h.call(c, 'get_task', {'id': prefix});
+    expect(got, contains('## Fix the "quoted" thing\nwhat: details'));
     expect(got, contains('done_check: grep -q "ok" f'));
     expect(got, contains('by: claude'));
 

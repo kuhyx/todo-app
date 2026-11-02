@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
@@ -168,5 +169,34 @@ void main() {
 
     expect(await repo.listNotes(), hasLength(1));
     expect(find.byType(NoteDetailScreen), findsOneWidget);
+  });
+
+  testWidgets('the copy icon puts the whole note text on the clipboard', (
+    tester,
+  ) async {
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    const body = 'wake-alarm todos\n\n## A\nx\n\n## B\ny';
+    await pumpDetail(tester, seedNote(body));
+
+    await tester.tap(find.byIcon(Icons.copy_all));
+    await tester.pump();
+
+    expect(copied, [body]);
+    expect(find.byIcon(Icons.check), findsOneWidget);
   });
 }

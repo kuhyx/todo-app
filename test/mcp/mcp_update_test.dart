@@ -25,7 +25,7 @@ void main() {
   test('title, body, priority and repo change independently', () async {
     await h.call(c, 'update_task', {'id': id, 'title': 'New title'});
     var got = await h.call(c, 'get_task', {'id': id});
-    expect(got, endsWith('---\nNew title\n\nold body'));
+    expect(got, endsWith('---\nNew title\n\n## Old title\nold body'));
 
     await h.call(c, 'update_task', {
       'id': id,
