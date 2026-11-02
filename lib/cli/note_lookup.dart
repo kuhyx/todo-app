@@ -45,3 +45,18 @@ String listLine(Note note) => [
 ].join('\t');
 
 String _title(Note note) => note.text.split('\n').first;
+
+/// The note's metadata lines, `---`, then its text.
+String noteDetail(Note note) => [
+  'id: ${note.id}',
+  'priority: ${note.priority.name}',
+  'status: ${CliArgs.statusName(note.status)}',
+  'created: ${note.createdAt.toIso8601String()}',
+  'updated: ${note.updatedAt.toIso8601String()}',
+  if (note.repo case final v?) 'repo: $v',
+  if (note.doneCheck case final v?) 'done_check: $v',
+  if (note.by case final v?) 'by: $v',
+  if (note.evidence case final v?) 'evidence: $v',
+  '---',
+  note.text,
+].join('\n');

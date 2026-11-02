@@ -32,6 +32,11 @@ Map<String, Field> noteFields(Note note, Hlc hlc) => {
 Note noteFromRecord(Record record) {
   final fields = record.fields;
   String? str(String name) => fields[name]?.$1 as String?;
+  // '' is how a peer clears a task field: omitting it never clears.
+  String? task(String name) => switch (str(name)) {
+    '' => null,
+    final v => v,
+  };
   return Note(
     id: record.id,
     text: str(_text) ?? '',
@@ -39,10 +44,10 @@ Note noteFromRecord(Record record) {
     status: Status.fromValue(fields[_status]?.$1 as int?),
     createdAt: _parseDate(str(_createdAt)),
     updatedAt: _parseDate(str(_updatedAt)),
-    repo: str(_repo),
-    doneCheck: str(_doneCheck),
-    by: str(_by),
-    evidence: str(_evidence),
+    repo: task(_repo),
+    doneCheck: task(_doneCheck),
+    by: task(_by),
+    evidence: task(_evidence),
   );
 }
 

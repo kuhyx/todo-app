@@ -1,0 +1,12 @@
+[Unit]
+Description=todo MCP server (Streamable HTTP, loopback :8735)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%h/.local/lib/todo-mcp/todo_mcp
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

@@ -55,24 +55,9 @@ class CliCommands {
   /// Prints one note in full.
   Future<int> get(String ref) async {
     _report(await session.sync(push: false));
-    final note = findNote(await session.repository.listNotes(), ref);
-    _out
-      ..writeln('id: ${note.id}')
-      ..writeln('priority: ${note.priority.name}')
-      ..writeln('status: ${CliArgs.statusName(note.status)}')
-      ..writeln('created: ${note.createdAt.toIso8601String()}')
-      ..writeln('updated: ${note.updatedAt.toIso8601String()}');
-    for (final (name, value) in [
-      ('repo', note.repo),
-      ('done_check', note.doneCheck),
-      ('by', note.by),
-      ('evidence', note.evidence),
-    ]) {
-      if (value != null) _out.writeln('$name: $value');
-    }
-    _out
-      ..writeln('---')
-      ..writeln(note.text);
+    _out.writeln(
+      noteDetail(findNote(await session.repository.listNotes(), ref)),
+    );
     return 0;
   }
 

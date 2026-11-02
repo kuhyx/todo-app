@@ -1,10 +1,11 @@
 {
   "mcpServers": {
     "todo": {
-      "type": "stdio",
-      "command": "${HOME}/.venvs/todo-mcp/bin/python",
-      "args": ["-m", "todo_mcp._mcp"],
-      "env": {}
+      "type": "http",
+      "url": "http://127.0.0.1:8735/mcp",
+      "headers": {
+        "Authorization": "Bearer ${TODO_MCP_TOKEN}"
+      }
     }
   }
 }

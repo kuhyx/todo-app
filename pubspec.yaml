@@ -72,6 +72,9 @@ dependencies:
   image: 4.12.0
   # Camera + gallery picks for image attachments on Android.
   image_picker: 1.2.4
+  # The todo MCP server (lib/mcp/): Streamable HTTP transport + tool
+  # registry. Only mcp/todo_mcp.dart imports it; the app never does.
+  mcp_dart: 2.4.3
   # Hands an attached non-image file to whichever Android app opens its
   # type (FileProvider intent). Adds no permissions to the manifest.
   open_file: 4.0.0

@@ -59,6 +59,7 @@ class CliSession {
   static Future<CliSession> open(
     String dataDir, {
     required String seedCredentials,
+    String seedApp = 'todo',
     http.Client? httpClient,
   }) async {
     final dir = Directory(dataDir);
@@ -83,7 +84,7 @@ class CliSession {
       await repository.close();
       throw FirebaseAuthError(
         'no Firebase session: $seedCredentials is missing; re-seed it with '
-        '`python3 ~/src/utils/crdt-sync/tool/seed_session.py --app todo`',
+        '`python3 ~/src/utils/crdt-sync/tool/seed_session.py --app $seedApp`',
       );
     }
     final firebase = FirebaseRestClient(

@@ -43,6 +43,7 @@ and sync peer-to-peer through a GitHub repo used as dumb storage.
 - Release APK: `flutter build apk --release` (signs with the debug key; debug
   builds are janky — always measure smoothness on a release build).
 - Sync smoke test (hits real GitHub, needs a token): `dart run tool/sync_smoke.dart`.
+- MCP server (`lib/mcp/`, :8735): tests `flutter test test/mcp/`, deploy `mcp/install.sh`; see `mcp/README.md`.
 - run: `./run.sh` (desktop; mobile: `flutter run`)
 - test: `flutter test --reporter=compact`
 - test-changed: `scripts/test_changed.sh`
