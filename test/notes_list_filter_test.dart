@@ -21,7 +21,7 @@ void main() {
     // Created.
     await tester.tap(find.text('Today').first);
     await tester.pump();
-    await tester.tap(find.text('Apply'));
+    await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -80,7 +80,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Clear all'));
     await tester.pump();
-    await tester.tap(find.text('Apply'));
+    await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -97,7 +97,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Any').first); // clear that range
     await tester.pump();
-    await tester.tap(find.text('Apply'));
+    await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -120,7 +120,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('Apply'));
+    await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -140,7 +140,7 @@ void main() {
     // Second "Today" belongs to the Last-updated section.
     await tester.tap(find.text('Today').last);
     await tester.pump();
-    await tester.tap(find.text('Apply'));
+    await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -168,7 +168,7 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Apply'));
+    await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

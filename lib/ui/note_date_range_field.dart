@@ -66,7 +66,7 @@ class DateRangeField extends StatelessWidget {
               Text(_rangeLabel(), style: theme.textTheme.bodySmall),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           children: [

@@ -137,7 +137,7 @@ class _EnumChips<T> extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           children: [

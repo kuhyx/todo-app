@@ -47,3 +47,12 @@ Future<FakeNoteRepository> pumpList(
   await tester.pump(); // flush the initial stream emit
   return repo;
 }
+
+/// Taps the filter sheet's Apply button. It is the last item of a scrollable
+/// sheet, so on a short viewport it legitimately sits below the fold:
+/// scroll it into view first, as a user would.
+Future<void> tapApply(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Apply'));
+  await tester.pump();
+  await tester.tap(find.text('Apply'));
+}
