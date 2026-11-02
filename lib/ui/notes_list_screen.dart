@@ -7,6 +7,7 @@ import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/ui/note_tile.dart';
 import 'package:todo/ui/notes_filter_sheet.dart';
+import 'package:todo/ui/notes_grid.dart';
 import 'package:todo/ui/notes_list_defaults.dart';
 import 'package:todo/ui/notes_list_navigation.dart';
 
@@ -197,21 +198,27 @@ class _NotesListScreenState extends State<NotesListScreen> {
                     ),
                   );
                 }
-                return ListView.separated(
-                  itemCount: notes.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, i) => NoteTile(
-                    key: ValueKey(notes[i].id),
-                    note: notes[i],
-                    onTap: () => openNote(
-                      context,
-                      notes[i],
-                      widget.repository,
-                      widget.appSettings,
-                    ),
-                    onActions: () =>
-                        openNoteActions(context, notes[i], widget.repository),
-                  ),
+                void open(Note n) =>
+                    openNote(context, n, widget.repository, widget.appSettings);
+                void actions(Note n) =>
+                    openNoteActions(context, n, widget.repository);
+                return LayoutBuilder(
+                  builder: (context, box) => box.maxWidth < kNotesGridMaxWidth
+                      ? NotesGrid(
+                          notes: notes,
+                          onOpen: open,
+                          onActions: actions,
+                        )
+                      : ListView.separated(
+                          itemCount: notes.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, i) => NoteTile(
+                            key: ValueKey(notes[i].id),
+                            note: notes[i],
+                            onTap: () => open(notes[i]),
+                            onActions: () => actions(notes[i]),
+                          ),
+                        ),
                 );
               },
             ),

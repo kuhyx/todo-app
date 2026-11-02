@@ -5,10 +5,10 @@ packages:
     dependency: transitive
     description:
       name: android_file_picker
-      sha256: "14ab27769b54c48d5a8a71aa9858372b7a3ae77572ea0a8aee744643c5d8c53d"
+      sha256: "03d3dd3cb578ab26b1e528aeea27bf6b976942f5a24e3da82d270369b8e161a8"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.0"
+    version: "2.1.2"
   archive:
     dependency: transitive
     description:
@@ -109,11 +109,11 @@ packages:
     dependency: "direct main"
     description:
       path: crdt_sync_dart
-      ref: "crdt_sync_dart-v0.11.1"
-      resolved-ref: "978d32af3af66f0d6500c4c6c0c6df5370ebe9a2"
+      ref: "crdt_sync_dart-v0.11.2"
+      resolved-ref: "1b5515fd8b1192207896c409212483aeb09704ea"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.11.1"
+    version: "0.11.2"
   cross_file:
     dependency: transitive
     description:
@@ -150,11 +150,11 @@ packages:
     dependency: "direct main"
     description:
       path: design_system
-      ref: "design_system-v0.2.1"
-      resolved-ref: "978d32af3af66f0d6500c4c6c0c6df5370ebe9a2"
+      ref: "design_system-v0.3.0"
+      resolved-ref: b3c9611af212880301ca79ed21f909bc4640f81f
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.2.1"
+    version: "0.3.0"
   dev_build:
     dependency: transitive
     description:
@@ -199,42 +199,42 @@ packages:
     dependency: "direct main"
     description:
       name: file_picker
-      sha256: "98c0b156b6380ba55bc767a14e2e6b3feb246e713ad40092424596fa79005bea"
+      sha256: "02f2945a7f29535c735f6b283c3c5553810566d3052d730429aec78fe9d06592"
       url: "https://pub.dev"
     source: hosted
-    version: "13.1.0"
+    version: "13.3.1"
   file_picker_darwin:
     dependency: transitive
     description:
       name: file_picker_darwin
-      sha256: "51aef9f4c80449c736e7cc02198675fda73689f0bd45a84da642cfeab0250d46"
+      sha256: b845af092ca7a3cff0e768029f835157d371a8341750f4158a7ad358143b0e54
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.2"
+    version: "2.4.1"
   file_picker_linux:
     dependency: transitive
     description:
       name: file_picker_linux
-      sha256: "9c870771500c758eb46506c98532c3ee60e6e51d0a62dcde24a849ef213ea5ce"
+      sha256: c6562fc7d426db2fb85ea66fe2627953d2709932df5584ceaacf0aa5e39cf4da
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.1"
+    version: "2.0.2"
   file_picker_platform_interface:
     dependency: transitive
     description:
       name: file_picker_platform_interface
-      sha256: bbdc085a6f168e63f147e9ce8988f79fa0800a58e7f25a48f762c60837107ba5
+      sha256: "336e7168306834a2b68e6168ed768e00d3fabeac23154d5793e277ca9f97cf20"
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.0"
+    version: "4.2.0"
   file_picker_web:
     dependency: transitive
     description:
       name: file_picker_web
-      sha256: b3004268da0c1b52baa18df430e7ec4438194de855a807d26b447cbf07ef3496
+      sha256: a2288008280aabe371aff029466b3405e60838e0a1d714767488c59b926c8b8c
       url: "https://pub.dev"
     source: hosted
-    version: "4.0.0"
+    version: "4.2.0"
   file_selector:
     dependency: "direct main"
     description:
@@ -479,10 +479,10 @@ packages:
     dependency: "direct main"
     description:
       name: idb_shim
-      sha256: "4f32cd03ce97e2996b57cea03b2d098f5153ac55435a27cf2c89716db571728d"
+      sha256: "923c92ef88569de4ec1b257b6a6d10360dc3407179f61d0c73329701a7d7b12e"
       url: "https://pub.dev"
     source: hosted
-    version: "2.10.1+1"
+    version: "2.11.1"
   image:
     dependency: "direct main"
     description:
@@ -956,10 +956,10 @@ packages:
     dependency: "direct main"
     description:
       name: sqflite_common_ffi
-      sha256: "4cb6179390549743fc1a5a2fb8f134e5ad87ce459f6f4e563531487dadd81710"
+      sha256: "119d730460264a1f11f414d9eaa43fb686789357e81ce35f9e8ccb66ddd040e4"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.4"
+    version: "2.4.5"
   sqflite_common_ffi_web:
     dependency: transitive
     description:
@@ -1028,11 +1028,11 @@ packages:
     dependency: "direct main"
     description:
       path: sync_settings_ui
-      ref: "sync_settings_ui-v0.4.1"
-      resolved-ref: "51700aa89eaf1789ae98491aaa854c54d35b4170"
+      ref: "sync_settings_ui-v0.4.2"
+      resolved-ref: a4c7d29595bb9cf75f06877545249ed77d5560a9
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.4.1"
+    version: "0.4.2"
   synchronized:
     dependency: transitive
     description:
@@ -1165,10 +1165,10 @@ packages:
     dependency: "direct main"
     description:
       name: web
-      sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"
+      sha256: e119e82ac4795c7925103b7cf3768191f33941b99e7ccffbd6c645201d9f606b
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.1"
+    version: "1.1.2"
   win32:
     dependency: transitive
     description:
@@ -1181,10 +1181,10 @@ packages:
     dependency: transitive
     description:
       name: windows_file_picker
-      sha256: "9f3aa833068b09e380fdc59560ad260a4a14e9397173abb533699f967443602e"
+      sha256: "18452aa293de3b6961c6d05b0e71b4be7bb90c67635abdd3aa5c4e75dd875072"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.0"
+    version: "2.0.1"
   xdg_directories:
     dependency: transitive
     description:

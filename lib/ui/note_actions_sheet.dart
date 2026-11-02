@@ -10,6 +10,7 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/note_sheet_details.dart';
 import 'package:todo/ui/note_task_details.dart';
 
 /// The per-note bottom sheet: status/priority chips, and delete.
@@ -66,6 +67,7 @@ class _NoteActionsSheetState extends State<NoteActionsSheet> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
+              NoteSheetDetails(note: widget.note),
               const SizedBox(height: 16),
               _EnumChips<Status>(
                 label: 'Status',

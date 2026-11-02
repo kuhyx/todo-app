@@ -85,7 +85,11 @@ Three layers under `lib/`, each single-purpose:
     with the structured template; lazy note creation on first keystroke.
   - `notes_list_screen.dart`: list + search + sort + filter sheet + per-note
     sheet. **Default view hides Done/Abandoned and shows no filter badge**
-    (looks unfiltered).
+    (looks unfiltered). Under 600dp wide (`kNotesGridMaxWidth`) the notes are
+    a 2-column `NotesGrid` of compact `NoteGridTile`s (title + priority/status
+    cues; body and dates are in the long-press sheet). The tile height is
+    derived so whole rows exactly fill the viewport; past one screenful it
+    scrolls vertically (no paging). Wider windows (desktop) keep the list.
   - `settings_screen.dart`: GitHub connect/test, device-flow auth, and the
     Export/Import backup actions.
 - `main.dart`: bootstrap only (`// coverage:ignore-file`) — wires platform DB
@@ -140,8 +144,8 @@ rest of the wrapper one request at a time. BACKLOG.md rewrites links to
 
 ## Testing
 
-- **The suite must stay quick and fully green.** It is currently **587 tests at
-  100% line coverage** (3213 lines), ~40s on this machine with
+- **The suite must stay quick and fully green.** It is currently **604 tests at
+  100% line coverage** (3305 lines), ~40s on this machine with
   `--concurrency=3` (unbounded concurrency under `capped.sh`'s 4 GiB gets its
   test processes SIGTERMed while the wrapper still exits 0 — check the last
   line says "All tests passed"). Don't regress either.
