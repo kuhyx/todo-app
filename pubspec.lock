@@ -159,11 +159,11 @@ packages:
     dependency: "direct main"
     description:
       path: design_system
-      ref: "design_system-v0.3.0"
-      resolved-ref: b3c9611af212880301ca79ed21f909bc4640f81f
+      ref: "design_system-v0.3.1"
+      resolved-ref: "8dfc4fb55ff5f5091e34e118f3134138cc83b8a3"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.3.0"
+    version: "0.3.1"
   dev_build:
     dependency: transitive
     description:
