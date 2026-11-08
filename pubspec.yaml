@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.59+1
+version: 1.0.60+1
 
 environment:
   sdk: ^3.12.2
@@ -33,7 +33,7 @@ dependencies:
   crdt_sync:
     git:
       url: https://github.com/kuhyx/utils
-      ref: crdt_sync_dart-v0.11.3
+      ref: crdt_sync_dart-v0.12.0
       path: crdt_sync_dart
 
   # The following adds the Cupertino Icons font to your application.
@@ -47,7 +47,7 @@ dependencies:
       url: https://github.com/kuhyx/utils
       ref: design_system-v0.3.0
       path: design_system
-  file_picker: 13.3.1
+  file_picker: 13.3.2
   file_selector: 1.1.0
   flutter:
     sdk: flutter
@@ -69,7 +69,7 @@ dependencies:
       ref: google_account_token-v0.1.0
       path: google_account_token
   http: 1.6.0
-  idb_shim: 2.11.1
+  idb_shim: 2.11.2
   # Re-encodes attached images (resize, EXIF strip) in pure Dart, so the
   # phone and the desktop wrapper share one code path.
   image: 4.12.0
@@ -97,7 +97,7 @@ dependencies:
   sync_settings_ui:
     git:
       url: https://github.com/kuhyx/utils
-      ref: sync_settings_ui-v0.5.2
+      ref: sync_settings_ui-v0.6.1
       path: sync_settings_ui
   url_launcher: 6.3.3
   uuid: 4.6.0
