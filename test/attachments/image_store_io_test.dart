@@ -36,14 +36,19 @@ void main() {
     installFakeSecureStorage(initial: {'dufsImagesPassword': 'pw'});
     store = make();
   });
-  tearDown(() => root.deleteSync(recursive: true));
+  tearDown(() async {
+    // attach/attachFile start an upload pass they do not await; let it end
+    // before its directory goes, or it races the delete.
+    await store.reconcile(const []);
+    root.deleteSync(recursive: true);
+  });
 
   test('attach stores, notifies and uploads straight away', () async {
     final ref = (await store.attach('n1', Uint8List.fromList([0xFF, 1])))!;
     expect(ref.noteId, 'n1');
     expect(store.sourceFor(ref), isA<LocalImageSource>());
     expect(notified, greaterThanOrEqualTo(1));
-    await pumpEventQueue();
+    await store.reconcile(const []); // drains the pass attach queued
     expect(dufs.files[ref.relativePath], [0xFF, 1]);
     expect(store.isPending(ref), isFalse);
   });
@@ -67,7 +72,7 @@ void main() {
   test('without a password attach queues offline', () async {
     installFakeSecureStorage();
     final ref = (await store.attach('n1', Uint8List.fromList([0xFF])))!;
-    await pumpEventQueue();
+    await store.reconcile(const []); // drains the pass attach queued
     expect(dufs.requests, isEmpty);
     expect(store.isPending(ref), isTrue);
     expect((await store.status()).configured, isFalse);
@@ -114,7 +119,7 @@ void main() {
       expect(a.isImage, isFalse);
       expect(notified, greaterThanOrEqualTo(1));
       expect(await store.sizeOf(a.ref), 2);
-      await pumpEventQueue();
+      await store.reconcile(const []); // drains the pass attach queued
       expect(dufs.files[a.ref.relativePath], [1, 2]);
       expect(File(p.join(elsewhere.path, 'r.pdf')).existsSync(), isTrue);
     });
@@ -149,6 +154,9 @@ void main() {
       final picked = file(picks, 'kept.txt', [1]);
       await plain.attachFile('n1', picked);
       expect(File(picked.path).existsSync(), isTrue);
+      // Drain the upload pass attachFile started, so teardown cannot delete
+      // the root underneath it.
+      await plain.reconcile(const []);
     });
   });
 

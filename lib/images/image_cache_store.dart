@@ -132,10 +132,16 @@ class ImageCacheStore {
       for (final ref in pending()) {
         final file = fileFor(ref);
         if (!file.existsSync()) continue;
-        final length = await file.length();
-        if (await client.upload(ref, file.openRead(), length)) {
-          await _marker(ref).delete();
-          uploaded++;
+        try {
+          final length = await file.length();
+          if (await client.upload(ref, file.openRead(), length)) {
+            await _marker(ref).delete();
+            uploaded++;
+          }
+        } on FileSystemException {
+          // Deleted mid-pass (note removed, cache cleared): nothing left to
+          // upload. A surviving marker is skipped by the check above next time.
+          continue;
         }
       }
       for (final ref in pass.referenced) {
