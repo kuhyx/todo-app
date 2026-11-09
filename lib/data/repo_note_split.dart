@@ -26,15 +26,23 @@ typedef SplitAdd = ({Note note, SplitKind kind, String? why});
 
 final _heading = RegExp(r'^##\s+(\[x\]\s+)?(.*)$');
 
-/// The open `## title` headings of [text], outside code fences.
-Iterable<String> openSections(String text) sync* {
+/// Every `## title` heading of [text] outside code fences, open or done.
+Iterable<RegExpMatch> _sections(String text) sync* {
   var fenced = false;
   for (final line in text.split('\n')) {
     if (line.trimLeft().startsWith('```')) fenced = !fenced;
     final m = fenced ? null : _heading.firstMatch(line);
-    if (m != null && m.group(1) == null) yield m.group(2)!.trim();
+    if (m != null) yield m;
   }
 }
+
+/// The open `## title` headings of [text], outside code fences.
+Iterable<String> openSections(String text) => _sections(
+  text,
+).where((m) => m.group(1) == null).map((m) => m.group(2)!.trim());
+
+/// How many board items [text] splits into: one per section, done or not.
+int sectionCount(String text) => _sections(text).length;
 
 /// The separate open note of [repo] with an open section titled [title].
 Note? duplicateTarget(Iterable<Note> open, String repo, String title) {

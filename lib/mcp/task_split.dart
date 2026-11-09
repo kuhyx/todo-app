@@ -41,7 +41,11 @@ Future<String> addSplit(
   if (block != null) return '$reply\nstart: skipped ($block)';
   final start = board == null
       ? (ok: false, reason: 'no board configured', item: null)
-      : await board.start(added.note.id, title.trim());
+      : await board.start(
+          added.note.id,
+          title.trim(),
+          sections: sectionCount(added.note.text),
+        );
   if (start.ok) return '$reply\nstart: ok ${start.item}';
   return '$reply\nstart: {ok: false, reason: "${start.reason}"}; '
       'the merge is saved, click Start on the board by hand';

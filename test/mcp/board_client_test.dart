@@ -32,13 +32,26 @@ class _Board {
   String startBody = '{"ok":false,"error":{"message":"nope"}}';
   String page = '<meta name="todoimpl-csrf" content="tok-1">';
 
-  BoardClient client() => BoardClient(
+  /// Board reads so far; [onRead] may change [cards] between reads.
+  int reads = 0;
+  void Function(int read)? onRead;
+  Duration postDelay = Duration.zero;
+
+  BoardClient client({
+    Duration wait = Duration.zero,
+    Duration startTimeout = const Duration(seconds: 5),
+  }) => BoardClient(
+    wait: wait,
+    poll: const Duration(milliseconds: 5),
+    startTimeout: startTimeout,
     client: MockClient((req) async {
       if (req.method == 'POST') {
         posts.add(req);
+        await Future<void>.delayed(postDelay);
         return http.Response(startBody, startStatus);
       }
       if (req.url.path == '/api/board') {
+        onRead?.call(++reads);
         return http.Response.bytes(
           utf8.encode(jsonEncode({'tasks': cards})),
           boardStatus,
@@ -123,6 +136,60 @@ void main() {
       'board refused start: 502 Bad Gateway',
     );
   });
+
+  test('T1863: waits for the board to see a freshly merged section', () async {
+    final b = _Board([_card('cccccccc-0', 'Młody')]);
+    b.onRead = (n) {
+      if (n == 3) b.cards.add(_card('cccccccc-1', 'Młody'));
+    };
+    final r = await b
+        .client(wait: const Duration(seconds: 2))
+        .start(_id, 'Młody', sections: 2);
+    expect(r, (ok: true, reason: null, item: 'cccccccc-1'));
+  });
+
+  test('T1863: a board that never shows the section gives up', () async {
+    final b = _Board([_card('cccccccc-0', 'Młody')]);
+    final r = await b
+        .client(wait: const Duration(milliseconds: 50))
+        .start(_id, 'Młody', sections: 2);
+    expect(r.ok, isFalse);
+    expect(r.reason, 'no startable item');
+    expect(b.posts, isEmpty);
+  });
+
+  test('T1864: a slow Start that took effect is ok, not unreachable', () async {
+    final b = _Board([_card('cccccccc-0', 'Młody')])
+      ..postDelay = const Duration(milliseconds: 200);
+    b.onRead = (n) {
+      // After the POST was sent the card has left backlog (no Start action).
+      if (b.posts.isNotEmpty) {
+        b.cards[0] = _card(
+          'cccccccc-0',
+          'Młody',
+          column: 'running',
+          start: false,
+        );
+      }
+    };
+    final r = await b
+        .client(startTimeout: const Duration(milliseconds: 50))
+        .start(_id, 'Młody');
+    expect(r, (ok: true, reason: null, item: 'cccccccc-0'));
+  });
+
+  test(
+    'T1864: a slow Start that did not take effect is still a reason',
+    () async {
+      final b = _Board([_card('cccccccc-0', 'Młody')])
+        ..postDelay = const Duration(milliseconds: 200);
+      final r = await b
+          .client(startTimeout: const Duration(milliseconds: 50))
+          .start(_id, 'Młody');
+      expect(r.ok, isFalse);
+      expect(r.reason, startsWith('board unreachable'));
+    },
+  );
 
   test('the default client targets the loopback board', () {
     expect(BoardClient().base.toString(), 'http://127.0.0.1:8786');
