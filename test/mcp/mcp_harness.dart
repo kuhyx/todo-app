@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mcp_dart/mcp_dart.dart';
 import 'package:todo/cli/cli_session.dart';
+import 'package:todo/mcp/board_client.dart';
 import 'package:todo/mcp/task_service.dart';
 import 'package:todo/mcp/todo_mcp_server.dart';
 import 'package:todo/mcp/token_file.dart';
@@ -17,6 +18,10 @@ import 'package:todo/mcp/token_file.dart';
 import '../cli/fake_rtdb.dart';
 
 class McpHarness {
+  /// [board] is the fake board `new_note` talks to; none by default.
+  McpHarness({this.board});
+
+  final BoardClient? board;
   static const token = 'test-token-for-pc';
 
   final tmp = Directory.systemTemp.createTempSync('mcp_harness');
@@ -34,7 +39,7 @@ class McpHarness {
       httpClient: db.client,
     );
     server = await TodoMcpServer.start(
-      tasks: TaskService(session),
+      tasks: TaskService(session, board: board),
       tokens: tokens,
       port: 0,
     );

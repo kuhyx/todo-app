@@ -57,6 +57,7 @@ class CliArgs {
     this.priority = Priority.medium,
     this.status,
     this.dataDir,
+    this.newNote = false,
     this.opts = (
       repo: null,
       query: null,
@@ -79,6 +80,8 @@ class CliArgs {
       }
 
       switch (arg) {
+        case '--new-note':
+          opts[arg] = '';
         case '-h' || '--help':
           modes.add(CliMode.help);
         case '--text' || '--priority' || '--status' || '--data-dir':
@@ -121,6 +124,10 @@ class CliArgs {
           ? null
           : _byName(Status.values, rawStatus, '--status', _statusName),
       dataDir: opts['--data-dir'],
+      newNote:
+          opts.containsKey('--new-note') &&
+          (opts['--repo'] != null ||
+              (throw UsageError('--new-note needs --repo'))),
       opts: (
         repo: _repo(opts['--repo']),
         query: _nonBlank(opts['--search'], '--search'),
@@ -149,6 +156,9 @@ class CliArgs {
   /// Overrides the default data dir (a second, independent node).
   final String? dataDir;
 
+  /// `--new-note`: the `--repo` task gets its own note.
+  final bool newNote;
+
   /// `--repo`, `--search`, `--done-check`, `--by` and `--evidence` values.
   final ({
     String? repo,
@@ -172,6 +182,7 @@ class CliArgs {
       {CliMode.add, CliMode.list, CliMode.search},
     ),
     '--evidence': ('to --close', {CliMode.close}),
+    '--new-note': (_adding, {CliMode.add}),
   };
 
   static void _checkScopes(Iterable<String> flags, CliMode mode) {

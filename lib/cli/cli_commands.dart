@@ -4,6 +4,7 @@ import 'package:todo/cli/note_lookup.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/repo_note.dart';
+import 'package:todo/data/repo_note_split.dart';
 import 'package:todo/sync/sync_service.dart';
 import 'package:uuid/uuid.dart';
 
@@ -47,6 +48,7 @@ class CliCommands {
   Future<int> _addRepoTask(CliArgs args, String repo, String text) async {
     _report(await session.sync(push: true));
     final (:title, :body) = splitNote(text);
+    if (args.newNote) return await _addSeparate(args, repo, title, body);
     final added = await addRepoTask(
       session.repository,
       repo: repo,
@@ -59,6 +61,33 @@ class CliCommands {
     await _save(added.note);
     if (!await _push('note')) return 1;
     if (added.appended) _err.writeln('appended to the open note for $repo');
+    _out.writeln(added.note.id);
+    return 0;
+  }
+
+  Future<int> _addSeparate(
+    CliArgs args,
+    String repo,
+    String title,
+    String body,
+  ) async {
+    final added = await addSeparateTask(
+      session.repository,
+      repo: repo,
+      title: title,
+      body: body,
+      doneCheck: args.opts.doneCheck,
+      priority: args.priority,
+      by: args.opts.by,
+    );
+    await _save(added.note);
+    if (!await _push('note')) return 1;
+    if (added.kind == SplitKind.merged) {
+      _err.writeln(
+        'merged into the separate note with that title; '
+        'click Start on the board by hand',
+      );
+    }
     _out.writeln(added.note.id);
     return 0;
   }

@@ -13,6 +13,8 @@ A note with --repo is a repo task; one without is a plain idea.
   --repo <owner/name>   repo task's repository, e.g. kuhyx/todo;
                         with --list/--search: show only that repo's tasks
   --done-check <cmd>    shell command, run from the repo root, exit 0 = done
+  --new-note            with --repo: own note, not the shared one (an exact
+                        title in another separate note merges into it)
   --by <who>            claude|kuhy
   --list                pull, then print live notes, one per line:
                         8-char id, status, priority, repo (- for none), title

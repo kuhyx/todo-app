@@ -8,12 +8,15 @@ import 'package:todo/data/repo_note.dart';
 typedef RepoMerge = ({Note kept, List<Note> removed});
 
 /// A merge for every repo whose open notes are not yet one `<name> todos`
-/// note; running it on its own result yields an empty plan.
+/// note; running it on its own result yields an empty plan. Separate
+/// (`new_note`) notes stay out of it.
 List<RepoMerge> planRepoMerges(Iterable<Note> notes) {
   final byRepo = <String, List<Note>>{};
   for (final n in notes) {
     final repo = n.repo;
-    if (repo != null && kOpenStatuses.contains(n.status)) {
+    if (repo != null &&
+        kOpenStatuses.contains(n.status) &&
+        !isSeparateNote(n)) {
       byRepo.putIfAbsent(repo, () => []).add(n);
     }
   }

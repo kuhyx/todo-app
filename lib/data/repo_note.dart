@@ -12,6 +12,18 @@ const Set<Status> kOpenStatuses = {Status.todo, Status.inProgress};
 /// The repo note's title.
 String repoNoteTitle(String repo) => '${repo.split('/').last} todos';
 
+/// A `new_note` task's own note title: `<name> todos: <title>`.
+String separateNoteTitle(String repo, String title) =>
+    '${repoNoteTitle(repo)}: ${title.trim()}';
+
+/// Whether [note] is a `new_note` note, which the shared add path and the
+/// one-time merge leave alone.
+bool isSeparateNote(Note note) {
+  final repo = note.repo;
+  return repo != null &&
+      splitNote(note.text).title.startsWith('${repoNoteTitle(repo)}: ');
+}
+
 /// Joins two checks with `&&`; either may be absent.
 String? composeDoneCheck(String? older, String? newer) {
   final a = (older ?? '').trim();
@@ -49,7 +61,8 @@ int byAge(Note a, Note b) {
 /// The note to save and whether it was appended.
 typedef RepoAdd = ({Note note, bool appended});
 
-/// Appends the task to [repo]'s oldest open note, or builds that note.
+/// Appends the task to [repo]'s oldest open shared note, or builds that
+/// note; separate (`new_note`) notes are never joined.
 Future<RepoAdd> addRepoTask(
   NoteRepository repository, {
   required String repo,
@@ -60,9 +73,9 @@ Future<RepoAdd> addRepoTask(
   String? by,
 }) async {
   final section = repoSection(title, body);
-  final open = await repository.listNotes(
+  final open = (await repository.listNotes(
     filter: NoteFilter(statuses: kOpenStatuses, repo: repo),
-  );
+  )).where((n) => !isSeparateNote(n)).toList();
   if (open.isNotEmpty) {
     final existing = (open..sort(byAge)).first;
     return (

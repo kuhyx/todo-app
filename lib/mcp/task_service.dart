@@ -4,13 +4,17 @@ import 'package:todo/cli/note_lookup.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/repo_note.dart';
+import 'package:todo/mcp/board_client.dart';
+import 'package:todo/mcp/task_split.dart';
 
 /// The six task tools over one persistent sync node; calls run one at a time.
 class TaskService {
   /// Serves [_session]'s notes; every call pulls first, writes then push.
-  TaskService(this._session);
+  /// [board] is the todoImplementer board `new_note` checks and starts on.
+  TaskService(this._session, {this._board});
 
   final CliSession _session;
+  final BoardClient? _board;
   Future<void> _tail = Future.value();
 
   Future<String> _serial(Future<String> Function() body) {
@@ -46,6 +50,18 @@ class TaskService {
     final repo = a.repo(required: true)!;
     final title = a.required('title');
     await _pull();
+    if (a.flag('new_note')) {
+      return await addSplit(
+        _session.repository,
+        _board,
+        _save,
+        repo: repo,
+        title: title,
+        body: a.optional('body') ?? '',
+        doneCheck: a.optional('done_check'),
+        priority: a.priority() ?? Priority.medium,
+      );
+    }
     final added = await addRepoTask(
       _session.repository,
       repo: repo,
@@ -138,6 +154,12 @@ final Map<String, Status> _statuses = {
 // Every refusal is a FormatException whose message starts with the field.
 extension type _Args(Map<String, dynamic> _args) {
   bool has(String name) => _args.containsKey(name);
+
+  bool flag(String name) => switch (_args[name]) {
+    null || false => false,
+    true => true,
+    _ => throw FormatException('$name: must be a boolean'),
+  };
 
   String? optional(String name) {
     final value = _args[name];

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:todo/cli/cli_session.dart';
+import 'package:todo/mcp/board_client.dart';
 import 'package:todo/mcp/task_service.dart';
 import 'package:todo/mcp/todo_mcp_server.dart';
 
@@ -30,7 +31,7 @@ Future<Future<void> Function()?> startTodoMcp(
     );
     await session.sync(push: true);
     final server = await TodoMcpServer.start(
-      tasks: TaskService(session),
+      tasks: TaskService(session, board: BoardClient()),
       tokens: tokens,
       port: int.tryParse(env['TODO_MCP_PORT'] ?? '') ?? kTodoMcpPort,
     );

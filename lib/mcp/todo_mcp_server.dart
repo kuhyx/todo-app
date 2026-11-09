@@ -96,13 +96,19 @@ McpServer _server(TaskService tasks) {
     "Add a task to the repo's single open note (by: claude): appended as a "
         '"## title" section, or the note is created. Returns "added <full id>" '
         'or "appended to <full id>", then its list line. Use when you find '
-        'work you will not finish now.',
+        'work you will not finish now. With new_note: true the task gets '
+        'its own note ("added"), or, when another separate note of the repo '
+        'already has that exact title, "merged into" that note, followed by '
+        'a "start:" line for the todoImplementer board.',
     {
       'repo': repo,
       'title': JsonSchema.string(description: 'One-line title.'),
       'body': JsonSchema.string(description: 'Markdown: what/where/verify.'),
       'done_check': doneCheck,
       'priority': priority,
+      'new_note': JsonSchema.boolean(
+        description: 'Own note instead of joining the shared one.',
+      ),
     },
     ['repo', 'title'],
     tasks.add,
