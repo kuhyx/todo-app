@@ -73,8 +73,8 @@ class BoardClient {
   }
 
   /// Clicks Start on the note's last startable item titled [title]. With
-  /// [sections], first waits until the board shows the note's last section
-  /// (`<id8>-<sections - 1>`), since a merge just added it.
+  /// [sections], that is the note's last section (`<id8>-<sections - 1>`),
+  /// which a merge just added: waits until the board shows it.
   Future<StartResult> start(
     String noteId,
     String title, {
@@ -85,9 +85,11 @@ class BoardClient {
       bool seen(List<Map<String, dynamic>> cs) =>
           last == null || cs.any((c) => c['id'] == last);
       final cards = await _until(noteId, seen);
-      // Never an older same-titled item in place of the merged one.
+      // Exactly the merged item: never an older same-titled one, which the
+      // board may list last (it orders by column, T1866).
       final card = seen(cards)
           ? cards.reversed
+                .where((c) => last == null || c['id'] == last)
                 .where((c) => c['title'] == title && _startable(c))
                 .firstOrNull
           : null;

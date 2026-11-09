@@ -158,6 +158,24 @@ void main() {
     expect(b.posts, isEmpty);
   });
 
+  test('T1866: starts the merged item, not a re-startable older one', () async {
+    // The board lists by column: a cancelled older item may come last.
+    final b = _Board([
+      _card('cccccccc-0', 'Młody'),
+      _card('cccccccc-2', 'Młody'),
+      _card('cccccccc-1', 'Młody', column: 'done'),
+    ]);
+    final r = await b.client().start(_id, 'Młody', sections: 3);
+    expect(r, (ok: true, reason: null, item: 'cccccccc-2'));
+    final other = _Board([
+      _card('cccccccc-1', 'Młody', column: 'done'),
+      _card('cccccccc-0', 'Młody', start: false),
+    ]);
+    final none = await other.client().start(_id, 'Młody', sections: 1);
+    expect(none.reason, 'no startable item');
+    expect(other.posts, isEmpty);
+  });
+
   test('T1864: a slow Start that took effect is ok, not unreachable', () async {
     final b = _Board([_card('cccccccc-0', 'Młody')])
       ..postDelay = const Duration(milliseconds: 200);
