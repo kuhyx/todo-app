@@ -17,7 +17,7 @@ class TaskService {
   final BoardClient? _board;
   Future<void> _tail = Future.value();
 
-  Future<String> _serial(Future<String> Function() body) {
+  Future<T> _serial<T>(Future<T> Function() body) {
     final run = _tail.then((_) => body());
     _tail = run.then((_) {}, onError: (_) {});
     return run;
@@ -44,8 +44,14 @@ class TaskService {
     }
   }
 
-  /// `add_task`: joins the repo's open note (by: claude), or creates it.
-  Future<String> add(Map<String, dynamic> args) => _serial(() async {
+  /// `add_task`: joins the repo's open note (by: claude), or creates it. A
+  /// board Start after a merge runs once the other calls may go again.
+  Future<String> add(Map<String, dynamic> args) async {
+    final (:reply, :start) = await _serial(() => _add(args));
+    return start == null ? reply : '$reply\n${await start()}';
+  }
+
+  Future<SplitReply> _add(Map<String, dynamic> args) async {
     final a = _Args(args);
     final repo = a.repo(required: true)!;
     final title = a.required('title');
@@ -71,8 +77,9 @@ class TaskService {
       priority: a.priority() ?? Priority.medium,
       by: 'claude',
     );
-    return await _save(added.note, added.appended ? 'appended to' : 'added');
-  });
+    final verb = added.appended ? 'appended to' : 'added';
+    return (reply: await _save(added.note, verb), start: null);
+  }
 
   /// `list_tasks`: repo tasks, open ones unless `status` says otherwise.
   Future<String> list(Map<String, dynamic> args) => _serial(() async {
