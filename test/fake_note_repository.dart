@@ -29,6 +29,11 @@ class FakeNoteRepository implements NoteRepository {
   NoteSort? lastSort;
   NoteFilter? lastFilter;
 
+  /// Calls to [upsert] and to the one-write [bulkUpdate], so a bulk action
+  /// can be shown to be one call rather than one write per note.
+  int upsertCalls = 0;
+  int bulkCalls = 0;
+
   /// Emits the current snapshot to a new subscriber first (so late-binding
   /// [StreamBuilder]s get the seed), then forwards subsequent changes.
   Stream<List<Note>> _snapshots() async* {
@@ -46,8 +51,33 @@ class FakeNoteRepository implements NoteRepository {
 
   @override
   Future<void> upsert(Note note) async {
+    upsertCalls++;
     _notes
       ..removeWhere((n) => n.id == note.id)
+      ..add(note);
+    _emit();
+  }
+
+  @override
+  Future<void> bulkUpdate(
+    Set<String> ids, {
+    Priority? priority,
+    Status? status,
+  }) async {
+    bulkCalls++;
+    for (final (i, n) in _notes.indexed.toList()) {
+      if (ids.contains(n.id)) {
+        _notes[i] = n.copyWith(priority: priority, status: status);
+      }
+    }
+    _emit();
+  }
+
+  @override
+  Future<void> saveReplacing(Note note, Iterable<String> removed) async {
+    final gone = {...removed, note.id};
+    _notes
+      ..removeWhere((n) => gone.contains(n.id))
       ..add(note);
     _emit();
   }
@@ -83,7 +113,9 @@ class FakeNoteRepository implements NoteRepository {
   Future<List<Note>> listNotes({
     NoteSort sort = NoteSort.modifiedDesc,
     NoteFilter filter = const NoteFilter(),
-  }) async => List.unmodifiable(_notes);
+  }) async => List.unmodifiable(
+    applyFilter ? _notes.where((n) => matchesFilter(n, filter)) : _notes,
+  );
 
   @override
   Stream<List<Note>> watchNotes({

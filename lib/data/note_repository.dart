@@ -1,8 +1,8 @@
-import 'dart:async';
-
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:todo/data/created_by_backfill.dart';
+import 'package:todo/data/log_watch.dart';
 import 'package:todo/data/note.dart';
+import 'package:todo/data/note_bulk.dart';
 import 'package:todo/data/note_import.dart';
 import 'package:todo/data/note_query.dart';
 import 'package:todo/data/note_record.dart';
@@ -134,13 +134,38 @@ class NoteRepository {
     final plan = planCreatedByBackfill(_store.snapshot(), claudeNodes);
     if (dryRun || plan.isEmpty) return plan;
     final hlc = _store.nextHlc();
-    await _store.replaceAll(
-      mergeLogs(_store.snapshot(), {
-        for (final e in plan.entries)
-          e.key: Record(id: e.key, fields: {kCreatedByField: (e.value, hlc)}),
-      }),
-    );
+    await _patch({
+      for (final e in plan.entries)
+        e.key: Record(id: e.key, fields: {kCreatedByField: (e.value, hlc)}),
+    });
     return plan;
+  }
+
+  /// Sets [priority] and/or [status] on the live notes [ids] in ONE store
+  /// write (see [planBulkUpdate]); a no-op when nothing changes.
+  Future<void> bulkUpdate(
+    Set<String> ids, {
+    Priority? priority,
+    Status? status,
+  }) => _patch(
+    planBulkUpdate(
+      _store.snapshot(),
+      ids,
+      hlc: _store.nextHlc(),
+      now: DateTime.now(),
+      priority: priority,
+      status: status,
+    ),
+  );
+
+  /// Saves [note] and deletes [removed] in ONE store write ([planReplace]).
+  Future<void> saveReplacing(Note note, Iterable<String> removed) =>
+      _patch(planReplace(_store.snapshot(), note, removed, _store.nextHlc()));
+
+  /// Merges a partial log in one write: untouched fields keep their clocks.
+  Future<void> _patch(Log partial) async {
+    if (partial.isEmpty) return;
+    await _store.replaceAll(mergeLogs(_store.snapshot(), partial));
   }
 
   /// Soft-deletes a note. The log keeps a sticky tombstone so the deletion
@@ -189,27 +214,10 @@ class NoteRepository {
   Stream<List<Note>> watchNotes({
     NoteSort sort = NoteSort.priorityDesc,
     NoteFilter filter = const NoteFilter(),
-  }) => _watch(() => _query(sort, filter));
+  }) => watchLog(_store.changes, () => _query(sort, filter));
 
   /// Emits the live count of non-deleted notes immediately and on each change.
-  Stream<int> watchCount() => _watch(_liveCount);
-
-  /// A stream that emits `compute()` synchronously when first listened to (the
-  /// seed), then again on every log change. Seeding in `onListen` — rather than
-  /// lazily in an `async*` body — avoids a race where a write between `listen`
-  /// and the first generator tick would swallow the initial snapshot.
-  Stream<T> _watch<T>(T Function() compute) {
-    StreamSubscription<void>? sub;
-    late final StreamController<T> controller;
-    controller = StreamController<T>(
-      onListen: () {
-        controller.add(compute());
-        sub = _store.changes.listen((_) => controller.add(compute()));
-      },
-      onCancel: () => sub?.cancel(),
-    );
-    return controller.stream;
-  }
+  Stream<int> watchCount() => watchLog(_store.changes, _liveCount);
 
   /// This device's stable node id. Names its file in the sync repo so two
   /// devices never write the same path.
