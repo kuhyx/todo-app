@@ -1,28 +1,26 @@
-/// The one page route every screen is pushed with, on the shared motion tokens.
+/// The one page route every screen is pushed with.
 library;
 
-import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
-import 'package:todo/ui/motion.dart';
 
-/// A route for [builder]: fade plus a short rise over [AppDuration.slow],
-/// instant under the OS "remove animations" setting.
-Route<T> appRoute<T>(BuildContext context, WidgetBuilder builder) =>
-    _AppPageRoute<T>(
-      builder: builder,
-      duration: motionDuration(context, AppDuration.slow),
-    );
+/// A route for [builder] that switches screens instantly: no fade, no slide.
+///
+/// Without a GPU the desktop web build repaints the whole 4K canvas in
+/// software on every frame, so a 320 ms transition cost ~600 ms of main
+/// thread and a 260-300 ms frame stall on every tab switch and note open.
+/// The same instant switch applies on the phone. The context is unused but
+/// kept so every call site stays as it was.
+Route<T> appRoute<T>(BuildContext _, WidgetBuilder builder) =>
+    _AppPageRoute<T>(builder: builder);
 
 class _AppPageRoute<T> extends MaterialPageRoute<T> {
-  _AppPageRoute({required super.builder, required this.duration});
-
-  final Duration duration;
+  _AppPageRoute({required super.builder});
 
   @override
-  Duration get transitionDuration => duration;
+  Duration get transitionDuration => Duration.zero;
 
   @override
-  Duration get reverseTransitionDuration => duration;
+  Duration get reverseTransitionDuration => Duration.zero;
 
   @override
   Widget buildTransitions(
@@ -30,21 +28,5 @@ class _AppPageRoute<T> extends MaterialPageRoute<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
     Widget child,
-  ) {
-    final enter = CurvedAnimation(
-      parent: animation,
-      curve: AppCurve.decelerate,
-      reverseCurve: AppCurve.accelerate,
-    );
-    return FadeTransition(
-      opacity: enter,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.04),
-          end: Offset.zero,
-        ).animate(enter),
-        child: child,
-      ),
-    );
-  }
+  ) => child;
 }

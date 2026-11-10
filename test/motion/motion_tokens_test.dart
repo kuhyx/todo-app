@@ -13,7 +13,7 @@ double _barValue(WidgetTester tester) => tester
     .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
     .value!;
 
-Future<void> _pushPage(WidgetTester tester) async {
+Future<Route<void>> _pushPage(WidgetTester tester) async {
   late BuildContext ctx;
   await tester.pumpWidget(
     MaterialApp(
@@ -25,12 +25,10 @@ Future<void> _pushPage(WidgetTester tester) async {
       ),
     ),
   );
-  unawaited(
-    Navigator.of(
-      ctx,
-    ).push<void>(appRoute(ctx, (_) => const Scaffold(body: Text('page')))),
-  );
+  final route = appRoute<void>(ctx, (_) => const Scaffold(body: Text('page')));
+  unawaited(Navigator.of(ctx).push<void>(route));
   await tester.pump();
+  return route;
 }
 
 void main() {
@@ -46,22 +44,20 @@ void main() {
     expect(offenders, isEmpty);
   });
 
-  testWidgets('a pushed page eases in over AppDuration.slow', (tester) async {
-    await _pushPage(tester);
-    await tester.pump(AppDuration.slow ~/ 4);
+  testWidgets('a pushed page is instant: no fade or slide', (tester) async {
+    final route = await _pushPage(tester) as PageRoute<void>;
+    expect(route.transitionDuration, Duration.zero);
+    expect(route.reverseTransitionDuration, Duration.zero);
+    // Fully visible and covering the old page after a single pump.
+    expect(find.text('home'), findsNothing);
     expect(find.text('page'), findsOneWidget);
-    final fade = tester.widget<FadeTransition>(
-      find
-          .ancestor(
-            of: find.text('page'),
-            matching: find.byType(FadeTransition),
-          )
-          .first,
+    final page = find.ancestor(
+      of: find.text('page'),
+      matching: find.byType(FadeTransition),
     );
-    expect(fade.opacity.value, inExclusiveRange(0, 1));
-
-    await tester.pump(AppDuration.slow);
-    expect(find.text('home'), findsNothing); // fully covered, route settled
+    for (final f in tester.widgetList<FadeTransition>(page)) {
+      expect(f.opacity.value, 1);
+    }
   });
 
   testWidgets('remove-animations: the page is there at once', (tester) async {
