@@ -7,6 +7,21 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
 
+/// Danger for high, the accent for medium, muted for low.
+Color priorityColor(Priority p, ColorScheme scheme) => switch (p) {
+  Priority.high => scheme.error,
+  Priority.medium => scheme.primary,
+  Priority.low => scheme.outline,
+};
+
+/// The glyph standing for [s] wherever a status is shown without words.
+IconData statusIcon(Status s) => switch (s) {
+  Status.todo => Icons.radio_button_unchecked,
+  Status.inProgress => Icons.timelapse,
+  Status.done => Icons.check_circle_outline,
+  Status.abandoned => Icons.cancel_outlined,
+};
+
 /// A note as a grid cell. It fills whatever cell it is given.
 class NoteGridTile extends StatelessWidget {
   /// Creates a tile for [note].
@@ -14,8 +29,12 @@ class NoteGridTile extends StatelessWidget {
     required this.note,
     required this.onTap,
     required this.onActions,
+    this.selected = false,
     super.key,
   });
+
+  /// Whether the note is part of the multi-selection: a tint and a check.
+  final bool selected;
 
   /// The note this tile displays.
   final Note note;
@@ -27,18 +46,7 @@ class NoteGridTile extends StatelessWidget {
   final VoidCallback onActions;
 
   /// Danger for high, the accent for medium, muted for low.
-  Color accentFor(ColorScheme scheme) => switch (note.priority) {
-    Priority.high => scheme.error,
-    Priority.medium => scheme.primary,
-    Priority.low => scheme.outline,
-  };
-
-  static IconData _statusIcon(Status s) => switch (s) {
-    Status.todo => Icons.radio_button_unchecked,
-    Status.inProgress => Icons.timelapse,
-    Status.done => Icons.check_circle_outline,
-    Status.abandoned => Icons.cancel_outlined,
-  };
+  Color accentFor(ColorScheme scheme) => priorityColor(note.priority, scheme);
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +57,7 @@ class NoteGridTile extends StatelessWidget {
     final closed =
         note.status == Status.done || note.status == Status.abandoned;
     return Material(
-      color: scheme.surfaceContainerHigh,
+      color: selected ? scheme.secondaryContainer : scheme.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(AppRadius.md),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -72,14 +80,30 @@ class NoteGridTile extends StatelessWidget {
             children: [
               // Expanded: a big text scale shortens the title, never overflows.
               Expanded(
-                child: Text(
-                  title.isEmpty ? '(empty)' : title,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: closed ? scheme.onSurfaceVariant : null,
-                    decoration: closed ? TextDecoration.lineThrough : null,
-                  ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title.isEmpty ? '(empty)' : title,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: closed ? scheme.onSurfaceVariant : null,
+                          decoration: closed
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                    ),
+                    if (selected)
+                      Icon(
+                        Icons.check_circle,
+                        size: 20,
+                        color: scheme.primary,
+                        semanticLabel: 'Selected',
+                      ),
+                  ],
                 ),
               ),
               if (note.repoName case final repo?)
@@ -92,7 +116,7 @@ class NoteGridTile extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    _statusIcon(note.status),
+                    statusIcon(note.status),
                     size: 14,
                     color: scheme.onSurfaceVariant,
                   ),

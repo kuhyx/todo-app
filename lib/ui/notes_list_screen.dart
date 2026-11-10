@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/ui/note_selection.dart';
+import 'package:todo/ui/notes_assign_flow.dart';
 import 'package:todo/ui/notes_filter_sheet.dart';
 import 'package:todo/ui/notes_list_body.dart';
 import 'package:todo/ui/notes_list_defaults.dart';
 import 'package:todo/ui/notes_list_navigation.dart';
+import 'package:todo/ui/notes_selection_bar.dart';
 
 export 'package:todo/ui/notes_list_defaults.dart';
+
+part 'notes_list_screen_select.dart';
 
 /// Searchable, filterable, sortable list of stored/synced notes.
 ///
@@ -53,6 +58,9 @@ class _NotesListScreenState extends State<NotesListScreen> {
   /// Memoised stream; only replaced when [_sort]/[_filter] actually change.
   late Stream<List<Note>> _stream;
 
+  /// Multi-select; any change rebuilds the screen (tiles + bottom bar).
+  late final _selection = NoteSelection()..addListener(() => setState(() {}));
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +71,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _selection.dispose();
     super.dispose();
   }
 
@@ -127,6 +136,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
       appBar: AppBar(
         title: const Text('Notes'),
         actions: [
+          _selectButton(),
           // Eye, no label: open = Claude-made notes shown, slashed = hidden.
           IconButton(
             icon: Icon(
@@ -220,20 +230,18 @@ class _NotesListScreenState extends State<NotesListScreen> {
                     ),
                   );
                 }
-                void open(Note n) =>
-                    openNote(context, n, widget.repository, widget.appSettings);
-                void actions(Note n) =>
-                    openNoteActions(context, n, widget.repository);
                 return NotesListBody(
                   notes: notes,
-                  onOpen: open,
-                  onActions: actions,
+                  onOpen: (n) => _tap(n, notes),
+                  onActions: _longPress,
+                  isSelected: _selection.contains,
                 );
               },
             ),
           ),
         ],
       ),
+      bottomNavigationBar: _selectionBar(),
     );
   }
 }

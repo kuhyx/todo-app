@@ -26,8 +26,12 @@ class NotesGrid extends StatelessWidget {
     required this.notes,
     required this.onOpen,
     required this.onActions,
+    required this.isSelected,
     super.key,
   });
+
+  /// Whether the note with this id is in the multi-selection.
+  final bool Function(String id) isSelected;
 
   /// Notes in display order.
   final List<Note> notes;
@@ -42,6 +46,7 @@ class NotesGrid extends StatelessWidget {
     return NoteGridTile(
       key: ValueKey(note.id),
       note: note,
+      selected: isSelected(note.id),
       onTap: () => onOpen(note),
       onActions: () => onActions(note),
     );

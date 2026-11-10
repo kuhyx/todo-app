@@ -16,8 +16,12 @@ class NotesListBody extends StatelessWidget {
     required this.notes,
     required this.onOpen,
     required this.onActions,
+    required this.isSelected,
     super.key,
   });
+
+  /// Whether the note with this id is in the multi-selection.
+  final bool Function(String id) isSelected;
 
   /// Notes in display order.
   final List<Note> notes;
@@ -32,13 +36,19 @@ class NotesListBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, box) => box.maxWidth < kNotesGridMaxWidth
-          ? NotesGrid(notes: notes, onOpen: onOpen, onActions: onActions)
+          ? NotesGrid(
+              notes: notes,
+              onOpen: onOpen,
+              onActions: onActions,
+              isSelected: isSelected,
+            )
           : ListView.separated(
               itemCount: notes.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) => NoteTile(
                 key: ValueKey(notes[i].id),
                 note: notes[i],
+                selected: isSelected(notes[i].id),
                 onTap: () => onOpen(notes[i]),
                 onActions: () => onActions(notes[i]),
               ),

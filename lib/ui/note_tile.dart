@@ -16,8 +16,12 @@ class NoteTile extends StatelessWidget {
     required this.note,
     required this.onTap,
     required this.onActions,
+    this.selected = false,
     super.key,
   });
+
+  /// Whether the row is part of the multi-selection: highlighted + a check.
+  final bool selected;
 
   /// The note this row displays.
   final Note note;
@@ -41,6 +45,10 @@ class NoteTile extends StatelessWidget {
       ?note.repoName,
     ].join(' · ');
     return ListTile(
+      selected: selected,
+      leading: selected
+          ? const Icon(Icons.check_circle, semanticLabel: 'Selected')
+          : null,
       title: Text(
         firstLine.isEmpty ? '(empty)' : firstLine,
         maxLines: 2,
