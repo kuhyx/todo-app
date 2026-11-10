@@ -47,7 +47,7 @@ dependencies:
       url: https://github.com/kuhyx/utils
       ref: design_system-v0.3.1
       path: design_system
-  file_picker: 13.3.2
+  file_picker: 13.3.3
   file_selector: 1.1.0
   flutter:
     sdk: flutter
@@ -69,7 +69,7 @@ dependencies:
       ref: google_account_token-v0.1.0
       path: google_account_token
   http: 1.6.0
-  idb_shim: 2.11.2
+  idb_shim: 2.11.3
   # Re-encodes attached images (resize, EXIF strip) in pure Dart, so the
   # phone and the desktop wrapper share one code path.
   image: 4.12.0
@@ -85,7 +85,7 @@ dependencies:
   path_provider: 2.1.6
   share_plus: 13.3.1
   shared_preferences: 2.5.6
-  sqflite_common_ffi: 2.4.5
+  sqflite_common_ffi: 2.4.6
   # Retained only to read the legacy on-device DB during the one-time
   # migration in NoteRepository.open; remove once all devices are migrated.
   sqlite_crdt: 3.0.4
@@ -97,7 +97,7 @@ dependencies:
   sync_settings_ui:
     git:
       url: https://github.com/kuhyx/utils
-      ref: sync_settings_ui-v0.6.2
+      ref: sync_settings_ui-v0.6.3
       path: sync_settings_ui
   url_launcher: 6.3.3
   uuid: 4.6.0
