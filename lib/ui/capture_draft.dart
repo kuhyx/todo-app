@@ -102,6 +102,7 @@ class CaptureDraft {
         status: status,
         createdAt: _createdAt!,
         updatedAt: now,
+        createdBy: 'kuhy',
       ),
     );
     if (live()) lastSavedAt.value = now;

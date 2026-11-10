@@ -25,6 +25,9 @@ A note with --repo is a repo task; one without is a plain idea.
   --close <id> --evidence <s>
                         pull, set status done + evidence (commit sha + done
                         check exit code), push; refused without --evidence
+  --backfill-created-by [--dry-run]
+                        pull, set created_by (claude|kuhy) on every note that
+                        has none, push; --dry-run prints the plan only
   --data-dir <dir>      local log + node id (default
                         $XDG_DATA_HOME/todo-cli or ~/.local/share/todo-cli)
   -h, --help            this text

@@ -76,6 +76,7 @@ class TaskService {
       doneCheck: a.optional('done_check'),
       priority: a.priority() ?? Priority.medium,
       by: 'claude',
+      createdBy: 'claude',
     );
     final verb = added.appended ? 'appended to' : 'added';
     return (reply: await _save(added.note, verb), start: null);

@@ -116,7 +116,8 @@ McpServer _server(TaskService tasks) {
   tool(
     'list_tasks',
     'List repo tasks, one line each: 8-char id, status, priority, repo, '
-        'title. Default status "open" (todo + in_progress).',
+        'title, created_by (kuhy|claude). Default status "open" '
+        '(todo + in_progress).',
     {
       'repo': repo,
       'status': JsonSchema.string(

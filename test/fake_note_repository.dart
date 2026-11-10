@@ -105,6 +105,12 @@ class FakeNoteRepository implements NoteRepository {
   Stream<int> watchCount() => _snapshots().map((n) => n.length);
 
   @override
+  Future<Map<String, String>> backfillCreatedBy(
+    Set<String> claudeNodes, {
+    bool dryRun = false,
+  }) async => {};
+
+  @override
   String get nodeId => 'fake-node';
 
   @override

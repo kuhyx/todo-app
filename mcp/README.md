@@ -10,6 +10,12 @@ The server is one more sync node: it reuses `lib/cli` (`CliSession`,
 `todo-sync/notes/<node id>.json` plus `todo-sync/revs/<node id>`.
 Code: `lib/mcp/`, entrypoint `mcp/todo_mcp.dart`, tests `test/mcp/`.
 
+Output shapes: `list_tasks` and `search_tasks` print one tab-separated line per
+task (`id8 status priority repo title created_by`); `get_task` prints
+`key: value` lines (including `created_by`) then `---` and the text.
+`created_by` is `claude` for notes filed through `add_task` or the CLI and
+`kuhy` for everything else (a missing value reads as `kuhy`).
+
 | What | Where |
 |---|---|
 | Firebase seed (read once) | `~/.config/todo-mcp/firebase_auth.json` |

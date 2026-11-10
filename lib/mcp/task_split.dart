@@ -35,6 +35,7 @@ Future<SplitReply> addSplit(
     doneCheck: doneCheck,
     priority: priority,
     by: 'claude',
+    createdBy: 'claude',
     busy: board == null ? null : (n) => board.running(n.id),
   );
   if (added.kind != SplitKind.merged) {

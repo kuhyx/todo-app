@@ -19,10 +19,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// sibling to `changesets/<nodeId>.json`.
 const String kAdvancedModeRemotePath = 'settings/advancedMode';
 
-/// App-wide, non-sync preferences (currently just `advancedMode`).
+/// App-wide, non-sync preferences (`advancedMode`, `showClaudeNotes`).
 class AppSettings {
   /// Creates an [AppSettings] from its stored fields.
-  const AppSettings({required this.advancedMode, this.advancedModeUpdatedAt});
+  const AppSettings({
+    required this.advancedMode,
+    this.advancedModeUpdatedAt,
+    this.showClaudeNotes = false,
+  });
 
   /// Whether the priority/status/template/mode chrome and the routine
   /// save/sync status text are shown. Off by default: casual capture needs
@@ -35,6 +39,11 @@ class AppSettings {
   /// a value that has never round-tripped through Firebase.
   final DateTime? advancedModeUpdatedAt;
 
+  /// Whether the notes list shows notes Claude filed. Per device: it lives
+  /// only in this device's preferences and is never mirrored to Firebase.
+  final bool showClaudeNotes;
+
+  static const _kShowClaude = 'app.showClaudeNotes';
   static const _kAdvancedMode = 'app.advancedMode';
   static const _kAdvancedModeUpdatedAt = 'app.advancedMode.updatedAt';
 
@@ -44,6 +53,7 @@ class AppSettings {
     final updatedAtMillis = prefs.getInt(_kAdvancedModeUpdatedAt);
     return AppSettings(
       advancedMode: prefs.getBool(_kAdvancedMode) ?? false,
+      showClaudeNotes: prefs.getBool(_kShowClaude) ?? false,
       advancedModeUpdatedAt: updatedAtMillis == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(updatedAtMillis),
@@ -71,6 +81,7 @@ class AppSettings {
     final updated = AppSettings(
       advancedMode: value,
       advancedModeUpdatedAt: updatedAt,
+      showClaudeNotes: showClaudeNotes,
     );
     if (client != null) {
       try {
@@ -89,6 +100,17 @@ class AppSettings {
     return updated;
   }
 
+  /// Persists the per-device Claude-notes choice; nothing leaves the device.
+  Future<AppSettings> withShowClaudeNotes({required bool value}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kShowClaude, value);
+    return AppSettings(
+      advancedMode: advancedMode,
+      advancedModeUpdatedAt: advancedModeUpdatedAt,
+      showClaudeNotes: value,
+    );
+  }
+
   /// Pulls the remote value from [client] and, if it is newer than the
   /// local one, applies it locally and returns the reconciled settings.
   /// Returns this instance unchanged when [client] is null, there is
@@ -100,9 +122,7 @@ class AppSettings {
     try {
       final remote = await client.getStringMap(kAdvancedModeRemotePath);
       if (!remote.containsKey('value')) return this;
-      final remoteUpdatedMillis = int.tryParse(
-        remote['updatedAtMillis'] ?? '',
-      );
+      final remoteUpdatedMillis = int.tryParse(remote['updatedAtMillis'] ?? '');
       if (remoteUpdatedMillis == null) return this;
       final remoteUpdatedAt = DateTime.fromMillisecondsSinceEpoch(
         remoteUpdatedMillis,
@@ -110,6 +130,7 @@ class AppSettings {
       final candidate = AppSettings(
         advancedMode: remote['value'] == 'true',
         advancedModeUpdatedAt: remoteUpdatedAt,
+        showClaudeNotes: showClaudeNotes,
       );
       final adopted = adopt(candidate);
       if (identical(adopted, this)) return this;

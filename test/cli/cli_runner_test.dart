@@ -121,7 +121,7 @@ void main() {
       expect(await run(['--list', '--data-dir', dir('b')]), 0);
       expect(
         out.toString().trim(),
-        '${id.substring(0, 8)}\tin_progress\thigh\t-\tTitle',
+        '${id.substring(0, 8)}\tin_progress\thigh\t-\tTitle\tclaude',
       );
 
       expect(await run(['--get', id, '--data-dir', dir('b')]), 0);

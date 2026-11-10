@@ -32,7 +32,7 @@ Note findNote(Iterable<Note> notes, String ref) {
   return matches.single;
 }
 
-/// `<8-char id>\t<status>\t<priority>\t<repo or ->\t<title>`.
+/// `<8-char id>\t<status>\t<priority>\t<repo or ->\t<title>\t<created_by>`.
 String listLine(Note note) => [
   if (note.id.length <= _minPrefix)
     note.id
@@ -42,6 +42,7 @@ String listLine(Note note) => [
   note.priority.name,
   note.repo ?? '-',
   _title(note),
+  note.createdBy ?? 'kuhy',
 ].join('\t');
 
 String _title(Note note) => note.text.split('\n').first;
@@ -57,6 +58,7 @@ String noteDetail(Note note) => [
   if (note.doneCheck case final v?) 'done_check: $v',
   if (note.by case final v?) 'by: $v',
   if (note.evidence case final v?) 'evidence: $v',
+  'created_by: ${note.createdBy ?? 'kuhy'}',
   '---',
   note.text,
 ].join('\n');

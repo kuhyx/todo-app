@@ -14,6 +14,9 @@ const _doneCheck = 'done_check';
 const _by = 'by';
 const _evidence = 'evidence';
 
+/// Record field naming who filed the note (`kuhy` or `claude`).
+const kCreatedByField = 'created_by';
+
 /// Record fields for [note], all at [hlc]. Unset task fields are omitted, so
 /// an idea's record is exactly the v3 field set (and cannot clear a peer's).
 Map<String, Field> noteFields(Note note, Hlc hlc) => {
@@ -26,6 +29,7 @@ Map<String, Field> noteFields(Note note, Hlc hlc) => {
   if (note.doneCheck case final v?) _doneCheck: (v, hlc),
   if (note.by case final v?) _by: (v, hlc),
   if (note.evidence case final v?) _evidence: (v, hlc),
+  if (note.createdBy case final v?) kCreatedByField: (v, hlc),
 };
 
 /// Reads [record] as a [Note], ignoring unknown fields.
@@ -48,6 +52,7 @@ Note noteFromRecord(Record record) {
     doneCheck: task(_doneCheck),
     by: task(_by),
     evidence: task(_evidence),
+    createdBy: task(kCreatedByField),
   );
 }
 

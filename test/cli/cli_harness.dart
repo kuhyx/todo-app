@@ -60,10 +60,10 @@ class CliHarness {
     return out.toString().trim();
   }
 
-  /// Publishes [notes] as another device's log.
-  void seedPeer(List<Note> notes) {
-    db.files['todo-sync/notes/peer~2Ejson'] = logToJson({
-      for (final n in notes) n.id: NoteRepository.recordAtNoteTime(n, 'peer'),
+  /// Publishes [notes] as device [node]'s log.
+  void seedPeer(List<Note> notes, {String node = 'peer'}) {
+    db.files['todo-sync/notes/$node~2Ejson'] = logToJson({
+      for (final n in notes) n.id: NoteRepository.recordAtNoteTime(n, node),
     });
   }
 }

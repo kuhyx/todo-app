@@ -92,6 +92,7 @@ class NotesMarkdown {
           doneCheck: attrs['done_check'],
           by: attrs['by'],
           evidence: attrs['evidence'],
+          createdBy: attrs['created_by'],
         ),
       );
     }
@@ -113,6 +114,7 @@ class NotesMarkdown {
       ('done_check', note.doneCheck),
       ('by', note.by),
       ('evidence', note.evidence),
+      ('created_by', note.createdBy),
     ])
       if (value != null) ' $name="${_escape(value)}"',
   ].join();

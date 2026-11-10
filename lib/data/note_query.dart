@@ -37,6 +37,7 @@ class NoteFilter {
     this.statuses = const {},
     this.repo,
     this.repoTasksOnly = false,
+    this.hideClaude = false,
     this.createdFrom,
     this.createdTo,
     this.updatedFrom,
@@ -57,6 +58,10 @@ class NoteFilter {
 
   /// Only notes that have a repo (repo tasks). Ideas are excluded.
   final bool repoTasksOnly;
+
+  /// Leave out notes Claude filed. A view preference rather than a user
+  /// facet, so it never counts toward [isEmpty] or [activeCount].
+  final bool hideClaude;
 
   /// Inclusive lower bound (by calendar day) on the creation date.
   final DateTime? createdFrom;
@@ -104,6 +109,7 @@ class NoteFilter {
     Set<Status>? statuses,
     String? repo,
     bool? repoTasksOnly,
+    bool? hideClaude,
     DateTime? createdFrom,
     DateTime? createdTo,
     DateTime? updatedFrom,
@@ -117,6 +123,7 @@ class NoteFilter {
       statuses: statuses ?? this.statuses,
       repo: repo ?? this.repo,
       repoTasksOnly: repoTasksOnly ?? this.repoTasksOnly,
+      hideClaude: hideClaude ?? this.hideClaude,
       createdFrom: clearCreated ? null : (createdFrom ?? this.createdFrom),
       createdTo: clearCreated ? null : (createdTo ?? this.createdTo),
       updatedFrom: clearUpdated ? null : (updatedFrom ?? this.updatedFrom),
@@ -138,6 +145,7 @@ bool matchesFilter(Note note, NoteFilter filter) {
   }
   if (filter.repo != null && note.repo != filter.repo) return false;
   if (filter.repoTasksOnly && note.repo == null) return false;
+  if (filter.hideClaude && note.isClaudeMade) return false;
   if (filter.priorities.isNotEmpty &&
       !filter.priorities.contains(note.priority)) {
     return false;
@@ -165,8 +173,17 @@ bool _withinDays(DateTime value, DateTime? from, DateTime? to) {
   return true;
 }
 
-/// The comparator implementing [sort].
+/// The comparator implementing [sort]: human-made notes first, Claude-made
+/// ones after, and [sort] orders each group.
 Comparator<Note> comparatorFor(NoteSort sort) {
+  final within = _within(sort);
+  return (a, b) {
+    if (a.isClaudeMade != b.isClaudeMade) return a.isClaudeMade ? 1 : -1;
+    return within(a, b);
+  };
+}
+
+Comparator<Note> _within(NoteSort sort) {
   switch (sort) {
     case NoteSort.createdDesc:
       return (a, b) => b.createdAt.compareTo(a.createdAt);

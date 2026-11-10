@@ -77,6 +77,7 @@ Future<SplitAdd> addSeparateTask(
   String? doneCheck,
   Priority priority = Priority.medium,
   String? by,
+  String? createdBy,
   Future<bool> Function(Note note)? busy,
 }) async {
   final section = repoSection(title, body);
@@ -113,6 +114,7 @@ Future<SplitAdd> addSeparateTask(
       repo: repo,
       doneCheck: composeDoneCheck(null, doneCheck),
       by: by,
+      createdBy: createdBy,
     ),
     kind: why == null ? SplitKind.added : SplitKind.fellBack,
     why: why,

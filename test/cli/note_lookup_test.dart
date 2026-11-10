@@ -65,12 +65,15 @@ void main() {
     );
   });
 
-  test('listLine: 8-char id, status, priority, repo, title', () {
+  test('listLine: 8-char id, status, priority, repo, title, author', () {
     expect(
       listLine(notes[2].copyWith(status: Status.inProgress)),
-      '12345678\tin_progress\tmedium\t-\tFirst',
+      '12345678\tin_progress\tmedium\t-\tFirst\tkuhy',
     );
-    expect(listLine(notes[4]), '99999999\ttodo\tmedium\tkuhyx/todo\tOnly');
+    expect(
+      listLine(notes[4]),
+      '99999999\ttodo\tmedium\tkuhyx/todo\tOnly\tkuhy',
+    );
     expect(listLine(fixtureNote('abc', 'Short')), startsWith('abc\t'));
   });
 }

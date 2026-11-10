@@ -41,7 +41,7 @@ void main() {
     expect(await h.run(['--list', '--repo', 'kuhyx/todo']), 0);
     expect(
       h.out.toString(),
-      '${todo.substring(0, 8)}\ttodo\tmedium\tkuhyx/todo\ttodo todos\n',
+      '${todo.substring(0, 8)}\ttodo\tmedium\tkuhyx/todo\ttodo todos\tclaude\n',
     );
     expect(await h.run(['--list', '--status', 'done']), 0);
     expect(h.out.toString(), isEmpty);

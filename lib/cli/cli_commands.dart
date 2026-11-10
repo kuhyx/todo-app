@@ -38,6 +38,7 @@ class CliCommands {
       repo: repo,
       doneCheck: args.opts.doneCheck,
       by: args.opts.by,
+      createdBy: 'claude',
     );
     await session.repository.upsert(note);
     if (!await _push('note')) return 1;
@@ -57,6 +58,7 @@ class CliCommands {
       doneCheck: args.opts.doneCheck,
       priority: args.priority,
       by: args.opts.by,
+      createdBy: 'claude',
     );
     await _save(added.note);
     if (!await _push('note')) return 1;
@@ -79,6 +81,7 @@ class CliCommands {
       doneCheck: args.opts.doneCheck,
       priority: args.priority,
       by: args.opts.by,
+      createdBy: 'claude',
     );
     await _save(added.note);
     if (!await _push('note')) return 1;
@@ -140,6 +143,35 @@ class CliCommands {
     if (!await _push('close')) return 1;
     _out.writeln('closed ${note.id}');
     return 0;
+  }
+
+  /// Sets `created_by` where unset (see [NoteRepository.backfillCreatedBy]).
+  /// Prints one `<id>\t<value>\t<title>` line per note, then the totals. With
+  /// [dryRun] nothing is written or pushed, and peers are only read.
+  Future<int> backfillCreatedBy(
+    Set<String> claudeNodes, {
+    required bool dryRun,
+  }) async {
+    _report(await session.sync(push: !dryRun));
+    final plan = await session.repository.backfillCreatedBy(
+      claudeNodes,
+      dryRun: dryRun,
+    );
+    final titles = {
+      for (final n in await session.repository.listNotes()) n.id: n,
+    };
+    for (final MapEntry(:key, :value) in plan.entries) {
+      final note = titles[key];
+      final title = note == null ? '' : note.text.split('\n').first;
+      _out.writeln(
+        '${key.substring(0, key.length.clamp(0, 8))}\t$value\t$title',
+      );
+    }
+    final claude = plan.values.where((v) => v == 'claude').length;
+    final kuhy = plan.length - claude;
+    _out.writeln('${dryRun ? 'dry run' : 'set'}: claude $claude, kuhy $kuhy');
+    if (dryRun || plan.isEmpty) return 0;
+    return await _push('backfill') ? 0 : 1;
   }
 
   Future<Note> _pullAndFind(String ref) async {

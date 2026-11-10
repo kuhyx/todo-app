@@ -29,6 +29,19 @@ String defaultDataDir(Map<String, String> env) {
   return p.join(base, 'todo-cli');
 }
 
+/// Node ids of the installs Claude files notes through: the MCP server and
+/// the CLI under the same data root as [defaultDataDir]. Missing ones are
+/// skipped.
+Set<String> claudeNodeIds(Map<String, String> env) {
+  final cli = defaultDataDir(env);
+  return {
+    for (final dir in [cli, p.join(p.dirname(cli), 'todo-mcp')])
+      if (File(p.join(dir, CliSession.nodeIdFileName)) case final f
+          when f.existsSync())
+        f.readAsStringSync().trim(),
+  }..remove('');
+}
+
 /// The open state of one CLI invocation. Call [close] when done.
 class CliSession {
   /// Wraps already-open parts; [open] is the normal way in. Public so a test

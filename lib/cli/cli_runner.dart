@@ -80,6 +80,10 @@ Future<int> runCli(
       CliMode.get => await cli.get(args.id!),
       CliMode.setStatus => await cli.setStatus(args.id!, args.status!),
       CliMode.close => await cli.close(args.id!, args.opts.evidence!),
+      CliMode.backfill => await cli.backfillCreatedBy(
+        claudeNodeIds(env),
+        dryRun: args.dryRun,
+      ),
       // Only delete is left: help returned above.
       _ => await cli.delete(args.id!),
     };

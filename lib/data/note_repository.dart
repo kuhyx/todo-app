@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:crdt_sync/crdt_sync.dart';
+import 'package:todo/data/created_by_backfill.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_import.dart';
 import 'package:todo/data/note_query.dart';
@@ -114,9 +115,32 @@ class NoteRepository {
   /// character-by-character autosave: it is cheap and idempotent. All fields
   /// share one fresh monotonic clock (they are written together).
   Future<void> upsert(Note note) async {
-    await _store.upsert(
-      Record(id: note.id, fields: noteFields(note, _store.nextHlc())),
+    await _put(Record(id: note.id, fields: noteFields(note, _store.nextHlc())));
+  }
+
+  Future<void> _put(Record record) =>
+      _store.upsert(keepCreatedBy(record, _store.get(record.id)));
+
+  /// Sets `created_by` on every live note that has none, from the node that
+  /// wrote its `created_at` (see [classifyCreatedBy]); returns id -> value.
+  ///
+  /// Writes only that field, at a fresh clock, so no other field's clock
+  /// moves (a rewrite of `created_at` would erase the signal itself). With
+  /// [dryRun] nothing is written.
+  Future<Map<String, String>> backfillCreatedBy(
+    Set<String> claudeNodes, {
+    bool dryRun = false,
+  }) async {
+    final plan = planCreatedByBackfill(_store.snapshot(), claudeNodes);
+    if (dryRun || plan.isEmpty) return plan;
+    final hlc = _store.nextHlc();
+    await _store.replaceAll(
+      mergeLogs(_store.snapshot(), {
+        for (final e in plan.entries)
+          e.key: Record(id: e.key, fields: {kCreatedByField: (e.value, hlc)}),
+      }),
     );
+    return plan;
   }
 
   /// Soft-deletes a note. The log keeps a sticky tombstone so the deletion
@@ -142,10 +166,10 @@ class NoteRepository {
       // the import wins locally; the clock decides whether it wins on *other*
       // devices, and an import must not win there simply by being recent.
       if (local == null) {
-        await _store.upsert(recordAtNoteTime(note, _nodeId));
+        await _put(recordAtNoteTime(note, _nodeId));
         added++;
       } else if (note.updatedAt.isAfter(local.updatedAt)) {
-        await _store.upsert(recordAtNoteTime(note, _nodeId));
+        await _put(recordAtNoteTime(note, _nodeId));
         updated++;
       } else {
         skipped++;

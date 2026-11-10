@@ -71,6 +71,7 @@ Future<RepoAdd> addRepoTask(
   String? doneCheck,
   Priority priority = Priority.medium,
   String? by,
+  String? createdBy,
 }) async {
   final section = repoSection(title, body);
   final open = (await repository.listNotes(
@@ -99,6 +100,7 @@ Future<RepoAdd> addRepoTask(
       repo: repo,
       doneCheck: composeDoneCheck(null, doneCheck),
       by: by,
+      createdBy: createdBy,
     ),
     appended: false,
   );

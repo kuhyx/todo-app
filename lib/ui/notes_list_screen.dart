@@ -56,7 +56,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
   @override
   void initState() {
     super.initState();
-    _stream = widget.repository.watchNotes(sort: _sort, filter: _filter);
+    _stream = _watch();
   }
 
   @override
@@ -69,9 +69,26 @@ class _NotesListScreenState extends State<NotesListScreen> {
   /// Rebuilds the watch stream for the current sort + filter. Call only
   /// from handlers that change those, never from [build].
   void _applyState() {
-    setState(() {
-      _stream = widget.repository.watchNotes(sort: _sort, filter: _filter);
-    });
+    setState(() => _stream = _watch());
+  }
+
+  /// The query for the current sort + filter, minus Claude-made notes unless
+  /// this device's eye toggle is on.
+  Stream<List<Note>> _watch() => widget.repository.watchNotes(
+    sort: _sort,
+    filter: _filter.copyWith(
+      hideClaude: !widget.appSettings.value.showClaudeNotes,
+    ),
+  );
+
+  Future<void> _toggleClaudeNotes() async {
+    final settings = widget.appSettings.value;
+    final next = await settings.withShowClaudeNotes(
+      value: !settings.showClaudeNotes,
+    );
+    if (!mounted) return;
+    widget.appSettings.value = next;
+    _applyState();
   }
 
   void _onSearchChanged(String value) {
@@ -110,6 +127,16 @@ class _NotesListScreenState extends State<NotesListScreen> {
       appBar: AppBar(
         title: const Text('Notes'),
         actions: [
+          // Eye, no label: open = Claude-made notes shown, slashed = hidden.
+          IconButton(
+            icon: Icon(
+              widget.appSettings.value.showClaudeNotes
+                  ? Icons.visibility
+                  : Icons.visibility_off,
+              semanticLabel: 'Claude notes',
+            ),
+            onPressed: _toggleClaudeNotes,
+          ),
           PopupMenuButton<NoteSort>(
             tooltip: 'Sort',
             icon: const Icon(Icons.sort),

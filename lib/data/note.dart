@@ -76,7 +76,7 @@ enum Status {
   }
 }
 
-/// The values the optional `by` field may hold: who owns a repo task.
+/// The values the optional `by` and `created_by` fields may hold.
 const Set<String> kNoteAuthors = {'claude', 'kuhy'};
 
 /// An immutable idea/note record.
@@ -99,6 +99,7 @@ class Note {
     this.doneCheck,
     this.by,
     this.evidence,
+    this.createdBy,
   });
 
   /// Builds a [Note] from a raw CRDT query row.
@@ -146,6 +147,12 @@ class Note {
   /// Proof the task was closed (commit sha + the done check's exit code).
   final String? evidence;
 
+  /// Who filed the note: one of [kNoteAuthors]; null (older notes) means kuhy.
+  final String? createdBy;
+
+  /// Whether Claude filed this note (hidden by default, sorted last).
+  bool get isClaudeMade => createdBy == 'claude';
+
   /// Whether this note is a repo task rather than a plain idea.
   bool get isRepoTask => repo != null;
 
@@ -162,6 +169,7 @@ class Note {
     String? doneCheck,
     String? by,
     String? evidence,
+    String? createdBy,
   }) {
     return Note(
       id: id,
@@ -174,6 +182,7 @@ class Note {
       doneCheck: doneCheck ?? this.doneCheck,
       by: by ?? this.by,
       evidence: evidence ?? this.evidence,
+      createdBy: createdBy ?? this.createdBy,
     );
   }
 }

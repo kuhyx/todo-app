@@ -4,48 +4,11 @@
 /// exact-pinned dependency under the freshness gate.
 library;
 
+import 'package:todo/cli/cli_mode.dart';
 import 'package:todo/data/note.dart';
 
+export 'package:todo/cli/cli_mode.dart';
 export 'package:todo/cli/cli_usage.dart';
-
-/// What the CLI was asked to do.
-enum CliMode {
-  /// Create a note and push it.
-  add,
-
-  /// Print every live note, one per line.
-  list,
-
-  /// Print one note in full.
-  get,
-
-  /// Tombstone one note and push the deletion.
-  delete,
-
-  /// Change one note's status and push it.
-  setStatus,
-
-  /// Set a task done with evidence and push it.
-  close,
-
-  /// Print the notes matching a query, as [list] does.
-  search,
-
-  /// Print usage.
-  help,
-}
-
-/// Thrown for a malformed command line; maps to exit code 2.
-class UsageError implements Exception {
-  /// Creates a [UsageError] carrying [message].
-  UsageError(this.message);
-
-  /// What was wrong with the arguments.
-  final String message;
-
-  @override
-  String toString() => message;
-}
 
 /// The parsed command line.
 class CliArgs {
@@ -58,6 +21,7 @@ class CliArgs {
     this.status,
     this.dataDir,
     this.newNote = false,
+    this.dryRun = false,
     this.opts = (
       repo: null,
       query: null,
@@ -89,6 +53,10 @@ class CliArgs {
           opts[arg] = value();
         case '--list':
           modes.add(CliMode.list);
+        case '--backfill-created-by':
+          modes.add(CliMode.backfill);
+        case '--dry-run':
+          opts[arg] = 'true';
         case '--search':
           modes.add(CliMode.search);
           opts[arg] = value();
@@ -106,8 +74,8 @@ class CliArgs {
     if (modes.contains(CliMode.help)) return const CliArgs(mode: CliMode.help);
     if (modes.length > 1) {
       throw UsageError(
-        '--list, --search, --get, --delete, --set-status and --close are '
-        'mutually exclusive',
+        '--list, --search, --get, --delete, --set-status, --close and '
+        '--backfill-created-by are mutually exclusive',
       );
     }
     final mode = modes.isEmpty ? CliMode.add : modes.single;
@@ -128,6 +96,7 @@ class CliArgs {
           opts.containsKey('--new-note') &&
           (opts['--repo'] != null ||
               (throw UsageError('--new-note needs --repo'))),
+      dryRun: opts.containsKey('--dry-run'),
       opts: (
         repo: _repo(opts['--repo']),
         query: _nonBlank(opts['--search'], '--search'),
@@ -159,6 +128,9 @@ class CliArgs {
   /// `--new-note`: the `--repo` task gets its own note.
   final bool newNote;
 
+  /// Whether `--dry-run` was given: report what would change, change nothing.
+  final bool dryRun;
+
   /// `--repo`, `--search`, `--done-check`, `--by` and `--evidence` values.
   final ({
     String? repo,
@@ -183,6 +155,7 @@ class CliArgs {
     ),
     '--evidence': ('to --close', {CliMode.close}),
     '--new-note': (_adding, {CliMode.add}),
+    '--dry-run': ('to --backfill-created-by', {CliMode.backfill}),
   };
 
   static void _checkScopes(Iterable<String> flags, CliMode mode) {
