@@ -63,6 +63,9 @@ class CliArgs {
         case '--get' || '--delete' || '--close':
           modes.add(CliMode.values.byName(arg.substring(2)));
           id = value();
+        case '--set-text':
+          modes.add(CliMode.setText);
+          id = value();
         case '--set-status':
           modes.add(CliMode.setStatus);
           id = value();
@@ -74,7 +77,8 @@ class CliArgs {
     if (modes.contains(CliMode.help)) return const CliArgs(mode: CliMode.help);
     if (modes.length > 1) {
       throw UsageError(
-        '--list, --search, --get, --delete, --set-status, --close and '
+        '--list, --search, --get, --delete, --set-status, --set-text, '
+        '--close and '
         '--backfill-created-by are mutually exclusive',
       );
     }
@@ -110,7 +114,8 @@ class CliArgs {
   /// The selected mode.
   final CliMode mode;
 
-  /// Note text from `--text`; null means "read stdin" in [CliMode.add].
+  /// Note text from `--text`; null means "read stdin" in [CliMode.add] and
+  /// [CliMode.setText].
   final String? text;
 
   /// Full id or 8+ character prefix of the note an id mode acts on.
@@ -146,7 +151,7 @@ class CliArgs {
 
   static const _adding = 'when adding a note';
   static const Map<String, (String, Set<CliMode>)> _scopes = {
-    '--text': (_adding, {CliMode.add}),
+    '--text': ('$_adding or to --set-text', {CliMode.add, CliMode.setText}),
     '--done-check': (_adding, {CliMode.add}),
     '--by': (_adding, {CliMode.add}),
     '--repo': (

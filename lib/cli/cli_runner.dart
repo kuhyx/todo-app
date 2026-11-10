@@ -54,7 +54,7 @@ Future<int> runCli(
     return 0;
   }
   String? text;
-  if (args.mode == CliMode.add) {
+  if (args.mode == CliMode.add || args.mode == CliMode.setText) {
     text = args.text ?? await readStdin();
     if (text.trim().isEmpty) {
       err.writeln('error: empty note (pass --text or pipe text on stdin)');
@@ -79,6 +79,7 @@ Future<int> runCli(
       CliMode.list || CliMode.search => await cli.list(args),
       CliMode.get => await cli.get(args.id!),
       CliMode.setStatus => await cli.setStatus(args.id!, args.status!),
+      CliMode.setText => await cli.setText(args.id!, text!),
       CliMode.close => await cli.close(args.id!, args.opts.evidence!),
       CliMode.backfill => await cli.backfillCreatedBy(
         claudeNodeIds(env),

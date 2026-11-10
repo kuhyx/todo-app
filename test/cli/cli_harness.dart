@@ -32,7 +32,11 @@ class CliHarness {
 
   String dir(String name) => '${tmp.path}/$name';
 
-  Future<int> run(List<String> argv, {SessionOpener? opener}) async {
+  Future<int> run(
+    List<String> argv, {
+    SessionOpener? opener,
+    String stdin = '',
+  }) async {
     out.clear();
     err.clear();
     return runCli(
@@ -40,7 +44,7 @@ class CliHarness {
       env: env,
       out: out,
       err: err,
-      readStdin: () async => '',
+      readStdin: () async => stdin,
       open:
           opener ?? (d, {required seedCredentials}) => open(d, seedCredentials),
     );

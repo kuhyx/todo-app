@@ -22,6 +22,8 @@ A note with --repo is a repo task; one without is a plain idea.
   --get <id>            pull, then print one note in full (exit 1 if absent)
   --delete <id>         pull, tombstone the note, push
   --set-status <id> <s> pull, change the note's status (as --status), push
+  --set-text <id>       pull, replace the note's whole text with --text (or
+                        stdin; first line = title), keep its other fields, push
   --close <id> --evidence <s>
                         pull, set status done + evidence (commit sha + done
                         check exit code), push; refused without --evidence

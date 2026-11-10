@@ -136,6 +136,15 @@ class CliCommands {
     return 0;
   }
 
+  /// Replaces a note's whole text (title is its first line) and pushes it.
+  Future<int> setText(String ref, String text) async {
+    final note = await _pullAndFind(ref);
+    await _save(note.copyWith(text: text));
+    if (!await _push('text change')) return 1;
+    _out.writeln('${note.id}\ttext');
+    return 0;
+  }
+
   /// Marks a note done with [evidence], keeping it, and pushes it.
   Future<int> close(String ref, String evidence) async {
     final note = await _pullAndFind(ref);

@@ -18,6 +18,9 @@ enum CliMode {
   /// Change one note's status and push it.
   setStatus,
 
+  /// Replace one note's whole text and push it.
+  setText,
+
   /// Set a task done with evidence and push it.
   close,
 
