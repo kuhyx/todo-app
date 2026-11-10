@@ -31,6 +31,10 @@ Log planBulkUpdate(
     final note = noteFromRecord(current);
     final next = note.copyWith(priority: priority, status: status);
     if (next.priority == note.priority && next.status == note.status) continue;
+    // Generated against generated, never against the stored text: a peer's
+    // `...00Z` (or a web build's millisecond date) would otherwise read as
+    // a change and get a fresh clock, erasing the `created_at` node signal.
+    final before = noteFields(note, hlc);
     plan[id] = Record(
       id: id,
       fields: {
@@ -38,7 +42,7 @@ Log planBulkUpdate(
           next.copyWith(updatedAt: now),
           hlc,
         ).entries)
-          if (current.fields[key]?.$1 != value.$1) key: value,
+          if (before[key]?.$1 != value.$1) key: value,
       },
     );
   }

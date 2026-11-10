@@ -75,6 +75,33 @@ void main() {
     expect((await repo.listNotes()).single.status, Status.done);
   });
 
+  test(
+    'a stored value Dart would format differently keeps its clock',
+    () async {
+      final (repo, _) = await _open();
+      final peer = Hlc(wallTimeMs: 1000, counter: 0, nodeId: 'mcp');
+      // A peer's (or a web build's) timestamp text, and no priority field.
+      await repo.importLog({
+        'a': Record(
+          id: 'a',
+          fields: {
+            'text': ('A', peer),
+            'status': (0, peer),
+            'created_at': ('2026-01-01T00:00:00Z', peer),
+            'updated_at': ('2026-01-01T00:00:00Z', peer),
+          },
+        ),
+      });
+
+      await repo.bulkUpdate({'a'}, status: Status.done);
+
+      final fields = repo.exportLog()['a']!.fields;
+      expect(fields['created_at'], ('2026-01-01T00:00:00Z', peer));
+      expect(fields.containsKey('priority'), isFalse);
+      expect(fields['status']!.$2.nodeId, 'dev');
+    },
+  );
+
   test('no write when nothing changes or ids are unknown/deleted', () async {
     final (repo, p) = await _open();
     await repo.upsert(noteFixture('a', 'A'));
