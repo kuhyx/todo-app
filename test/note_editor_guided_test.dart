@@ -13,7 +13,7 @@ void main() {
   ) async {
     final emitted = await pumpEditor(tester, initialTemplate: spec);
 
-    expect(find.byTooltip('Exit guided'), findsOneWidget);
+    expect(find.bySemanticsLabel('Exit guided'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, 'Dark mode');
     await tester.pump();
 
@@ -28,11 +28,11 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(find.text('1 / ${spec.sections.length}'), findsOneWidget);
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.bySemanticsLabel('Next'));
     await tester.pump();
     expect(find.text('2 / ${spec.sections.length}'), findsOneWidget);
 
-    await tester.tap(find.text('Back'));
+    await tester.tap(find.bySemanticsLabel('Back'));
     await tester.pump();
     expect(find.text('1 / ${spec.sections.length}'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
@@ -50,20 +50,22 @@ void main() {
       final section = spec.sections[i];
       expect(find.text('${i + 1} / ${spec.sections.length}'), findsOneWidget);
       expect(
-        find.text(section.isTitle ? 'title' : section.label),
+        section.isTitle
+            ? find.bySemanticsLabel('title')
+            : find.text(section.label),
         findsWidgets,
         reason: 'step ${i + 1} should show "${section.label}"',
       );
       expect(find.text(section.helper), findsOneWidget);
       if (i < spec.sections.length - 1) {
-        await tester.tap(find.text('Next'));
+        await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pump();
       }
     }
 
     // The last step is `read first`; there is no Next past it.
     expect(spec.sections.last.label, 'read first');
-    expect(find.text('Next'), findsNothing);
+    expect(find.bySemanticsLabel('Next'), findsNothing);
   });
 
   testWidgets('pasting a bare link drops the draft to the blank template', (
@@ -84,7 +86,7 @@ void main() {
 
     // Freeform now, so there is no seven-step stepper to walk for a link.
     expect(find.text('Blank'), findsOneWidget);
-    expect(find.text('Guided'), findsNothing);
+    expect(find.bySemanticsLabel('Guided'), findsNothing);
 
     // Adding prose puts the spec template back — lossless in both directions.
     await tester.enterText(
@@ -93,7 +95,7 @@ void main() {
     );
     await tester.pump();
     expect(find.text('LLM design spec'), findsOneWidget);
-    expect(find.text('Guided'), findsOneWidget);
+    expect(find.bySemanticsLabel('Guided'), findsOneWidget);
   });
 
   testWidgets('an explicit template choice survives further typing', (
@@ -126,7 +128,7 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '# Render me');
     await tester.pump();
 
-    await tester.tap(find.text('View'));
+    await tester.tap(find.bySemanticsLabel('View'));
     await tester.pump();
 
     expect(find.byType(MarkdownView), findsOneWidget);

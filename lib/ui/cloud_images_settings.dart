@@ -34,8 +34,7 @@ class CloudImagesTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListTile(
     contentPadding: EdgeInsets.zero,
-    title: const Text('Cloud images'),
-    subtitle: const Text('Where attached images and files upload (dufs)'),
+    leading: const Icon(Icons.cloud, semanticLabel: 'Cloud images'),
     trailing: const Icon(Icons.chevron_right),
     onTap: () => Navigator.of(context).push<void>(
       appRoute(context, (_) => CloudImagesScreen(httpClient: httpClient)),
@@ -129,7 +128,9 @@ class _CloudImagesScreenState extends State<CloudImagesScreen> {
   Widget build(BuildContext context) {
     final status = _status;
     return Scaffold(
-      appBar: AppBar(title: const Text('Cloud images')),
+      appBar: AppBar(
+        title: const Icon(Icons.cloud_outlined, semanticLabel: 'Cloud images'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -138,13 +139,16 @@ class _CloudImagesScreenState extends State<CloudImagesScreen> {
               controller: _password,
               obscureText: true,
               decoration: const InputDecoration(
-                labelText: 'Password for the "todo" dufs login',
+                prefixIcon: Icon(
+                  Icons.lock_outline,
+                  semanticLabel: 'Password for the "todo" dufs login',
+                ),
               ),
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _checking ? null : _saveAndTest,
-              child: const Text('Save & test'),
+              child: const Icon(Icons.save, semanticLabel: 'Save & test'),
             ),
             if (_checkResult case final result?) ...[
               const SizedBox(height: 8),
@@ -153,21 +157,45 @@ class _CloudImagesScreenState extends State<CloudImagesScreen> {
             const SizedBox(height: 16),
           ],
           if (status != null) ...[
-            Text(
-              status.configured
+            // Shape + colour: a filled check, or a red error ring followed by
+            // the command (user-typed text, so it stays) that fixes it.
+            Icon(
+              status.configured ? Icons.check_circle : Icons.error_outline,
+              color: status.configured
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
+              semanticLabel: status.configured
                   ? 'Login: configured'
                   : 'Login: missing — create it on the PC with',
             ),
             if (!status.configured) const SelectableText(kAddLoginCommand),
             const SizedBox(height: 8),
-            Text('Waiting to upload: ${status.pending}'),
+            // Icon + the count itself: the number is the information.
+            Row(
+              children: [
+                const Icon(Icons.cloud_upload_outlined),
+                const SizedBox(width: 8),
+                Text(
+                  '${status.pending}',
+                  semanticsLabel: 'Waiting to upload: ${status.pending}',
+                ),
+              ],
+            ),
           ],
           const SizedBox(height: 16),
-          Text(
-            'Images are shrunk to 2560px JPEGs without location data before '
-            'they leave this device. Other files upload unchanged, at any '
-            'size.',
-            style: Theme.of(context).textTheme.bodySmall,
+          // Shrunk + no location, as glyphs; the sentence is spoken only.
+          const Row(
+            children: [
+              Icon(
+                Icons.photo_size_select_large,
+                semanticLabel:
+                    'Images are shrunk to 2560px JPEGs without location data '
+                    'before they leave this device. Other files upload '
+                    'unchanged, at any size.',
+              ),
+              SizedBox(width: 8),
+              Icon(Icons.location_off),
+            ],
           ),
         ],
       ),

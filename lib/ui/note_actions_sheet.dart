@@ -6,10 +6,11 @@ library;
 
 import 'dart:async';
 
-import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/confirm_delete.dart';
+import 'package:todo/ui/enum_glyphs.dart';
 import 'package:todo/ui/note_sheet_details.dart';
 import 'package:todo/ui/note_task_details.dart';
 
@@ -61,97 +62,59 @@ class _NoteActionsSheetState extends State<NoteActionsSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                firstLine.isEmpty ? '(empty)' : firstLine,
-                style: Theme.of(context).textTheme.titleMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              // User content; untitled shows nothing, not a placeholder.
+              if (firstLine.isNotEmpty)
+                Text(
+                  firstLine,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               NoteSheetDetails(note: widget.note),
               const SizedBox(height: 16),
-              _EnumChips<Status>(
-                label: 'Status',
+              GlyphChips<Status>(
+                heading: kStatusHeadingIcon,
+                semanticLabel: 'Status',
                 values: Status.values,
                 selected: {_status},
-                labelOf: (s) => s.label,
-                onSelected: (s) {
+                glyphOf: statusGlyph,
+                onTap: (s) {
                   setState(() => _status = s);
                   unawaited(_persist());
                 },
               ),
               const SizedBox(height: 12),
-              _EnumChips<Priority>(
-                label: 'Priority',
+              GlyphChips<Priority>(
+                heading: kPriorityHeadingIcon,
+                semanticLabel: 'Priority',
                 values: Priority.values,
                 selected: {_priority},
-                labelOf: (p) => p.label,
-                onSelected: (p) {
+                glyphOf: (p) => priorityGlyph(context, p),
+                onTap: (p) {
                   setState(() => _priority = p);
                   unawaited(_persist());
                 },
               ),
               NoteTaskDetails(note: widget.note),
               const SizedBox(height: 16),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Delete note'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
+              Align(
+                child: IconButton.outlined(
+                  color: Theme.of(context).colorScheme.error,
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    semanticLabel: 'Delete note',
+                  ),
+                  onPressed: () async {
+                    if (!await confirmDeleteNote(context)) return;
+                    await widget.onDelete();
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
                 ),
-                onPressed: () async {
-                  final confirmed = await confirmDestructive(
-                    context,
-                    title: 'Delete note?',
-                    message: 'This cannot be undone.',
-                  );
-                  if (!confirmed) return;
-                  await widget.onDelete();
-                  if (context.mounted) Navigator.of(context).pop();
-                },
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Single-select chip row for an enum (used for per-note priority/status).
-class _EnumChips<T> extends StatelessWidget {
-  const _EnumChips({
-    required this.label,
-    required this.values,
-    required this.selected,
-    required this.labelOf,
-    required this.onSelected,
-  });
-
-  final String label;
-  final List<T> values;
-  final Set<T> selected;
-  final String Function(T) labelOf;
-  final ValueChanged<T> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final v in values)
-              ChoiceChip(
-                label: Text(labelOf(v)),
-                selected: selected.contains(v),
-                onSelected: (_) => onSelected(v),
-              ),
-          ],
-        ),
-      ],
     );
   }
 }

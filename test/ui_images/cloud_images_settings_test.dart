@@ -33,7 +33,7 @@ void main() {
 
   Future<void> saveWith(WidgetTester tester, String password) async {
     await tester.enterText(find.byType(TextField), password);
-    await tester.tap(find.text('Save & test'));
+    await tester.tap(find.bySemanticsLabel('Save & test'));
     await tester.pump();
     await tester.pump();
   }
@@ -43,7 +43,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: Scaffold(body: CloudImagesTile())),
     );
-    await tester.tap(find.text('Cloud images'));
+    await tester.tap(find.bySemanticsLabel('Cloud images'));
     await tester.pumpAndSettle();
     expect(find.byType(CloudImagesScreen), findsOneWidget);
   });
@@ -55,8 +55,8 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).controller!.text,
       'saved',
     );
-    expect(find.text('Login: configured'), findsOneWidget);
-    expect(find.text('Waiting to upload: 0'), findsOneWidget);
+    expect(find.bySemanticsLabel('Login: configured'), findsOneWidget);
+    expect(find.bySemanticsLabel('Waiting to upload: 0'), findsOneWidget);
   });
 
   testWidgets('an accepted password is saved and the queue uploads', (
@@ -108,7 +108,7 @@ void main() {
     await pump(tester, field: false);
     expect(find.byType(TextField), findsNothing);
     expect(
-      find.text('Login: missing — create it on the PC with'),
+      find.bySemanticsLabel('Login: missing — create it on the PC with'),
       findsOneWidget,
     );
     expect(find.text(kAddLoginCommand), findsOneWidget);
@@ -120,7 +120,7 @@ void main() {
     final store = FakeImageStore();
     await pump(tester, store: store, client: MockClient((_) => reply.future));
     await tester.enterText(find.byType(TextField), 'pw');
-    await tester.tap(find.text('Save & test'));
+    await tester.tap(find.bySemanticsLabel('Save & test'));
     await tester.pump();
     await tester.pumpWidget(const SizedBox());
     reply.complete(http.Response('', 207));

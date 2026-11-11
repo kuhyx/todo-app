@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:todo/data/app_settings.dart';
@@ -8,6 +7,7 @@ import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/attachment_picking.dart';
+import 'package:todo/ui/confirm_delete.dart';
 import 'package:todo/ui/image_attach.dart';
 import 'package:todo/ui/image_input.dart';
 import 'package:todo/ui/note_form.dart';
@@ -85,12 +85,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       _persist(_note.copyWith(text: text, updatedAt: DateTime.now()));
 
   Future<void> _delete() async {
-    final confirmed = await confirmDestructive(
-      context,
-      title: 'Delete note?',
-      message: 'This cannot be undone.',
-    );
-    if (!confirmed) return;
+    if (!await confirmDeleteNote(context)) return;
     await widget.repository.delete(_note.id);
     if (mounted) Navigator.of(context).pop();
   }
@@ -100,7 +95,8 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     final title = noteTitle(_note.text);
     return Scaffold(
       appBar: AppBar(
-        title: Text(title.isEmpty ? '(empty)' : title),
+        // An untitled note shows no title rather than a written placeholder.
+        title: title.isEmpty ? null : Text(title),
         actions: [
           AttachButton(
             onFiles: _attachFiles,
@@ -114,8 +110,10 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
             onPressed: _copy,
           ),
           IconButton(
-            tooltip: 'Delete note',
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(
+              Icons.delete_outline,
+              semanticLabel: 'Delete note',
+            ),
             onPressed: _delete,
           ),
         ],

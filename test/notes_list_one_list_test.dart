@@ -79,7 +79,10 @@ void main() {
       if (axisDirectionToAxis(s.axisDirection) == Axis.vertical)
         expect(s.position.maxScrollExtent, 0);
     }
-    expect(find.text('Apply').hitTestable(), findsOneWidget);
+    expect(
+      find.widgetWithIcon(FilledButton, Icons.check).hitTestable(),
+      findsOneWidget,
+    );
     expect(find.text('Repo tasks'), findsNothing);
     expect(find.text('Ideas'), findsNothing);
     expect(find.byType(ActionChip), findsNothing);

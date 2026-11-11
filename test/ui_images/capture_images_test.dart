@@ -25,7 +25,7 @@ void main() {
       ],
       appSettings: ValueNotifier(const AppSettings(advancedMode: false)),
     );
-    await tester.tap(find.byTooltip('Attach'));
+    await tester.tap(find.bySemanticsLabel('Attach'));
     await tester.pump();
     await tester.pump();
     expect(store.attachedFiles, hasLength(2));
@@ -47,7 +47,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'idea');
     await tester.pump();
     final id = (await repo.listNotes()).single.id;
-    await tester.tap(find.byTooltip('Attach'));
+    await tester.tap(find.bySemanticsLabel('Attach'));
     await tester.pump();
     await tester.pump();
     final text = (await repo.listNotes()).single.text;
@@ -90,7 +90,7 @@ void main() {
     );
     await tester.pump();
     final before = store.reconciles.length;
-    await tester.tap(find.byTooltip('Sync'));
+    await tester.tap(find.bySemanticsLabel('Sync'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(store.reconciles.length, greaterThan(before));

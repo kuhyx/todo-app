@@ -145,7 +145,12 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Advanced sync (GitHub)')),
+      appBar: AppBar(
+        title: const Icon(
+          Icons.cloud_sync,
+          semanticLabel: 'Advanced sync (GitHub)',
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -157,17 +162,16 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
+            child: IconButton.filled(
               onPressed: _connectGitHub,
-              icon: const Icon(Icons.login),
-              label: const Text('Connect GitHub'),
+              icon: const Icon(Icons.login, semanticLabel: 'Connect GitHub'),
             ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _owner,
             decoration: const InputDecoration(
-              labelText: 'GitHub owner',
+              prefixIcon: Icon(Icons.person, semanticLabel: 'GitHub owner'),
               border: OutlineInputBorder(),
             ),
           ),
@@ -175,7 +179,7 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
           TextField(
             controller: _repo,
             decoration: const InputDecoration(
-              labelText: 'Repository name',
+              prefixIcon: Icon(Icons.folder, semanticLabel: 'Repository name'),
               border: OutlineInputBorder(),
             ),
           ),
@@ -183,8 +187,7 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
           TextField(
             controller: _clientId,
             decoration: const InputDecoration(
-              labelText: 'OAuth App client id',
-              helperText: 'Leave as the baked-in default unless self-hosting',
+              prefixIcon: Icon(Icons.key, semanticLabel: 'OAuth App client id'),
               border: OutlineInputBorder(),
             ),
           ),
@@ -193,15 +196,17 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
             controller: _token,
             obscureText: true,
             decoration: const InputDecoration(
-              labelText: 'Access token (fallback)',
-              helperText: 'Contents: read/write on the sync repo only',
+              prefixIcon: Icon(
+                Icons.vpn_key,
+                semanticLabel: 'Access token (fallback)',
+              ),
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              OutlinedButton.icon(
+              IconButton.outlined(
                 onPressed: _testing ? null : _test,
                 icon: _testing
                     ? const SizedBox(
@@ -209,14 +214,15 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.wifi_tethering),
-                label: const Text('Test connection'),
+                    : const Icon(
+                        Icons.wifi_tethering,
+                        semanticLabel: 'Test connection',
+                      ),
               ),
               const SizedBox(width: 12),
-              FilledButton.icon(
+              IconButton.filled(
                 onPressed: _save,
-                icon: const Icon(Icons.save),
-                label: const Text('Save'),
+                icon: const Icon(Icons.save, semanticLabel: 'Save'),
               ),
             ],
           ),

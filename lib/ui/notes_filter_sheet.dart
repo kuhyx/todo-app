@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/ui/enum_glyphs.dart';
 import 'package:todo/ui/note_date_range_field.dart';
 import 'package:todo/ui/notes_list_defaults.dart';
 
@@ -66,7 +67,6 @@ class _FilterSheetState extends State<FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -82,33 +82,38 @@ class _FilterSheetState extends State<FilterSheet> {
             children: [
               Row(
                 children: [
-                  Text('Filters', style: theme.textTheme.titleLarge),
+                  const Icon(Icons.filter_list, semanticLabel: 'Filters'),
                   const Spacer(),
                   TextButton(
                     onPressed: _clearAll,
-                    child: const Text('Clear all'),
+                    child: const Icon(Icons.clear, semanticLabel: 'Clear all'),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              _MultiChips<Status>(
-                label: 'Status',
+              GlyphChips<Status>(
+                multi: true,
+                heading: kStatusHeadingIcon,
+                semanticLabel: 'Status',
                 values: Status.values,
                 selected: _statuses,
-                labelOf: (s) => s.label,
-                onToggle: (s) => _toggle(_statuses, s),
+                glyphOf: statusGlyph,
+                onTap: (s) => _toggle(_statuses, s),
               ),
               const SizedBox(height: 12),
-              _MultiChips<Priority>(
-                label: 'Priority',
+              GlyphChips<Priority>(
+                multi: true,
+                heading: kPriorityHeadingIcon,
+                semanticLabel: 'Priority',
                 values: Priority.values,
                 selected: _priorities,
-                labelOf: (p) => p.label,
-                onToggle: (p) => _toggle(_priorities, p),
+                glyphOf: (p) => priorityGlyph(context, p),
+                onTap: (p) => _toggle(_priorities, p),
               ),
               const SizedBox(height: 12),
               DateRangeField(
-                label: 'Created',
+                icon: kCreatedIcon,
+                semanticLabel: 'Created',
                 from: _createdFrom,
                 to: _createdTo,
                 onChanged: (from, to) => setState(() {
@@ -118,7 +123,8 @@ class _FilterSheetState extends State<FilterSheet> {
               ),
               const SizedBox(height: 12),
               DateRangeField(
-                label: 'Last updated',
+                icon: kUpdatedIcon,
+                semanticLabel: 'Last updated',
                 from: _updatedFrom,
                 to: _updatedTo,
                 onChanged: (from, to) => setState(() {
@@ -129,51 +135,12 @@ class _FilterSheetState extends State<FilterSheet> {
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(_build()),
-                child: const Text('Apply'),
+                child: const Icon(Icons.check, semanticLabel: 'Apply'),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Multi-select chip group for an enum (used by the filter sheet).
-class _MultiChips<T> extends StatelessWidget {
-  const _MultiChips({
-    required this.label,
-    required this.values,
-    required this.selected,
-    required this.labelOf,
-    required this.onToggle,
-  });
-
-  final String label;
-  final List<T> values;
-  final Set<T> selected;
-  final String Function(T) labelOf;
-  final ValueChanged<T> onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final v in values)
-              FilterChip(
-                label: Text(labelOf(v)),
-                selected: selected.contains(v),
-                onSelected: (_) => onToggle(v),
-              ),
-          ],
-        ),
-      ],
     );
   }
 }

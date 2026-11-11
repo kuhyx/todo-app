@@ -33,8 +33,10 @@ class ImageEmbed extends StatelessWidget {
     final store = ImageStoreScope.of(context);
     final source = store.sourceFor(ref);
     final picture = imageFor(source, fit: fit);
+    // Spoken only: nothing paints this string.
+    const semanticLabel = 'Attached image';
     return Semantics(
-      label: 'Attached image',
+      label: semanticLabel,
       button: source is! MissingImageSource,
       child: GestureDetector(
         onTap: source is MissingImageSource

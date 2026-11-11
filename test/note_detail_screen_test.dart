@@ -61,7 +61,7 @@ void main() {
       find.byWidgetPredicate((w) => w is DropdownButton<Priority>),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('High').last);
+    await tester.tap(find.bySemanticsLabel('High').last);
     await tester.pumpAndSettle();
 
     expect((await repo.listNotes()).single.priority, Priority.high);
@@ -74,7 +74,7 @@ void main() {
       find.byWidgetPredicate((w) => w is DropdownButton<Status>),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Done').last);
+    await tester.tap(find.bySemanticsLabel('Done').last);
     await tester.pumpAndSettle();
 
     expect((await repo.listNotes()).single.status, Status.done);
@@ -85,7 +85,7 @@ void main() {
   ) async {
     final repo = await pumpDetail(tester, seedNote('# T\n\n## what\nold'));
 
-    await tester.tap(find.text('Raw'));
+    await tester.tap(find.bySemanticsLabel('Raw'));
     await tester.pump();
     await tester.enterText(find.byType(TextField), '# T\n\n## what\nnew body');
     await tester.pump();
@@ -101,20 +101,20 @@ void main() {
       await tester.enterText(find.byType(TextField), '');
       await tester.pump();
 
-      await tester.tap(find.text('Guided'));
+      await tester.tap(find.bySemanticsLabel('Guided'));
       await tester.pump();
-      expect(find.text('Step 1 of 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Step 1 of 2'), findsOneWidget);
       // Wizard hides the Status dropdown (onChromeVisibleChanged(false)).
-      expect(find.text('Status'), findsNothing);
+      expect(find.bySemanticsLabel('Status'), findsNothing);
 
       await tester.tap(find.byType(DropdownButtonFormField<Priority>));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('High').last);
+      await tester.tap(find.bySemanticsLabel('High').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Next'));
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pump();
-      await tester.tap(find.text('Start'));
+      await tester.tap(find.bySemanticsLabel('Start'));
       await tester.pump();
 
       expect((await repo.listNotes()).single.priority, Priority.high);
@@ -134,11 +134,11 @@ void main() {
       advancedMode: false,
     );
 
-    expect(find.text('Template'), findsNothing);
-    expect(find.text('Guided'), findsNothing);
-    expect(find.text('Raw'), findsNothing);
-    expect(find.text('Priority'), findsNothing);
-    expect(find.text('Status'), findsNothing);
+    expect(find.bySemanticsLabel('Template'), findsNothing);
+    expect(find.bySemanticsLabel('Guided'), findsNothing);
+    expect(find.bySemanticsLabel('Raw'), findsNothing);
+    expect(find.bySemanticsLabel('Priority'), findsNothing);
+    expect(find.bySemanticsLabel('Status'), findsNothing);
     // The body itself is still editable — only the chrome is gone.
     expect(find.byType(TextField), findsOneWidget);
   });
@@ -146,13 +146,13 @@ void main() {
   testWidgets('the delete action removes the note and pops', (tester) async {
     final repo = await pumpDetail(tester, seedNote('# Bye'));
 
-    await tester.tap(find.byTooltip('Delete note'));
+    await tester.tap(find.bySemanticsLabel('Delete note'));
     await tester.pumpAndSettle();
 
     // Delete is now confirmed. Deleting a note is irreversible and there is no
     // undo, so a single Return on a focused control must not destroy it.
-    expect(find.text('Delete note?'), findsOneWidget);
-    await tester.tap(find.text('Delete'));
+    expect(find.bySemanticsLabel('Delete note?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('confirm-delete')));
     await tester.pumpAndSettle();
 
     expect(await repo.listNotes(), isEmpty);
@@ -162,9 +162,9 @@ void main() {
   testWidgets('cancelling the delete keeps the note', (tester) async {
     final repo = await pumpDetail(tester, seedNote('# Keep me'));
 
-    await tester.tap(find.byTooltip('Delete note'));
+    await tester.tap(find.bySemanticsLabel('Delete note'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(find.byKey(const ValueKey('confirm-cancel')));
     await tester.pumpAndSettle();
 
     expect(await repo.listNotes(), hasLength(1));

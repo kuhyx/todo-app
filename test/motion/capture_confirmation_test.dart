@@ -38,7 +38,7 @@ void main() {
     await pumpCapture(tester);
     await _type(tester);
 
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump(); // one frame: the cue must not wait for anything
 
     expect(haptics, [_lightImpact]);
@@ -52,7 +52,7 @@ void main() {
     await pumpCapture(tester);
     await _type(tester);
 
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(_mark, findsOneWidget);
@@ -74,7 +74,7 @@ void main() {
     final haptics = recordHaptics(tester);
     await pumpCapture(tester);
 
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(haptics, isEmpty);
@@ -87,16 +87,18 @@ void main() {
     final haptics = recordHaptics(tester);
     await pumpCapture(tester);
     await _type(tester);
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump(); // the ticker's clock starts on its first frame
     await tester.pump(const Duration(milliseconds: 700));
-    await tester.tap(find.byTooltip('New note')); // nothing new to capture
+    await tester.tap(
+      find.bySemanticsLabel('New note'),
+    ); // nothing new to capture
     await tester.pump(const Duration(milliseconds: 100));
     expect(haptics, hasLength(1));
     expect(_mark, findsNothing);
 
     await _type(tester);
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(haptics, hasLength(2));
     expect(_mark, findsOneWidget);
@@ -111,7 +113,7 @@ void main() {
     await pumpCapture(tester);
     await _type(tester);
 
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump();
     expect(haptics, [_lightImpact]);
 
@@ -130,7 +132,7 @@ void main() {
     await pumpCapture(tester);
     final before = tester.getTopLeft(find.text('0'));
     await _type(tester);
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(tester.getTopLeft(find.text('1')), before);
     await tester.pump(const Duration(milliseconds: 400));

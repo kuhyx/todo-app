@@ -58,7 +58,7 @@ void main() {
     await tester.pump();
     tester.widget<TextField>(find.byType(TextField)).controller!.selection =
         const TextSelection.collapsed(offset: 5);
-    await tester.tap(find.byTooltip('Attach'));
+    await tester.tap(find.bySemanticsLabel('Attach'));
     await tester.pump();
     await tester.pump();
     expect(
@@ -81,7 +81,7 @@ void main() {
     await tester.pump();
     expect((await repo.listNotes()).single.text, contains('[Raport.pdf]('));
     // View mode renders inline and hides the strip.
-    await tester.tap(find.text('View'));
+    await tester.tap(find.bySemanticsLabel('View'));
     await tester.pump();
     expect(find.byType(AttachmentStrip), findsNothing);
     expect(find.byType(ImageEmbed), findsNWidgets(2));

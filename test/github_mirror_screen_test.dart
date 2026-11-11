@@ -43,7 +43,7 @@ void main() {
     tester,
   ) async {
     await pumpMirror(tester);
-    await tester.tap(find.text('Connect GitHub'));
+    await tester.tap(find.bySemanticsLabel('Connect GitHub'));
     await tester.pump();
     expect(
       find.textContaining('Enter the OAuth App client id'),
@@ -55,7 +55,7 @@ void main() {
     final mock = MockClient((_) async => http.Response('{}', 200));
     await pumpMirror(tester, httpClient: mock);
 
-    await tester.tap(find.text('Test connection'));
+    await tester.tap(find.bySemanticsLabel('Test connection'));
     await tester.pump(); // start
     await tester.pump(); // resolve future + rebuild
 
@@ -66,7 +66,7 @@ void main() {
     final mock = MockClient((_) async => http.Response('', 404));
     await pumpMirror(tester, httpClient: mock);
 
-    await tester.tap(find.text('Test connection'));
+    await tester.tap(find.bySemanticsLabel('Test connection'));
     await tester.pump();
     await tester.pump();
 
@@ -77,7 +77,7 @@ void main() {
     final mock = MockClient((_) async => throw Exception('offline'));
     await pumpMirror(tester, httpClient: mock);
 
-    await tester.tap(find.text('Test connection'));
+    await tester.tap(find.bySemanticsLabel('Test connection'));
     await tester.pump();
     await tester.pump();
 
@@ -97,7 +97,7 @@ void main() {
       httpClient: mock,
     );
 
-    await tester.tap(find.text('Connect GitHub'));
+    await tester.tap(find.bySemanticsLabel('Connect GitHub'));
     await tester.pump();
     await tester.pump();
 
@@ -133,7 +133,7 @@ void main() {
       httpClient: mock,
     );
 
-    await tester.tap(find.text('Connect GitHub'));
+    await tester.tap(find.bySemanticsLabel('Connect GitHub'));
     await tester.pump(); // requestDeviceCode
     await tester.pump(); // dialog builds, shows the user code
     expect(find.text('WXYZ-1234'), findsOneWidget);

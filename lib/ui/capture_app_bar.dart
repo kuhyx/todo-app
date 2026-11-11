@@ -86,13 +86,11 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
         // Not gated on advanced mode: attaching is basic capture.
         AttachButton(onFiles: onAttachFiles, picking: attachmentPicking),
         IconButton(
-          tooltip: 'New note',
           onPressed: onNewNote,
-          icon: const Icon(Icons.check),
+          icon: const Icon(Icons.check, semanticLabel: 'New note'),
         ),
         if (advanced)
           IconButton(
-            tooltip: 'Sync',
             onPressed: syncing ? null : onSync,
             icon: syncing
                 ? const SizedBox(
@@ -100,12 +98,11 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.sync),
+                : const Icon(Icons.sync, semanticLabel: 'Sync'),
           ),
         IconButton(
-          tooltip: 'Notes',
           onPressed: onOpenList,
-          icon: const Icon(Icons.list),
+          icon: const Icon(Icons.list, semanticLabel: 'Notes'),
         ),
         // Live count of stored notes, proving local persistence. Sits directly
         // right of the Notes button it belongs to, and carries no icon of its
@@ -122,9 +119,8 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         CaptureConfirmMark(captured: captured),
         IconButton(
-          tooltip: 'Settings',
           onPressed: onOpenSettings,
-          icon: const Icon(Icons.settings),
+          icon: const Icon(Icons.settings, semanticLabel: 'Settings'),
         ),
       ],
     );

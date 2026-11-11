@@ -111,8 +111,10 @@ class _FileEmbedState extends State<FileEmbed> {
                   ?pending,
                 ],
               );
+        // Spoken only: nothing paints this string.
+        final semanticLabel = 'Attached file ${attachment.name}, $detail';
         return Semantics(
-          label: 'Attached file ${attachment.name}, $detail',
+          label: semanticLabel,
           button: size != null,
           child: Material(
             color: theme.colorScheme.surfaceContainerHighest,

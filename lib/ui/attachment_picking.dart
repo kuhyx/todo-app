@@ -44,18 +44,24 @@ Future<List<XFile>> pickAttachments(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text('Camera'),
+            leading: const Icon(
+              Icons.photo_camera_outlined,
+              semanticLabel: 'Camera',
+            ),
             onTap: () => Navigator.pop(context, AttachmentPickSource.camera),
           ),
           ListTile(
-            leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('Gallery'),
+            leading: const Icon(
+              Icons.photo_library_outlined,
+              semanticLabel: 'Gallery',
+            ),
             onTap: () => Navigator.pop(context, AttachmentPickSource.gallery),
           ),
           ListTile(
-            leading: const Icon(Icons.insert_drive_file_outlined),
-            title: const Text('File'),
+            leading: const Icon(
+              Icons.insert_drive_file_outlined,
+              semanticLabel: 'File',
+            ),
             onTap: () => Navigator.pop(context, AttachmentPickSource.file),
           ),
         ],
@@ -102,8 +108,7 @@ class AttachButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'Attach',
-      icon: const Icon(Icons.attach_file),
+      icon: const Icon(Icons.attach_file, semanticLabel: 'Attach'),
       onPressed: () async {
         final files = await (picking ?? pickAttachments)(context);
         if (files.isNotEmpty) onFiles(files);

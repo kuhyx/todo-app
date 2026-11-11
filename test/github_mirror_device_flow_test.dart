@@ -72,7 +72,7 @@ void main() {
       httpClient: mock,
     );
 
-    await tester.tap(find.text('Connect GitHub'));
+    await tester.tap(find.bySemanticsLabel('Connect GitHub'));
     await tester.pump();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -135,7 +135,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400)); // route transition
     expect(find.byType(GitHubMirrorScreen), findsOneWidget); // screen is up
 
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.bySemanticsLabel('Save'));
     await tester.pump(); // run _save (persist + pop)
     await tester.pump(const Duration(milliseconds: 400)); // pop transition
 
@@ -195,7 +195,7 @@ void main() {
       httpClient: mock,
     );
 
-    await tester.tap(find.text('Connect GitHub'));
+    await tester.tap(find.bySemanticsLabel('Connect GitHub'));
     await tester.pump(); // requestDeviceCode
     await tester.pump(); // dialog builds, poll starts (interval 0)
     expect(find.text('WXYZ-1234'), findsOneWidget);

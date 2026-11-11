@@ -134,7 +134,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
     final badgeCount = userFacetCount(_filter);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notes'),
+        title: const Icon(Icons.note, semanticLabel: 'Notes'),
         actions: [
           _selectButton(),
           // Eye, no label: open = Claude-made notes shown, slashed = hidden.
@@ -148,26 +148,27 @@ class _NotesListScreenState extends State<NotesListScreen> {
             onPressed: _toggleClaudeNotes,
           ),
           PopupMenuButton<NoteSort>(
-            tooltip: 'Sort',
-            icon: const Icon(Icons.sort),
+            // Empty, not omitted: null falls back to the painted "Show menu".
+            tooltip: '',
+            icon: const Icon(Icons.sort, semanticLabel: 'Sort'),
             initialValue: _sort,
             onSelected: _setSort,
             itemBuilder: (_) => const [
               PopupMenuItem(
                 value: NoteSort.modifiedDesc,
-                child: Text('Last updated'),
+                child: Icon(Icons.update, semanticLabel: 'Last updated'),
               ),
               PopupMenuItem(
                 value: NoteSort.createdDesc,
-                child: Text('Newest created'),
+                child: Icon(Icons.post_add, semanticLabel: 'Newest created'),
               ),
               PopupMenuItem(
                 value: NoteSort.alphabetical,
-                child: Text('Alphabetical'),
+                child: Icon(Icons.sort_by_alpha, semanticLabel: 'Alphabetical'),
               ),
               PopupMenuItem(
                 value: NoteSort.priorityDesc,
-                child: Text('Priority'),
+                child: Icon(Icons.flag_outlined, semanticLabel: 'Priority'),
               ),
             ],
           ),
@@ -181,8 +182,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
               label: Text('$badgeCount'),
               offset: const Offset(-8, 4),
               child: IconButton(
-                tooltip: 'Filter',
-                icon: const Icon(Icons.filter_list),
+                icon: const Icon(Icons.filter_list, semanticLabel: 'Filter'),
                 onPressed: _openFilters,
               ),
             ),
@@ -198,15 +198,16 @@ class _NotesListScreenState extends State<NotesListScreen> {
               onChanged: _onSearchChanged,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: 'Search notes…',
                 prefixIcon: const Icon(Icons.search),
                 isDense: true,
                 border: const OutlineInputBorder(),
                 suffixIcon: _searchController.text.isEmpty
                     ? null
                     : IconButton(
-                        tooltip: 'Clear search',
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(
+                          Icons.clear,
+                          semanticLabel: 'Clear search',
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           _onSearchChanged('');

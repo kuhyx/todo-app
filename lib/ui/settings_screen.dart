@@ -105,11 +105,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// session is available, best-effort mirrors it so the choice follows the
   /// user to their other devices.
   ///
-  /// The local write always lands — a signed-in-as-wrong-account device
-  /// throwing [FirebaseAuthError] out of `openFirebase()` must not take the
-  /// toggle down with it, so opening the client has its own try/catch,
-  /// separate from (and preceding) the try that guards the local write and
-  /// mirror push.
+  /// The local write always lands: a [FirebaseAuthError] from opening the
+  /// client (wrong account) is caught on its own, before the write.
   Future<void> _setAdvancedMode(bool value) async {
     final analytics = widget.analytics;
     if (analytics != null) {
@@ -206,7 +203,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        title: const Icon(Icons.settings, semanticLabel: 'Settings'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -214,33 +213,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
             valueListenable: widget.appSettings,
             builder: (context, settings, _) => SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Enable advanced'),
-              subtitle: const Text(
-                'Priority/status, templates, view modes, and sync details '
-                'in the capture screen',
-              ),
+              secondary: const Icon(Icons.tune, semanticLabel: _advanced),
               value: settings.advancedMode,
               onChanged: (value) => unawaited(_setAdvancedMode(value)),
             ),
           ),
           const Divider(),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Sync settings'),
-            subtitle: const Text('Firebase sync and notes backup'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => unawaited(_openSyncSettings()),
+          _link(
+            const Icon(Icons.sync, semanticLabel: 'Sync settings: Firebase'),
+            _openSyncSettings,
           ),
           CloudImagesTile(httpClient: widget.httpClient),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Advanced sync (GitHub)'),
-            subtitle: const Text('Cutover mirror — not recommended'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => unawaited(_openGitHubMirror()),
+          _link(
+            Icon(
+              Icons.cloud_sync,
+              color: Theme.of(context).colorScheme.outline,
+              semanticLabel: 'Advanced sync (GitHub): not recommended',
+            ),
+            _openGitHubMirror,
           ),
         ],
       ),
     );
   }
+
+  // Spoken only: what the advanced switch turns on.
+  static const _advanced = 'Enable advanced: priority, status, view modes';
+
+  /// A row that opens a sub-screen: its glyph (muted = not recommended).
+  Widget _link(Icon icon, Future<void> Function() open) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: icon,
+    trailing: const Icon(Icons.chevron_right),
+    onTap: () => unawaited(open()),
+  );
 }

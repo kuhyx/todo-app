@@ -61,30 +61,25 @@ class _ThrowingFileSelector extends FileSelectorPlatform
 }
 
 void main() {
-  testWidgets(
-    'Enable advanced toggles and persists locally with no client',
-    (tester) async {
-      final appSettings = ValueNotifier(
-        const AppSettings(advancedMode: false),
-      );
-      await pumpSettings(
-        tester,
-        appSettings: appSettings,
-        firebaseFactory: () async => null,
-      );
-
-      await tester.tap(find.text('Enable advanced'));
-      await tester.pump();
-
-      expect(appSettings.value.advancedMode, isTrue);
-      final reloaded = await AppSettings.load();
-      expect(reloaded.advancedMode, isTrue);
-    },
-  );
-
-  testWidgets('Enable advanced mirrors the toggle to Firebase', (
+  testWidgets('Enable advanced toggles and persists locally with no client', (
     tester,
   ) async {
+    final appSettings = ValueNotifier(const AppSettings(advancedMode: false));
+    await pumpSettings(
+      tester,
+      appSettings: appSettings,
+      firebaseFactory: () async => null,
+    );
+
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pump();
+
+    expect(appSettings.value.advancedMode, isTrue);
+    final reloaded = await AppSettings.load();
+    expect(reloaded.advancedMode, isTrue);
+  });
+
+  testWidgets('Enable advanced mirrors the toggle to Firebase', (tester) async {
     String? putPath;
     final firebase = FirebaseRestClient(
       databaseUrl: 'https://x-rtdb.europe-west1.firebasedatabase.app',
@@ -110,7 +105,7 @@ void main() {
       firebaseFactory: () async => firebase,
     );
 
-    await tester.tap(find.text('Enable advanced'));
+    await tester.tap(find.byIcon(Icons.tune));
     await tester.pump();
 
     expect(appSettings.value.advancedMode, isTrue);
@@ -120,16 +115,14 @@ void main() {
   testWidgets(
     'Enable advanced still persists locally when opening Firebase throws',
     (tester) async {
-      final appSettings = ValueNotifier(
-        const AppSettings(advancedMode: false),
-      );
+      final appSettings = ValueNotifier(const AppSettings(advancedMode: false));
       await pumpSettings(
         tester,
         appSettings: appSettings,
         firebaseFactory: () async => throw FirebaseAuthError('wrong account'),
       );
 
-      await tester.tap(find.text('Enable advanced'));
+      await tester.tap(find.byIcon(Icons.tune));
       await tester.pump();
 
       // A signed-in-as-wrong-account device must not lose the local toggle.
@@ -137,9 +130,7 @@ void main() {
     },
   );
 
-  testWidgets('Enable advanced logs a settings_toggle event', (
-    tester,
-  ) async {
+  testWidgets('Enable advanced logs a settings_toggle event', (tester) async {
     const analytics = AnalyticsService(nodeId: 'device-a');
     final appSettings = ValueNotifier(const AppSettings(advancedMode: false));
     await pumpSettings(
@@ -149,7 +140,7 @@ void main() {
       firebaseFactory: () async => null,
     );
 
-    await tester.tap(find.text('Enable advanced'));
+    await tester.tap(find.byIcon(Icons.tune));
     await tester.pump();
 
     final prefs = await SharedPreferences.getInstance();
@@ -162,9 +153,9 @@ void main() {
     await pumpSettings(tester);
     // The slim screen only links out; neither sync surface's own widgets
     // should be inlined here anymore.
-    expect(find.text('Sync settings'), findsOneWidget);
-    expect(find.text('Advanced sync (GitHub)'), findsOneWidget);
-    expect(find.text('Connect GitHub'), findsNothing);
+    expect(find.byIcon(Icons.sync), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_sync), findsOneWidget);
+    expect(find.bySemanticsLabel('Connect GitHub'), findsNothing);
     expect(find.text('Sign in with Google'), findsNothing);
   });
 
@@ -173,7 +164,7 @@ void main() {
   ) async {
     await pumpSettings(tester);
 
-    await tester.tap(find.text('Sync settings'));
+    await tester.tap(find.byIcon(Icons.sync));
     await tester.pumpAndSettle();
 
     expect(find.byType(SyncSettingsScreen), findsOneWidget);
@@ -186,7 +177,7 @@ void main() {
       const initial = SyncSettings(owner: 'o', repo: 'r', token: 'tok');
       final repo = await pumpSettings(tester, initial: initial);
 
-      await tester.tap(find.text('Advanced sync (GitHub)'));
+      await tester.tap(find.byIcon(Icons.cloud_sync));
       await tester.pumpAndSettle();
 
       expect(find.byType(GitHubMirrorScreen), findsOneWidget);

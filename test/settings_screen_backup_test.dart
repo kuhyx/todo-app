@@ -96,7 +96,7 @@ void main() {
         ],
       );
 
-      await tester.tap(find.text('Sync settings'));
+      await tester.tap(find.byIcon(Icons.sync));
       await tester.pumpAndSettle();
 
       // _export does real file I/O on desktop, so drive it under runAsync.
@@ -116,7 +116,7 @@ void main() {
     ) async {
       await pumpSettings(tester, repository: _ExplodingRepo());
 
-      await tester.tap(find.text('Sync settings'));
+      await tester.tap(find.byIcon(Icons.sync));
       await tester.pumpAndSettle();
 
       await tester.runAsync(() async {
@@ -149,7 +149,7 @@ void main() {
 
       final repo = await pumpSettings(tester);
 
-      await tester.tap(find.text('Sync settings'));
+      await tester.tap(find.byIcon(Icons.sync));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Import notes'));
@@ -165,7 +165,7 @@ void main() {
       FileSelectorPlatform.instance = _FakeFileSelector(null); // cancelled
       final repo = await pumpSettings(tester);
 
-      await tester.tap(find.text('Sync settings'));
+      await tester.tap(find.byIcon(Icons.sync));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Import notes'));
@@ -183,7 +183,7 @@ void main() {
       FileSelectorPlatform.instance = _ThrowingFileSelector();
       final repo = await pumpSettings(tester);
 
-      await tester.tap(find.text('Sync settings'));
+      await tester.tap(find.byIcon(Icons.sync));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Import notes'));

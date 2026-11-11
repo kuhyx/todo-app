@@ -10,7 +10,7 @@ import 'notes_list_harness.dart';
 
 /// Opens a date field's menu and picks [entry].
 Future<void> pickRange(WidgetTester tester, String field, String entry) async {
-  await tester.tap(find.byTooltip(field));
+  await tester.tap(find.bySemanticsLabel(field));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
   await tester.tap(find.text(entry).last);
@@ -82,9 +82,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.filter_list));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Done')); // add a non-default status
+    await tester.tap(find.bySemanticsLabel('Done')); // non-default status
     await tester.pump();
-    await tester.tap(find.text('Clear all'));
+    await tester.tap(find.bySemanticsLabel('Clear all'));
     await tester.pump();
     await tapApply(tester);
     await tester.pump();
@@ -139,7 +139,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('High')); // priority chip toggle
+    await tester.tap(find.bySemanticsLabel('High')); // priority chip toggle
     await pickRange(tester, 'Last updated', 'Today');
     await tapApply(tester);
     await tester.pump();
@@ -178,10 +178,10 @@ void main() {
   testWidgets('per-note sheet changes priority via a chip', (tester) async {
     final repo = await pumpList(tester, seed: [note('a', 'Repriortise me')]);
 
-    await tester.tap(find.byTooltip('Quick actions'));
+    await tester.tap(find.bySemanticsLabel('Quick actions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Low')); // default is Medium → change to Low
+    await tester.tap(find.bySemanticsLabel('Low')); // Medium → Low
     await tester.pump();
 
     expect((await repo.listNotes()).single.priority, Priority.low);
@@ -196,7 +196,7 @@ void main() {
 
     // The detail screen shows the note title in its app bar plus the
     // Priority/Status meta dropdowns and the editor mode toggle.
-    expect(find.text('Priority'), findsOneWidget);
-    expect(find.text('View'), findsOneWidget);
+    expect(find.bySemanticsLabel('Priority'), findsOneWidget);
+    expect(find.bySemanticsLabel('View'), findsOneWidget);
   });
 }

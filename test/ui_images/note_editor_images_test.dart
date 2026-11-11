@@ -88,7 +88,8 @@ void main() {
       template: NoteTemplate.llmDesignSpec,
       mode: NoteEditorMode.guided,
     );
-    expect(find.text('Exit guided'), findsNothing);
+    // In the guided stepper: its exit arrow is present.
+    expect(find.bySemanticsLabel('Exit guided'), findsOneWidget);
     attach.insert(['IMG']);
     await tester.pump();
     expect(field(tester).text, 'IMG\n');
@@ -103,7 +104,7 @@ void main() {
       template: NoteTemplate.blank,
       onModeChanged: modes.add,
     );
-    await tester.tap(find.text('View'));
+    await tester.tap(find.bySemanticsLabel('View'));
     await tester.pump();
     expect(modes, [NoteEditorMode.preview]);
     attach.insert(['IMG']);

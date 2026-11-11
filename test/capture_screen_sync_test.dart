@@ -35,7 +35,7 @@ void main() {
     });
     await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
 
-    await tester.tap(find.byTooltip('Sync'));
+    await tester.tap(find.bySemanticsLabel('Sync'));
     await tester.pump(); // setState(_syncing = true)
     await tester.pump(); // service runs, snackbar scheduled
     await tester.pump(); // snackbar builds
@@ -55,7 +55,7 @@ void main() {
     final mock = MockClient((_) async => throw Exception('offline'));
     await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
 
-    await tester.tap(find.byTooltip('Sync'));
+    await tester.tap(find.bySemanticsLabel('Sync'));
     await tester.pump();
     await tester.pump();
     await tester.pump();
@@ -85,7 +85,7 @@ void main() {
     });
     await pumpCapture(tester, prefs: configuredPrefs, httpClient: mock);
 
-    await tester.tap(find.byTooltip('Sync'));
+    await tester.tap(find.bySemanticsLabel('Sync'));
     await tester.pump();
     await tester.pump();
     await tester.pump();
@@ -101,7 +101,7 @@ void main() {
   ) async {
     await pumpCapture(tester);
 
-    await tester.tap(find.byTooltip('Settings'));
+    await tester.tap(find.bySemanticsLabel('Settings'));
     await tester.pumpAndSettle(); // route transition
     expect(find.byType(SettingsScreen), findsOneWidget); // settings is up
 
@@ -112,11 +112,11 @@ void main() {
     // without popping a result at all, so a stale in-memory value would be
     // wrong there too). This exercises that reload-after-return path, then
     // Back returns to capture.
-    await tester.tap(find.text('Advanced sync (GitHub)'));
+    await tester.tap(find.byIcon(Icons.cloud_sync));
     await tester.pumpAndSettle(); // route transition
     expect(find.byType(GitHubMirrorScreen), findsOneWidget);
 
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.bySemanticsLabel('Save'));
     await tester.pumpAndSettle(); // save + pop transition back to Settings
     expect(find.byType(SettingsScreen), findsOneWidget);
 
@@ -124,7 +124,7 @@ void main() {
     await tester.pumpAndSettle(); // pop transition back to capture
 
     expect(find.byType(SettingsScreen), findsNothing); // back on capture
-    expect(find.byTooltip('Settings'), findsOneWidget);
+    expect(find.bySemanticsLabel('Settings'), findsOneWidget);
   });
 
   // A MockClient that records request methods and answers the sync flow:
@@ -148,11 +148,11 @@ void main() {
       await tester.pump();
 
       // The editor's own template/mode chrome is gone.
-      expect(find.text('Guided'), findsNothing);
-      expect(find.text('Template'), findsNothing);
+      expect(find.bySemanticsLabel('Guided'), findsNothing);
+      expect(find.bySemanticsLabel('Template'), findsNothing);
       // The capture screen's priority/status row is gone.
-      expect(find.text('Priority'), findsNothing);
-      expect(find.text('Status'), findsNothing);
+      expect(find.bySemanticsLabel('Priority'), findsNothing);
+      expect(find.bySemanticsLabel('Status'), findsNothing);
       // Routine status chatter is gone; only a badge count remains.
       expect(find.textContaining('Autosaves as you type'), findsNothing);
       expect(find.text('1'), findsOneWidget);
@@ -161,29 +161,23 @@ void main() {
     },
   );
 
-  testWidgets(
-    'draft text survives an advancedMode toggle mid-typing',
-    (tester) async {
-      final appSettings = ValueNotifier(
-        const AppSettings(advancedMode: true),
-      );
-      await pumpCapture(tester, appSettings: appSettings);
+  testWidgets('draft text survives an advancedMode toggle mid-typing', (
+    tester,
+  ) async {
+    final appSettings = ValueNotifier(const AppSettings(advancedMode: true));
+    await pumpCapture(tester, appSettings: appSettings);
 
-      await tester.enterText(
-        find.byType(TextField).first,
-        'my important idea',
-      );
-      await tester.pump();
+    await tester.enterText(find.byType(TextField).first, 'my important idea');
+    await tester.pump();
 
-      // NoteForm's metadata row is conditionally present, so toggling
-      // advancedMode changes the editor's position beneath it — a key one
-      // level too shallow doesn't survive that reposition and Flutter
-      // remounts the editor with an empty draft, losing the typing.
-      appSettings.value = const AppSettings(advancedMode: false);
-      await tester.pump();
+    // NoteForm's metadata row is conditionally present, so toggling
+    // advancedMode changes the editor's position beneath it — a key one
+    // level too shallow doesn't survive that reposition and Flutter
+    // remounts the editor with an empty draft, losing the typing.
+    appSettings.value = const AppSettings(advancedMode: false);
+    await tester.pump();
 
-      final field = tester.widget<TextField>(find.byType(TextField).first);
-      expect(field.controller?.text, contains('my important idea'));
-    },
-  );
+    final field = tester.widget<TextField>(find.byType(TextField).first);
+    expect(field.controller?.text, contains('my important idea'));
+  });
 }

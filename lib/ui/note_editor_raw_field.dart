@@ -44,10 +44,8 @@ class NoteEditorRawField extends StatelessWidget {
           textAlignVertical: TextAlignVertical.top,
           keyboardType: TextInputType.multiline,
           style: Theme.of(context).textTheme.bodyLarge,
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            hintText: 'Write your idea…',
-          ),
+          // No hint: the cursor in an empty full-height box says "type".
+          decoration: const InputDecoration(border: InputBorder.none),
           onChanged: (_) => onChanged(),
         ),
       ),

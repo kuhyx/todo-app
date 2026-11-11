@@ -8,24 +8,30 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
+import 'package:todo/ui/enum_glyphs.dart';
 
-/// A compact labelled dropdown for picking an enum value (priority/status).
+/// A compact dropdown for picking an enum value (priority/status), headed by
+/// a glyph and showing each value as its glyph.
 ///
 /// Generic over the enum type [T] so the same control drives both pickers
-/// without duplication; [labelOf] maps a value to its display string.
+/// without duplication; [glyphOf] maps a value to its glyph.
 class MetaDropdown<T> extends StatelessWidget {
   /// Creates a dropdown showing [value] out of [values].
   const MetaDropdown({
-    required this.label,
+    required this.heading,
+    required this.semanticLabel,
     required this.value,
     required this.values,
-    required this.labelOf,
+    required this.glyphOf,
     required this.onChanged,
     super.key,
   });
 
-  /// Label shown above the control.
-  final String label;
+  /// Glyph in the control's border in place of a written heading.
+  final IconData heading;
+
+  /// Spoken name of the control; never painted.
+  final String semanticLabel;
 
   /// Currently selected value.
   final T value;
@@ -33,8 +39,8 @@ class MetaDropdown<T> extends StatelessWidget {
   /// Every selectable value.
   final List<T> values;
 
-  /// Maps a value to its display string.
-  final String Function(T) labelOf;
+  /// Maps a value to its glyph.
+  final Widget Function(T) glyphOf;
 
   /// Called with the newly picked value.
   final ValueChanged<T> onChanged;
@@ -43,7 +49,7 @@ class MetaDropdown<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return InputDecorator(
       decoration: InputDecoration(
-        labelText: label,
+        prefixIcon: Icon(heading, semanticLabel: semanticLabel),
         isDense: true,
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -55,7 +61,7 @@ class MetaDropdown<T> extends StatelessWidget {
           isExpanded: true,
           items: [
             for (final v in values)
-              DropdownMenuItem<T>(value: v, child: Text(labelOf(v))),
+              DropdownMenuItem<T>(value: v, child: glyphOf(v)),
           ],
           onChanged: (v) {
             if (v != null) onChanged(v);
@@ -98,20 +104,22 @@ class NoteMetaRow extends StatelessWidget {
       children: [
         Expanded(
           child: MetaDropdown<Priority>(
-            label: 'Priority',
+            heading: kPriorityHeadingIcon,
+            semanticLabel: 'Priority',
             value: priority,
             values: Priority.values,
-            labelOf: (p) => p.label,
+            glyphOf: (p) => priorityGlyph(context, p),
             onChanged: onPriorityChanged,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: MetaDropdown<Status>(
-            label: 'Status',
+            heading: kStatusHeadingIcon,
+            semanticLabel: 'Status',
             value: status,
             values: Status.values,
-            labelOf: (s) => s.label,
+            glyphOf: statusGlyph,
             onChanged: onStatusChanged,
           ),
         ),

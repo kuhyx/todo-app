@@ -37,7 +37,7 @@ void main() {
   ) async {
     await pumpList(tester, seed: [note('a', 'Buy milk')]);
     await editNoteAndSwipeBack(tester);
-    expect(find.text('Search notes…'), findsOneWidget);
+    expect(find.byIcon(Icons.search), findsOneWidget);
     expect(textFieldFocused(), isFalse);
   });
 
@@ -48,7 +48,7 @@ void main() {
     await tester.tap(find.byType(TextField).first);
     await tester.pump();
     await editNoteAndSwipeBack(tester);
-    expect(find.text('Search notes…'), findsOneWidget);
+    expect(find.byIcon(Icons.search), findsOneWidget);
     expect(textFieldFocused(), isFalse);
   });
 }

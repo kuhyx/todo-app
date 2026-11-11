@@ -103,8 +103,8 @@ void main() {
     await t.tap(find.text('Open me'));
     await t.pumpAndSettle();
 
-    expect(find.text('Priority'), findsOneWidget);
-    expect(find.text('View'), findsOneWidget);
+    expect(find.bySemanticsLabel('Priority'), findsOneWidget);
+    expect(find.bySemanticsLabel('View'), findsOneWidget);
   });
 
   testWidgets('long-press opens the sheet with body, dates and actions', (
@@ -121,10 +121,10 @@ void main() {
     expect(find.textContaining('Two litres of oat'), findsOneWidget);
     expect(find.textContaining('Edited'), findsOneWidget);
     expect(find.textContaining('Created'), findsOneWidget);
-    await t.tap(find.text('In progress'));
+    await t.tap(find.bySemanticsLabel('In progress'));
     await t.pump();
     expect((await repo.listNotes()).single.status, Status.inProgress);
-    expect(find.text('Delete note'), findsOneWidget);
+    expect(find.bySemanticsLabel('Delete note'), findsOneWidget);
   });
 
   testWidgets('a title-only note adds no body to the sheet', (t) async {
@@ -142,9 +142,9 @@ void main() {
     final repo = await pumpList(t, seed: [note('a', 'Delete me')]);
 
     await _openSheet(t, 'Delete me');
-    await t.tap(find.text('Delete note'));
+    await t.tap(find.bySemanticsLabel('Delete note'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Delete'));
+    await t.tap(find.byKey(const ValueKey('confirm-delete')));
     await t.pumpAndSettle();
 
     expect(await repo.listNotes(), isEmpty);

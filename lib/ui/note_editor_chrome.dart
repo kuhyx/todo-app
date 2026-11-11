@@ -43,7 +43,7 @@ class NoteEditorChrome extends StatelessWidget {
         DropdownButtonFormField<String>(
           initialValue: template.id,
           decoration: const InputDecoration(
-            labelText: 'Template',
+            label: Icon(Icons.description, semanticLabel: 'Template'),
             isDense: true,
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -54,9 +54,7 @@ class NoteEditorChrome extends StatelessWidget {
           ],
           onChanged: (id) {
             if (id == null) return;
-            onTemplateSelected(
-              NoteTemplate.all.firstWhere((t) => t.id == id),
-            );
+            onTemplateSelected(NoteTemplate.all.firstWhere((t) => t.id == id));
           },
         ),
         const SizedBox(height: 8),
@@ -67,8 +65,7 @@ class NoteEditorChrome extends StatelessWidget {
             segments: [
               const ButtonSegment(
                 value: NoteEditorMode.preview,
-                icon: Icon(Icons.visibility_outlined),
-                label: Text('View'),
+                icon: Icon(Icons.visibility_outlined, semanticLabel: 'View'),
               ),
               // Guided is offered for any structured template; tapping it
               // on an empty draft opens the wizard, and is blocked at
@@ -76,13 +73,11 @@ class NoteEditorChrome extends StatelessWidget {
               if (!template.isFreeform)
                 const ButtonSegment(
                   value: NoteEditorMode.guided,
-                  icon: Icon(Icons.checklist),
-                  label: Text('Guided'),
+                  icon: Icon(Icons.checklist, semanticLabel: 'Guided'),
                 ),
               const ButtonSegment(
                 value: NoteEditorMode.raw,
-                icon: Icon(Icons.notes),
-                label: Text('Raw'),
+                icon: Icon(Icons.notes, semanticLabel: 'Raw'),
               ),
             ],
             selected: {mode},

@@ -66,8 +66,7 @@ class NoteEditorStepPage extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Exit guided',
+            icon: const Icon(Icons.arrow_back, semanticLabel: 'Exit guided'),
             onPressed: onExit,
           ),
         ),
@@ -96,10 +95,12 @@ class NoteEditorStepPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                section.isTitle ? 'title' : section.label,
-                style: theme.textTheme.titleMedium,
-              ),
+              // Section labels are template content (they land in the note);
+              // the title step has none, so it gets a glyph, not a word.
+              if (section.isTitle)
+                const Icon(Icons.title, semanticLabel: 'title')
+              else
+                Text(section.label, style: theme.textTheme.titleMedium),
               const SizedBox(height: 4),
               Text(
                 section.helper,
@@ -140,16 +141,22 @@ class NoteEditorStepPage extends StatelessWidget {
               if (index > 0)
                 TextButton(
                   onPressed: () => onGoToStep(index - 1),
-                  child: const Text('Back'),
+                  child: const Icon(
+                    Icons.navigate_before,
+                    semanticLabel: 'Back',
+                  ),
                 ),
               const Spacer(),
               if (index < total - 1)
                 FilledButton(
                   onPressed: () => onGoToStep(index + 1),
-                  child: const Text('Next'),
+                  child: const Icon(Icons.navigate_next, semanticLabel: 'Next'),
                 )
               else
-                FilledButton(onPressed: onExit, child: const Text('Done')),
+                FilledButton(
+                  onPressed: onExit,
+                  child: const Icon(Icons.check, semanticLabel: 'Done'),
+                ),
             ],
           ),
         ),

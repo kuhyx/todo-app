@@ -29,18 +29,18 @@ void main() {
 
     // Defaults to Raw: a single text field, no note persisted yet.
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('Guided'), findsOneWidget);
+    expect(find.bySemanticsLabel('Guided'), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
 
     // Tapping Guided on the empty draft opens the priority+template wizard
     // rather than jumping straight into the stepper.
-    await tester.tap(find.text('Guided'));
+    await tester.tap(find.bySemanticsLabel('Guided'));
     await tester.pump();
-    expect(find.text('Step 1 of 2'), findsOneWidget);
+    expect(find.bySemanticsLabel('Step 1 of 2'), findsOneWidget);
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.bySemanticsLabel('Next'));
     await tester.pump();
-    await tester.tap(find.text('Start'));
+    await tester.tap(find.bySemanticsLabel('Start'));
     await tester.pump();
 
     // Now on step 1 of the full-screen step page.
@@ -55,7 +55,7 @@ void main() {
   testWidgets('saving the untouched template creates no note', (tester) async {
     final repo = await pumpCapture(tester);
 
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump();
 
     expect(await repo.listNotes(), isEmpty);
@@ -83,7 +83,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'A real idea');
     await tester.pump();
-    await tester.tap(find.byTooltip('New note'));
+    await tester.tap(find.bySemanticsLabel('New note'));
     await tester.pump();
 
     expect(await repo.listNotes(), hasLength(1));
@@ -98,7 +98,7 @@ void main() {
   ) async {
     await pumpCapture(tester); // empty prefs → no token → not configured
 
-    await tester.tap(find.byTooltip('Sync'));
+    await tester.tap(find.bySemanticsLabel('Sync'));
     await tester.pump(); // settings load + snackbar
     await tester.pump();
 
@@ -114,11 +114,11 @@ void main() {
   ) async {
     await pumpCapture(tester);
 
-    await tester.tap(find.byTooltip('Notes'));
+    await tester.tap(find.bySemanticsLabel('Notes'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300)); // route transition
 
-    expect(find.text('Notes'), findsOneWidget); // list screen app bar title
+    expect(find.byIcon(Icons.note), findsOneWidget); // list screen title
   });
 
   testWidgets('changing the priority dropdown updates the saved note', (
@@ -134,7 +134,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400)); // menu open
-    await tester.tap(find.text('High').last);
+    await tester.tap(find.bySemanticsLabel('High').last);
     await tester.pump();
 
     expect((await repo.listNotes()).single.priority, Priority.high);
@@ -153,7 +153,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400)); // menu open
-    await tester.tap(find.text('In progress').last);
+    await tester.tap(find.bySemanticsLabel('In progress').last);
     await tester.pump();
 
     expect((await repo.listNotes()).single.status, Status.inProgress);

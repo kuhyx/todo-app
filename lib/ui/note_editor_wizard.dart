@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/enum_glyphs.dart';
 
 /// Asks for a priority, then a template, then hands both back via [onStart].
 class NoteEditorWizard extends StatefulWidget {
@@ -48,7 +49,7 @@ class _NoteEditorWizardState extends State<NoteEditorWizard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final semanticLabel = 'Step ${_step + 1} of 2';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -56,11 +57,24 @@ class _NoteEditorWizardState extends State<NoteEditorWizard> {
         Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: 'Cancel',
+              icon: const Icon(Icons.close, semanticLabel: 'Cancel'),
               onPressed: widget.onCancel,
             ),
-            Text('Step ${_step + 1} of 2', style: theme.textTheme.labelLarge),
+            // Two step dots, the current one filled: position by shape.
+            Semantics(
+              label: semanticLabel,
+              child: ExcludeSemantics(
+                child: Row(
+                  children: [
+                    for (var i = 0; i < 2; i++)
+                      Icon(
+                        i == _step ? Icons.circle : Icons.circle_outlined,
+                        size: 12,
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -74,14 +88,14 @@ class _NoteEditorWizardState extends State<NoteEditorWizard> {
       DropdownButtonFormField<Priority>(
         initialValue: _priority,
         decoration: const InputDecoration(
-          labelText: 'Priority',
+          prefixIcon: Icon(kPriorityHeadingIcon, semanticLabel: 'Priority'),
           isDense: true,
           border: OutlineInputBorder(),
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
         items: [
           for (final p in Priority.values)
-            DropdownMenuItem(value: p, child: Text(p.label)),
+            DropdownMenuItem(value: p, child: priorityGlyph(context, p)),
         ],
         onChanged: (p) {
           if (p != null) setState(() => _priority = p);
@@ -92,7 +106,7 @@ class _NoteEditorWizardState extends State<NoteEditorWizard> {
         alignment: Alignment.centerRight,
         child: FilledButton(
           onPressed: () => setState(() => _step = 1),
-          child: const Text('Next'),
+          child: const Icon(Icons.navigate_next, semanticLabel: 'Next'),
         ),
       ),
     ];
@@ -104,7 +118,7 @@ class _NoteEditorWizardState extends State<NoteEditorWizard> {
       DropdownButtonFormField<String>(
         initialValue: _template.id,
         decoration: const InputDecoration(
-          labelText: 'Template',
+          prefixIcon: Icon(Icons.description, semanticLabel: 'Template'),
           isDense: true,
           border: OutlineInputBorder(),
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -124,12 +138,12 @@ class _NoteEditorWizardState extends State<NoteEditorWizard> {
         children: [
           TextButton(
             onPressed: () => setState(() => _step = 0),
-            child: const Text('Back'),
+            child: const Icon(Icons.arrow_back, semanticLabel: 'Back'),
           ),
           const SizedBox(width: 8),
           FilledButton(
             onPressed: () => widget.onStart(_priority, _template),
-            child: const Text('Start'),
+            child: const Icon(Icons.play_arrow, semanticLabel: 'Start'),
           ),
         ],
       ),

@@ -73,7 +73,7 @@ void main() {
     final total = spec.sections.length;
     expect(_barValue(tester), closeTo(1 / total, 1e-9));
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.bySemanticsLabel('Next'));
     await tester.pump();
     await tester.pump(AppDuration.base ~/ 2);
     expect(_barValue(tester), inExclusiveRange(1 / total, 2 / total));
@@ -85,7 +85,7 @@ void main() {
   testWidgets('remove-animations: the progress bar jumps', (tester) async {
     disableAnimations(tester);
     await pumpEditor(tester, initialTemplate: spec);
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.bySemanticsLabel('Next'));
     await tester.pump();
     expect(_barValue(tester), closeTo(2 / spec.sections.length, 1e-9));
   });

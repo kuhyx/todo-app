@@ -53,7 +53,8 @@ Future<FakeNoteRepository> pumpList(
 /// sheet, so on a short viewport it legitimately sits below the fold:
 /// scroll it into view first, as a user would.
 Future<void> tapApply(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Apply'));
+  final apply = find.widgetWithIcon(FilledButton, Icons.check);
+  await tester.ensureVisible(apply);
   await tester.pump();
-  await tester.tap(find.text('Apply'));
+  await tester.tap(apply);
 }

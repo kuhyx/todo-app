@@ -9,19 +9,29 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+/// Glyph for "created" (a note added), shared by the filter and sort menus.
+const IconData kCreatedIcon = Icons.post_add;
+
+/// Glyph for "last updated", shared by the filter and sort menus.
+const IconData kUpdatedIcon = Icons.update;
+
 /// A labelled date range shown as one preset menu plus a custom picker.
 class DateRangeField extends StatelessWidget {
   /// Creates a labelled date-range control.
   const DateRangeField({
-    required this.label,
+    required this.icon,
+    required this.semanticLabel,
     required this.from,
     required this.to,
     required this.onChanged,
     super.key,
   });
 
-  /// Heading shown above the control (e.g. 'Created').
-  final String label;
+  /// Glyph shown in the control's border in place of a written heading.
+  final IconData icon;
+
+  /// Spoken name of the control (e.g. 'Created'); never painted.
+  final String semanticLabel;
 
   /// Start of the selected range, or null when unbounded.
   final DateTime? from;
@@ -86,7 +96,8 @@ class DateRangeField extends StatelessWidget {
     // A popup menu rather than DropdownButton: re-picking "Custom…" while a
     // custom range is shown must still reopen the picker.
     return PopupMenuButton<_Preset>(
-      tooltip: label,
+      // Empty, not the label: a tooltip is painted on long-press.
+      tooltip: '',
       onSelected: (p) => _select(context, p),
       itemBuilder: (_) => [
         for (final p in _Preset.values)
@@ -94,7 +105,7 @@ class DateRangeField extends StatelessWidget {
       ],
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: label,
+          prefixIcon: Icon(icon, semanticLabel: semanticLabel),
           isDense: true,
           border: const OutlineInputBorder(),
           contentPadding: const EdgeInsets.symmetric(

@@ -15,7 +15,7 @@ void main() {
       await tester.enterText(find.byType(TextField).first, 'T');
       await tester.pump();
 
-      await tester.tap(find.byTooltip('Exit guided'));
+      await tester.tap(find.bySemanticsLabel('Exit guided'));
       await tester.pump();
 
       final raw = tester.widget<TextField>(find.byType(TextField));
@@ -38,7 +38,7 @@ void main() {
     );
 
     // Structured template + non-conforming raw text → switching is refused.
-    await tester.tap(find.text('Guided'));
+    await tester.tap(find.bySemanticsLabel('Guided'));
     await tester.pump();
 
     expect(find.textContaining("doesn't match the template"), findsOneWidget);
@@ -56,25 +56,28 @@ void main() {
 
       // Bare guided -> raw via the back arrow makes the (still conforming)
       // body the source…
-      await tester.tap(find.byTooltip('Exit guided'));
+      await tester.tap(find.bySemanticsLabel('Exit guided'));
       await tester.pump();
       expect(find.byType(LinearProgressIndicator), findsNothing);
 
       // …then raw -> guided re-parses the conforming body straight back into
       // the bare stepper — no wizard, since the content isn't empty.
-      await tester.tap(find.text('Guided'));
+      await tester.tap(find.bySemanticsLabel('Guided'));
       await tester.pump();
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      expect(find.text('Step 1 of 2'), findsNothing); // wizard was skipped
+      expect(
+        find.bySemanticsLabel('Step 1 of 2'),
+        findsNothing,
+      ); // wizard was skipped
     },
   );
 
   testWidgets('freeform template offers only View and Raw', (tester) async {
     final emitted = await pumpEditor(tester, initialTemplate: blank);
 
-    expect(find.text('Guided'), findsNothing);
-    expect(find.text('View'), findsOneWidget);
-    expect(find.text('Raw'), findsOneWidget);
+    expect(find.bySemanticsLabel('Guided'), findsNothing);
+    expect(find.bySemanticsLabel('View'), findsOneWidget);
+    expect(find.bySemanticsLabel('Raw'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'free text');
     await tester.pump();
@@ -89,7 +92,10 @@ void main() {
       initialTemplate: spec,
       initialMode: NoteEditorMode.raw,
     );
-    expect(find.text('Guided'), findsOneWidget); // structured: Guided offered
+    expect(
+      find.bySemanticsLabel('Guided'),
+      findsOneWidget,
+    ); // structured: Guided offered
 
     await tester.tap(find.text('LLM design spec').first); // open the menu
     await tester.pumpAndSettle();
@@ -97,7 +103,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Freeform now: Guided is no longer offered.
-    expect(find.text('Guided'), findsNothing);
+    expect(find.bySemanticsLabel('Guided'), findsNothing);
   });
 
   testWidgets('detects a conforming note (no template given) as guided', (
@@ -110,7 +116,7 @@ void main() {
       find.byType(LinearProgressIndicator),
       findsOneWidget,
     ); // guided by default
-    expect(find.byTooltip('Exit guided'), findsOneWidget);
+    expect(find.bySemanticsLabel('Exit guided'), findsOneWidget);
   });
 
   testWidgets('detects a legacy note (no template given) as freeform raw', (
@@ -120,7 +126,7 @@ void main() {
 
     // Non-conforming → blank/raw, no guided stepper offered.
     expect(find.byType(LinearProgressIndicator), findsNothing);
-    expect(find.text('Guided'), findsNothing);
+    expect(find.bySemanticsLabel('Guided'), findsNothing);
   });
 
   testWidgets('initialMode preview opens directly in the rendered view', (
@@ -147,7 +153,7 @@ void main() {
       initialMode: NoteEditorMode.preview,
     );
 
-    await tester.tap(find.text('Raw'));
+    await tester.tap(find.bySemanticsLabel('Raw'));
     await tester.pump();
 
     final raw = tester.widget<TextField>(find.byType(TextField));

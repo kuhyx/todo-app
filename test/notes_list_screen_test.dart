@@ -51,7 +51,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.sort));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300)); // menu open
-    await tester.tap(find.text('Alphabetical').last);
+    await tester.tap(find.bySemanticsLabel('Alphabetical').last);
     await tester.pump();
 
     expect(repo.lastSort, NoteSort.alphabetical);
@@ -63,9 +63,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.filter_list));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300)); // sheet open
-    await tester.tap(find.text('Done'));
+    await tester.tap(find.bySemanticsLabel('Done'));
     await tester.pump();
-    await tester.tap(find.text('Apply'));
+    await tapApply(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300)); // sheet close
 
@@ -77,16 +77,16 @@ void main() {
   testWidgets('per-note sheet deletes the note', (tester) async {
     final repo = await pumpList(tester, seed: [note('a', 'Delete me')]);
 
-    await tester.tap(find.byTooltip('Quick actions'));
+    await tester.tap(find.bySemanticsLabel('Quick actions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300)); // sheet open
-    await tester.tap(find.text('Delete note'));
+    await tester.tap(find.bySemanticsLabel('Delete note'));
     await tester.pumpAndSettle();
 
     // Delete is now confirmed on this path too: it is irreversible, has no
     // undo, and is one Tab from a Return in the sheet's chip rows.
-    expect(find.text('Delete note?'), findsOneWidget);
-    await tester.tap(find.text('Delete'));
+    expect(find.bySemanticsLabel('Delete note?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('confirm-delete')));
     await tester.pumpAndSettle();
 
     expect(await repo.listNotes(), isEmpty);
@@ -95,12 +95,12 @@ void main() {
   testWidgets('cancelling the sheet delete keeps the note', (tester) async {
     final repo = await pumpList(tester, seed: [note('a', 'Keep me')]);
 
-    await tester.tap(find.byTooltip('Quick actions'));
+    await tester.tap(find.bySemanticsLabel('Quick actions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Delete note'));
+    await tester.tap(find.bySemanticsLabel('Delete note'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(find.byKey(const ValueKey('confirm-cancel')));
     await tester.pumpAndSettle();
 
     expect(await repo.listNotes(), hasLength(1));
@@ -109,10 +109,10 @@ void main() {
   testWidgets('per-note sheet changes status via a chip', (tester) async {
     final repo = await pumpList(tester, seed: [note('a', 'Change me')]);
 
-    await tester.tap(find.byTooltip('Quick actions'));
+    await tester.tap(find.bySemanticsLabel('Quick actions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('In progress'));
+    await tester.tap(find.bySemanticsLabel('In progress'));
     await tester.pump();
 
     expect((await repo.listNotes()).single.status, Status.inProgress);

@@ -17,10 +17,10 @@ void main() {
         initialMode: NoteEditorMode.raw,
       );
 
-      await tester.tap(find.text('Guided'));
+      await tester.tap(find.bySemanticsLabel('Guided'));
       await tester.pump();
 
-      expect(find.text('Step 1 of 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Step 1 of 2'), findsOneWidget);
       expect(find.byType(DropdownButtonFormField<Priority>), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsNothing);
     },
@@ -34,17 +34,17 @@ void main() {
         initialTemplate: spec,
         initialMode: NoteEditorMode.raw,
       );
-      await tester.tap(find.text('Guided'));
+      await tester.tap(find.bySemanticsLabel('Guided'));
       await tester.pump();
 
-      await tester.tap(find.text('Next'));
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pump();
-      expect(find.text('Step 2 of 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Step 2 of 2'), findsOneWidget);
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
 
-      await tester.tap(find.text('Back'));
+      await tester.tap(find.bySemanticsLabel('Back'));
       await tester.pump();
-      expect(find.text('Step 1 of 2'), findsOneWidget);
+      expect(find.bySemanticsLabel('Step 1 of 2'), findsOneWidget);
     },
   );
 
@@ -56,9 +56,9 @@ void main() {
       initialTemplate: spec,
       initialMode: NoteEditorMode.raw,
     );
-    await tester.tap(find.text('Guided'));
+    await tester.tap(find.bySemanticsLabel('Guided'));
     await tester.pump();
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.bySemanticsLabel('Next'));
     await tester.pump();
 
     await tester.tap(find.text('LLM design spec').first); // open the menu
@@ -68,7 +68,7 @@ void main() {
     // Select the (only) offered template, exercising the dropdown's onChanged.
     await tester.tap(find.text('LLM design spec').last);
     await tester.pumpAndSettle();
-    expect(find.text('Step 2 of 2'), findsOneWidget);
+    expect(find.bySemanticsLabel('Step 2 of 2'), findsOneWidget);
   });
 
   testWidgets(
@@ -81,22 +81,22 @@ void main() {
         initialMode: NoteEditorMode.raw,
         onPriorityChanged: (p) => committed = p,
       );
-      await tester.tap(find.text('Guided'));
+      await tester.tap(find.bySemanticsLabel('Guided'));
       await tester.pump();
 
       await tester.tap(find.byType(DropdownButtonFormField<Priority>));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('High').last);
+      await tester.tap(find.bySemanticsLabel('High').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Next'));
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pump();
-      await tester.tap(find.text('Start'));
+      await tester.tap(find.bySemanticsLabel('Start'));
       await tester.pump();
 
       expect(committed, Priority.high);
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      expect(find.byTooltip('Exit guided'), findsOneWidget);
+      expect(find.bySemanticsLabel('Exit guided'), findsOneWidget);
     },
   );
 
@@ -110,16 +110,19 @@ void main() {
       initialMode: NoteEditorMode.raw,
       onChromeVisibleChanged: chromeVisible.add,
     );
-    await tester.tap(find.text('Guided'));
+    await tester.tap(find.bySemanticsLabel('Guided'));
     await tester.pump();
     expect(chromeVisible.last, false);
 
-    await tester.tap(find.byTooltip('Cancel'));
+    await tester.tap(find.bySemanticsLabel('Cancel'));
     await tester.pump();
 
     expect(chromeVisible.last, true);
     expect(find.byType(LinearProgressIndicator), findsNothing);
-    expect(find.text('Raw'), findsOneWidget); // chrome's mode selector is back
+    expect(
+      find.bySemanticsLabel('Raw'),
+      findsOneWidget,
+    ); // chrome's mode selector is back
   });
 
   testWidgets('exiting bare Guided via the back arrow restores the chrome', (
@@ -135,11 +138,11 @@ void main() {
     );
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Exit guided'));
+    await tester.tap(find.bySemanticsLabel('Exit guided'));
     await tester.pump();
 
     expect(chromeVisible, contains(true));
-    expect(find.text('Raw'), findsOneWidget);
+    expect(find.bySemanticsLabel('Raw'), findsOneWidget);
   });
 
   testWidgets('last step shows Done instead of Next', (tester) async {
@@ -147,12 +150,12 @@ void main() {
 
     // Navigate to the final step.
     for (var i = 0; i < spec.sections.length - 1; i++) {
-      await tester.tap(find.text('Next'));
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pump();
     }
 
-    expect(find.text('Done'), findsOneWidget);
-    expect(find.text('Next'), findsNothing);
+    expect(find.bySemanticsLabel('Done'), findsOneWidget);
+    expect(find.bySemanticsLabel('Next'), findsNothing);
     expect(
       find.text('${spec.sections.length} / ${spec.sections.length}'),
       findsOneWidget,
@@ -167,10 +170,10 @@ void main() {
     await tester.pump();
 
     for (var i = 0; i < spec.sections.length - 1; i++) {
-      await tester.tap(find.text('Next'));
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pump();
     }
-    await tester.tap(find.text('Done'));
+    await tester.tap(find.bySemanticsLabel('Done'));
     await tester.pump();
 
     expect(find.byType(LinearProgressIndicator), findsNothing);

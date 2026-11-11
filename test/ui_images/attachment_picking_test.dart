@@ -15,11 +15,11 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.byTooltip('Attach'));
+    await tester.tap(find.bySemanticsLabel('Attach'));
     await tester.pump();
     expect(got, isEmpty);
     result = [XFile('/picked/a.pdf')];
-    await tester.tap(find.byTooltip('Attach'));
+    await tester.tap(find.bySemanticsLabel('Attach'));
     await tester.pump();
     expect(got.single.single.name, 'a.pdf');
   });
@@ -55,7 +55,7 @@ void main() {
   Future<void> choose(WidgetTester tester, String entry) async {
     await tester.tap(find.text('pick'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(entry));
+    await tester.tap(find.bySemanticsLabel(entry));
     await tester.pumpAndSettle();
   }
 
@@ -64,9 +64,9 @@ void main() {
   ) async {
     final asked = <AttachmentPickSource>[];
     await openSheet(tester, asked);
-    expect(find.text('Camera'), findsOneWidget);
-    expect(find.text('File'), findsOneWidget);
-    await tester.tap(find.text('Gallery'));
+    expect(find.bySemanticsLabel('Camera'), findsOneWidget);
+    expect(find.bySemanticsLabel('File'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Gallery'));
     await tester.pumpAndSettle();
     await choose(tester, 'Camera');
     await choose(tester, 'File');
