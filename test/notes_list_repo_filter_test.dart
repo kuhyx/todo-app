@@ -53,15 +53,15 @@ void main() {
     expect(find.text('make check'), findsOneWidget);
     expect(find.text('claude'), findsOneWidget);
     expect(find.text('abc 0'), findsOneWidget);
-    expect(find.text('Done check'), findsOneWidget);
-    expect(find.text('Evidence'), findsOneWidget);
+    expect(find.byIcon(Icons.fact_check_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.verified_outlined), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
   });
 
   testWidgets('a plain idea shows no task fields', (tester) async {
     await pumpActions(tester, note('i', 'An idea'));
-    expect(find.text('Repo'), findsNothing);
-    expect(find.text('Done check'), findsNothing);
-    expect(find.text('Evidence'), findsNothing);
+    expect(find.byIcon(Icons.folder_outlined), findsNothing);
+    expect(find.byIcon(Icons.fact_check_outlined), findsNothing);
+    expect(find.byIcon(Icons.verified_outlined), findsNothing);
   });
 }

@@ -6,6 +6,7 @@ import 'package:todo/ui/markdown_view.dart';
 import 'package:todo/ui/note_editor.dart';
 
 import 'note_editor_harness.dart';
+import 'text_free_guard.dart';
 
 void main() {
   testWidgets(
@@ -40,8 +41,9 @@ void main() {
     // Structured template + non-conforming raw text → switching is refused.
     await tester.tap(find.bySemanticsLabel('Guided'));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
 
-    expect(find.textContaining("doesn't match the template"), findsOneWidget);
+    expect(spoken("doesn't match the template"), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing); // still raw
   });
 
@@ -97,9 +99,11 @@ void main() {
       findsOneWidget,
     ); // structured: Guided offered
 
-    await tester.tap(find.text('LLM design spec').first); // open the menu
+    await tester.tap(
+      find.byIcon(Icons.assignment_outlined).first,
+    ); // open the menu
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Blank').last);
+    await tester.tap(find.byIcon(Icons.note_outlined).last);
     await tester.pumpAndSettle();
 
     // Freeform now: Guided is no longer offered.

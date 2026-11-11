@@ -6,6 +6,7 @@ import 'package:todo/ui/markdown_view.dart';
 import 'package:todo/ui/note_editor.dart';
 
 import 'note_editor_harness.dart';
+import 'text_free_guard.dart';
 
 void main() {
   testWidgets(
@@ -61,12 +62,14 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Next'));
     await tester.pump();
 
-    await tester.tap(find.text('LLM design spec').first); // open the menu
+    await tester.tap(
+      find.byIcon(Icons.assignment_outlined).first,
+    ); // open the menu
     await tester.pumpAndSettle();
-    expect(find.text('Blank'), findsNothing);
+    expect(find.byIcon(Icons.note_outlined), findsNothing);
 
     // Select the (only) offered template, exercising the dropdown's onChanged.
-    await tester.tap(find.text('LLM design spec').last);
+    await tester.tap(find.byIcon(Icons.assignment_outlined).last);
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('Step 2 of 2'), findsOneWidget);
   });

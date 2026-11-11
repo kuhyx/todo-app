@@ -28,6 +28,7 @@ import 'package:todo/ui/attachment_picking.dart';
 import 'package:todo/ui/capture_screen.dart';
 import 'package:todo/ui/github_mirror_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
+import 'package:todo/ui/text_free_localizations.dart';
 
 import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
@@ -73,6 +74,8 @@ Future<FakeNoteRepository> pumpCapture(
         debounce: Duration.zero,
       );
   final app = MaterialApp(
+    // As in main.dart: Material's own button tooltips are blanked.
+    localizationsDelegates: kTextFreeLocalizations,
     home: CaptureScreen(
       repository: repo,
       appSettings:

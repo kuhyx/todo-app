@@ -7,6 +7,8 @@ import 'package:todo/data/note.dart';
 import 'package:todo/ui/note_grid_tile.dart';
 
 import 'notes_list_harness.dart';
+import 'package:todo/ui/enum_glyphs.dart';
+import 'package:todo/ui/empty_notes_cue.dart';
 
 void _phone(WidgetTester t) {
   t.view
@@ -53,10 +55,10 @@ void main() {
     );
 
     expect(find.text('Buy milk'), findsOneWidget);
-    expect(find.text('High'), findsOneWidget);
-    expect(find.text('In progress'), findsOneWidget);
+    expect(find.byIcon(priorityIcon(Priority.high)), findsOneWidget);
+    expect(find.byIcon(statusIcon(Status.inProgress)), findsOneWidget);
     expect(find.textContaining('Two litres'), findsNothing);
-    expect(find.textContaining('edited'), findsNothing);
+    expect(find.byIcon(Icons.history), findsNothing);
     expect(find.byTooltip('Quick actions'), findsNothing);
   });
 
@@ -93,7 +95,7 @@ void main() {
   testWidgets('an empty note reads (empty)', (t) async {
     _phone(t);
     await pumpList(t, seed: [note('a', '')]);
-    expect(find.text('(empty)'), findsOneWidget);
+    expect(find.text(kEmptyTitle), findsOneWidget);
   });
 
   testWidgets('tap opens the note', (t) async {
@@ -119,8 +121,14 @@ void main() {
     await _openSheet(t, 'Buy milk');
 
     expect(find.textContaining('Two litres of oat'), findsOneWidget);
-    expect(find.textContaining('Edited'), findsOneWidget);
-    expect(find.textContaining('Created'), findsOneWidget);
+    expect(find.byIcon(Icons.history), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byIcon(Icons.add),
+      ),
+      findsOneWidget,
+    );
     await t.tap(find.bySemanticsLabel('In progress'));
     await t.pump();
     expect((await repo.listNotes()).single.status, Status.inProgress);
@@ -134,7 +142,7 @@ void main() {
     await _openSheet(t, 'Just a title');
 
     expect(find.text('Just a title'), findsNWidgets(2));
-    expect(find.textContaining('Edited'), findsOneWidget);
+    expect(find.byIcon(Icons.history), findsOneWidget);
   });
 
   testWidgets('the sheet can delete a grid note', (t) async {
@@ -154,7 +162,7 @@ void main() {
     _phone(t);
     final repo = await pumpList(t);
 
-    expect(find.textContaining('No notes'), findsOneWidget);
+    expect(find.byType(EmptyNotesCue), findsOneWidget);
     expect(repo.lastFilter!.statuses, {Status.todo, Status.inProgress});
     expect(t.widget<Badge>(find.byType(Badge)).isLabelVisible, isFalse);
   });

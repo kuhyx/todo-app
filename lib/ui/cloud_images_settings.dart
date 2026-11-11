@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:todo/attachments/image_password_store.dart';
@@ -18,6 +19,7 @@ import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/images/dufs_image_client.dart';
 import 'package:todo/ui/app_route.dart';
+import 'package:todo/ui/status_cue.dart';
 
 /// The command that creates the login, shown wherever it is missing.
 const kAddLoginCommand =
@@ -68,7 +70,7 @@ class CloudImagesScreen extends StatefulWidget {
 class _CloudImagesScreenState extends State<CloudImagesScreen> {
   final _password = TextEditingController();
   ImageStoreStatus? _status;
-  String? _checkResult;
+  StatusCue? _checkResult;
   bool _checking = false;
 
   @override
@@ -97,7 +99,11 @@ class _CloudImagesScreenState extends State<CloudImagesScreen> {
     final password = _password.text.trim();
     setState(() => _checking = true);
     final saved = await widget.passwords.write(password);
-    var result = 'Could not save: the keystore is unavailable';
+    var result = const StatusCue(
+      Icons.no_encryption,
+      'Could not save: the keystore is unavailable',
+      error: true,
+    );
     if (saved) {
       final client = DufsImageClient(
         DufsLogin(user: kDufsImagesUser, password: password),
@@ -105,9 +111,17 @@ class _CloudImagesScreenState extends State<CloudImagesScreen> {
       );
       final check = await client.check();
       result = switch (check) {
-        DufsCheck.ok => 'Saved — dufs accepted the login',
-        DufsCheck.rejected => 'Saved, but dufs rejected the password',
-        DufsCheck.unreachable => 'Saved — dufs is unreachable right now',
+        DufsCheck.ok => const StatusCue.ok('Saved — dufs accepted the login'),
+        DufsCheck.rejected => const StatusCue(
+          Icons.lock,
+          'Saved, but dufs rejected the password',
+          error: true,
+        ),
+        DufsCheck.unreachable => const StatusCue(
+          Icons.cloud_off,
+          'Saved — dufs is unreachable right now',
+          error: true,
+        ),
       };
       // Upload what queued up while there was no password, now rather than
       // on the next sync. No note texts: an empty ref set only uploads, it
@@ -152,23 +166,38 @@ class _CloudImagesScreenState extends State<CloudImagesScreen> {
             ),
             if (_checkResult case final result?) ...[
               const SizedBox(height: 8),
-              Text(result),
+              StatusCueView(result),
             ],
             const SizedBox(height: 16),
           ],
           if (status != null) ...[
             // Shape + colour: a filled check, or a red error ring followed by
-            // the command (user-typed text, so it stays) that fixes it.
-            Icon(
-              status.configured ? Icons.check_circle : Icons.error_outline,
-              color: status.configured
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.error,
-              semanticLabel: status.configured
-                  ? 'Login: configured'
-                  : 'Login: missing — create it on the PC with',
+            // a copy button that puts the fixing command on the clipboard.
+            Row(
+              children: [
+                Icon(
+                  status.configured ? Icons.check_circle : Icons.error_outline,
+                  color: status.configured
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.error,
+                  semanticLabel: status.configured
+                      ? 'Login: configured'
+                      : 'Login: missing — create it on the PC with',
+                ),
+                if (!status.configured)
+                  IconButton(
+                    onPressed: () => unawaited(
+                      Clipboard.setData(
+                        const ClipboardData(text: kAddLoginCommand),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.content_copy,
+                      semanticLabel: 'Copy: $kAddLoginCommand',
+                    ),
+                  ),
+              ],
             ),
-            if (!status.configured) const SelectableText(kAddLoginCommand),
             const SizedBox(height: 8),
             // Icon + the count itself: the number is the information.
             Row(

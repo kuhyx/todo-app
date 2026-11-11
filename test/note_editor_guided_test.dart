@@ -4,8 +4,10 @@ import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/markdown_view.dart';
 import 'package:todo/ui/note_editor.dart';
+import 'package:todo/ui/template_glyphs.dart';
 
 import 'note_editor_harness.dart';
+import 'text_free_guard.dart';
 
 void main() {
   testWidgets('guided: typing the title emits an assembled # heading', (
@@ -49,14 +51,13 @@ void main() {
     for (var i = 0; i < spec.sections.length; i++) {
       final section = spec.sections[i];
       expect(find.text('${i + 1} / ${spec.sections.length}'), findsOneWidget);
+      // Each step paints its section glyph; label + helper are spoken.
       expect(
-        section.isTitle
-            ? find.bySemanticsLabel('title')
-            : find.text(section.label),
-        findsWidgets,
+        find.byIcon(sectionIcon(section)),
+        findsOneWidget,
         reason: 'step ${i + 1} should show "${section.label}"',
       );
-      expect(find.text(section.helper), findsOneWidget);
+      expect(spoken(section.helper), findsOneWidget);
       if (i < spec.sections.length - 1) {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pump();
@@ -76,7 +77,7 @@ void main() {
       initialTemplate: spec,
       initialMode: NoteEditorMode.raw,
     );
-    expect(find.text('LLM design spec'), findsOneWidget);
+    expect(find.byIcon(Icons.assignment_outlined), findsOneWidget);
 
     await tester.enterText(
       find.byType(TextField).first,
@@ -85,7 +86,7 @@ void main() {
     await tester.pump();
 
     // Freeform now, so there is no seven-step stepper to walk for a link.
-    expect(find.text('Blank'), findsOneWidget);
+    expect(find.byIcon(Icons.note_outlined), findsOneWidget);
     expect(find.bySemanticsLabel('Guided'), findsNothing);
 
     // Adding prose puts the spec template back — lossless in both directions.
@@ -94,7 +95,7 @@ void main() {
       'https://example.com/x — port this to Dart',
     );
     await tester.pump();
-    expect(find.text('LLM design spec'), findsOneWidget);
+    expect(find.byIcon(Icons.assignment_outlined), findsOneWidget);
     expect(find.bySemanticsLabel('Guided'), findsOneWidget);
   });
 
@@ -107,16 +108,16 @@ void main() {
       initialMode: NoteEditorMode.raw,
     );
 
-    await tester.tap(find.text('LLM design spec'));
+    await tester.tap(find.byIcon(Icons.assignment_outlined));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Blank').last);
+    await tester.tap(find.byIcon(Icons.note_outlined).last);
     await tester.pumpAndSettle();
-    expect(find.text('Blank'), findsOneWidget);
+    expect(find.byIcon(Icons.note_outlined), findsOneWidget);
 
     // Prose would normally re-select the spec template; an explicit pick wins.
     await tester.enterText(find.byType(TextField).first, 'build a thing');
     await tester.pump();
-    expect(find.text('Blank'), findsOneWidget);
+    expect(find.byIcon(Icons.note_outlined), findsOneWidget);
   });
 
   testWidgets('switching to View renders the note as Markdown', (tester) async {

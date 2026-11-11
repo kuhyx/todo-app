@@ -7,13 +7,14 @@ import 'package:todo/ui/notes_list_screen.dart';
 import 'fake_note_repository.dart';
 
 import 'notes_list_harness.dart';
+import 'text_free_guard.dart';
 
 /// Opens a date field's menu and picks [entry].
 Future<void> pickRange(WidgetTester tester, String field, String entry) async {
   await tester.tap(find.bySemanticsLabel(field));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
-  await tester.tap(find.text(entry).last);
+  await tester.tap(spoken(entry).last);
   await tester.pump();
 }
 
@@ -68,10 +69,10 @@ void main() {
       ],
     );
 
-    expect(find.textContaining('just now'), findsOneWidget);
-    expect(find.textContaining('5m ago'), findsOneWidget);
-    expect(find.textContaining('2h ago'), findsOneWidget);
-    expect(find.textContaining('3d ago'), findsOneWidget);
+    expect(find.text('0m'), findsOneWidget);
+    expect(find.text('5m'), findsOneWidget);
+    expect(find.text('2h'), findsOneWidget);
+    expect(find.text('3d'), findsOneWidget);
   });
 
   testWidgets('Clear all resets the filter sheet to the default', (

@@ -20,6 +20,7 @@ import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
 
 import 'capture_screen_harness.dart';
+import 'text_free_guard.dart';
 
 void main() {
   testWidgets('defaults to Raw, with Guided available via the entry wizard', (
@@ -49,7 +50,7 @@ void main() {
       find.text('1 / ${NoteTemplate.llmDesignSpec.sections.length}'),
       findsOneWidget,
     );
-    expect(find.textContaining('imperative'), findsOneWidget); // title helper
+    expect(spoken('imperative'), findsOneWidget); // title helper
   });
 
   testWidgets('saving the untouched template creates no note', (tester) async {
@@ -101,12 +102,13 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Sync'));
     await tester.pump(); // settings load + snackbar
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
 
     // The behaviour that matters is the routing, not the wording: an
     // unconfigured device is sent to settings to connect a backend. Asserting
     // on the snackbar text tied this to one phrasing, and the snackbar is
     // gone by the time settings has pushed anyway.
-    expect(find.textContaining('Connect Firebase'), findsWidgets);
+    expect(spoken('Connect Firebase'), findsWidgets);
   });
 
   testWidgets('the notes-list button navigates to the list screen', (

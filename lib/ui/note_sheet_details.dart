@@ -39,12 +39,25 @@ class NoteSheetDetails extends StatelessWidget {
           Text(body, style: theme.bodyMedium),
         ],
         const SizedBox(height: 12),
-        Text(
-          'Edited ${_stamp(note.updatedAt)}'
-          ' · Created ${_stamp(note.createdAt)}',
-          style: theme.bodySmall,
+        Wrap(
+          spacing: 12,
+          children: [
+            _dated(Icons.history, 'Edited', note.updatedAt, theme.bodySmall),
+            _dated(Icons.add, 'Created', note.createdAt, theme.bodySmall),
+          ],
         ),
       ],
     );
   }
+
+  /// A glyph (edited = history, created = plus) before its timestamp.
+  Widget _dated(IconData icon, String spoken, DateTime t, TextStyle? style) =>
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, semanticLabel: spoken),
+          const SizedBox(width: 4),
+          Text(_stamp(t), style: style),
+        ],
+      );
 }

@@ -1,8 +1,8 @@
-import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/cue_snack.dart';
 import 'package:todo/ui/image_attach.dart';
 import 'package:todo/ui/markdown_view.dart';
 import 'package:todo/ui/note_editor_chrome.dart';
@@ -127,9 +127,12 @@ class _NoteEditorState extends State<NoteEditor> {
         case NoteEditorMode.guided:
           // raw -> guided: only if the edited text still fits the template.
           if (!_doc.tryAdoptGuided()) {
-            showError(
+            // The mode toggle staying on raw is the second channel.
+            showCue(
               context,
+              Icons.rule,
               "Text doesn't match the template — staying in raw",
+              error: true,
             );
             return;
           }

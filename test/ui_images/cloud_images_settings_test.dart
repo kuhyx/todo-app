@@ -66,7 +66,10 @@ void main() {
     final store = FakeImageStore();
     await pump(tester, store: store, client: answer(207));
     await saveWith(tester, ' pw ');
-    expect(find.text('Saved — dufs accepted the login'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Saved — dufs accepted the login'),
+      findsOneWidget,
+    );
     expect(store.reconciles.single, isEmpty);
   });
 
@@ -77,7 +80,10 @@ void main() {
     final store = FakeImageStore();
     await pump(tester, store: store, client: answer(401));
     await saveWith(tester, 'bad');
-    expect(find.text('Saved, but dufs rejected the password'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Saved, but dufs rejected the password'),
+      findsOneWidget,
+    );
     expect(store.reconciles, isEmpty);
   });
 
@@ -89,7 +95,10 @@ void main() {
       client: MockClient((_) => throw const SocketException('down')),
     );
     await saveWith(tester, 'pw');
-    expect(find.text('Saved — dufs is unreachable right now'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Saved — dufs is unreachable right now'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('no keystore means nothing is saved', (tester) async {
@@ -97,7 +106,7 @@ void main() {
     await pump(tester, store: FakeImageStore(), client: answer(207));
     await saveWith(tester, 'pw');
     expect(
-      find.text('Could not save: the keystore is unavailable'),
+      find.bySemanticsLabel('Could not save: the keystore is unavailable'),
       findsOneWidget,
     );
   });
@@ -111,7 +120,7 @@ void main() {
       find.bySemanticsLabel('Login: missing — create it on the PC with'),
       findsOneWidget,
     );
-    expect(find.text(kAddLoginCommand), findsOneWidget);
+    expect(find.bySemanticsLabel('Copy: $kAddLoginCommand'), findsOneWidget);
   });
 
   testWidgets('closing the screen mid-test is harmless', (tester) async {

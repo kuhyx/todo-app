@@ -101,7 +101,7 @@ class DateRangeField extends StatelessWidget {
       onSelected: (p) => _select(context, p),
       itemBuilder: (_) => [
         for (final p in _Preset.values)
-          PopupMenuItem(value: p, child: Text(p.label)),
+          PopupMenuItem(value: p, child: p.glyph()),
       ],
       child: InputDecorator(
         decoration: InputDecoration(
@@ -114,10 +114,9 @@ class DateRangeField extends StatelessWidget {
           ),
           suffixIcon: const Icon(Icons.arrow_drop_down),
         ),
-        child: Text(
-          current == _Preset.custom ? _rangeLabel() : current.label,
-          style: theme.textTheme.bodyMedium,
-        ),
+        child: current == _Preset.custom
+            ? Text(_rangeLabel(), style: theme.textTheme.bodyMedium)
+            : current.glyph(),
       ),
     );
   }
@@ -142,8 +141,26 @@ enum _Preset {
 
   const _Preset(this.label, this.days);
 
+  /// Spoken name only; what is painted is [glyph].
   final String label;
   final int? days;
+
+  /// "Any" is an infinity sign, "today" the today-calendar, a span its day
+  /// count beside a range-calendar, "custom" the edit-calendar.
+  Widget glyph() => Semantics(
+    label: label,
+    excludeSemantics: true,
+    container: true,
+    child: switch (this) {
+      any => const Icon(Icons.all_inclusive),
+      today => const Icon(Icons.today),
+      custom => const Icon(Icons.edit_calendar),
+      week || month => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [const Icon(Icons.date_range), Text(' $days')],
+      ),
+    },
+  );
 
   static const List<_Preset> dayPresets = [today, week, month];
 }

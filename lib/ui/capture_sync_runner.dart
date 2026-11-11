@@ -26,10 +26,15 @@ class CaptureSyncOutcome {
     required this.ok,
     required this.detail,
     this.reconciled,
+    this.degraded = false,
   });
 
   /// Whether the pass completed without throwing.
   final bool ok;
+
+  /// A pass that completed but not fully: Firebase was not connected, or a
+  /// peer's file could not be read. Shown as a warning, not a plain success.
+  final bool degraded;
 
   /// One-line summary: merged/skipped counts on success, the error otherwise.
   final String detail;
@@ -90,10 +95,12 @@ class CaptureSyncRunner {
       );
       final detail = describeSyncResult(result.syncResult);
       await status.record(ok: true, detail: detail, live: live());
+      final synced = result.syncResult;
       return CaptureSyncOutcome(
         ok: true,
         detail: detail,
         reconciled: result.appSettings,
+        degraded: !synced.firebaseConnected || synced.skippedFiles.isNotEmpty,
       );
     } on Exception catch (e) {
       await status.record(ok: false, detail: '$e', live: live());

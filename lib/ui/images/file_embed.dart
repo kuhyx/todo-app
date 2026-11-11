@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/images/attachment_ref.dart';
+import 'package:todo/ui/cue_snack.dart';
 import 'package:todo/ui/images/file_opening.dart';
 import 'package:todo/ui/images/image_embed.dart';
 
@@ -51,7 +52,9 @@ class _FileEmbedState extends State<FileEmbed> {
 
   Future<void> _open(ImageSource source) async {
     final failure = await widget.opening(source, widget.attachment.name);
-    if (failure != null && mounted) showError(context, failure);
+    if (failure != null && mounted) {
+      showCue(context, Icons.block, failure, error: true);
+    }
   }
 
   @override
@@ -73,9 +76,10 @@ class _FileEmbedState extends State<FileEmbed> {
           style: widget.compact ? theme.textTheme.bodySmall : null,
         );
         final pending = store.isPending(attachment.ref)
-            ? const Tooltip(
-                message: kImageWaitingToUpload,
-                child: Icon(Icons.cloud_upload_outlined, size: 18),
+            ? const Icon(
+                Icons.cloud_upload_outlined,
+                size: 18,
+                semanticLabel: kImageWaitingToUpload,
               )
             : null;
         final content = widget.compact
@@ -104,7 +108,11 @@ class _FileEmbedState extends State<FileEmbed> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         name,
-                        Text(detail, style: theme.textTheme.bodySmall),
+                        // Not downloaded: a download glyph; else the size.
+                        if (size == null)
+                          const Icon(Icons.cloud_download_outlined, size: 16)
+                        else
+                          Text(detail, style: theme.textTheme.bodySmall),
                       ],
                     ),
                   ),

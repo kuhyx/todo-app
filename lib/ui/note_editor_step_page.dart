@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/motion.dart';
+import 'package:todo/ui/template_glyphs.dart';
 
 /// One step of the guided editor: label, guidance, input, and navigation.
 class NoteEditorStepPage extends StatelessWidget {
@@ -95,18 +96,14 @@ class NoteEditorStepPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Section labels are template content (they land in the note);
-              // the title step has none, so it gets a glyph, not a word.
-              if (section.isTitle)
-                const Icon(Icons.title, semanticLabel: 'title')
-              else
-                Text(section.label, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(
-                section.helper,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              // A glyph per section; its label (the note's `## heading`) and
+              // the helper sentence are spoken only.
+              Icon(
+                sectionIcon(section),
+                color: theme.colorScheme.primary,
+                semanticLabel: section.isTitle
+                    ? section.helper
+                    : '${section.label}: ${section.helper}',
               ),
               const SizedBox(height: 12),
             ],
@@ -124,9 +121,10 @@ class NoteEditorStepPage extends StatelessWidget {
               maxLines: null,
               keyboardType: TextInputType.multiline,
               textAlignVertical: TextAlignVertical.top,
-              decoration: InputDecoration(
-                hintText: section.hint,
-                border: const OutlineInputBorder(),
+              // No hintText: a hint is painted text. The section glyph
+              // above already names the field.
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
                 isDense: true,
               ),
               onChanged: (_) => onChanged(),

@@ -10,6 +10,7 @@ import 'package:todo/ui/images/attachment_strip.dart';
 
 import '../capture_screen_harness.dart';
 import '../fake_image_store.dart';
+import '../text_free_guard.dart';
 
 void main() {
   testWidgets('📎 on an empty draft creates the note under the file id', (
@@ -132,6 +133,7 @@ void main() {
       (await repo.listNotes()).single.id,
       store.attached.keys.single.noteId,
     );
-    expect(find.text('Not an image'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
+    expect(spoken('Not an image'), findsOneWidget);
   });
 }

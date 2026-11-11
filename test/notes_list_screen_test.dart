@@ -7,6 +7,9 @@ import 'package:todo/ui/notes_list_screen.dart';
 import 'fake_note_repository.dart';
 
 import 'notes_list_harness.dart';
+import 'package:todo/ui/enum_glyphs.dart';
+import 'package:todo/ui/note_grid_tile.dart';
+import 'package:todo/ui/empty_notes_cue.dart';
 
 void main() {
   testWidgets('renders notes with a status · priority · time subtitle', (
@@ -18,8 +21,8 @@ void main() {
     );
 
     expect(find.text('First note'), findsOneWidget);
-    expect(find.textContaining('To do'), findsOneWidget);
-    expect(find.textContaining('High'), findsOneWidget);
+    expect(find.byIcon(statusIcon(Status.todo)), findsOneWidget);
+    expect(find.byIcon(priorityIcon(Priority.high)), findsOneWidget);
   });
 
   testWidgets('defaults to hiding Done/Abandoned with no filter badge', (
@@ -122,6 +125,6 @@ void main() {
     await pumpList(tester); // no seed
     // The default filter hides Done/Abandoned, so it's the "no match"
     // variant rather than "No notes yet" — either way, an empty message.
-    expect(find.textContaining('No notes'), findsOneWidget);
+    expect(find.byType(EmptyNotesCue), findsOneWidget);
   });
 }

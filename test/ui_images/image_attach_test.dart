@@ -8,6 +8,7 @@ import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/ui/image_attach.dart';
 
 import '../fake_image_store.dart';
+import '../text_free_guard.dart';
 
 void main() {
   test('the controller inserts only while an editor is bound', () {
@@ -89,7 +90,8 @@ void main() {
       ],
     );
     await tester.pump();
-    expect(find.text('Not an image'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
+    expect(spoken('Not an image'), findsOneWidget);
   });
 
   testWidgets('counts dropped non-images together', (tester) async {
@@ -105,7 +107,8 @@ void main() {
       rejected: 2,
     );
     await tester.pump();
-    expect(find.text('3 files were not images'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
+    expect(spoken('3 files were not images'), findsOneWidget);
   });
 
   testWidgets('a store failure is shown and stops the batch', (tester) async {
@@ -122,7 +125,8 @@ void main() {
       ],
     );
     await tester.pump();
-    expect(find.text('helper down'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
+    expect(spoken('helper down'), findsOneWidget);
   });
 
   testWidgets('nothing is shown once the screen closed mid-attach', (

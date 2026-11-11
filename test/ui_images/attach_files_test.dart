@@ -7,6 +7,7 @@ import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/ui/image_attach.dart';
 
 import '../fake_image_store.dart';
+import '../text_free_guard.dart';
 
 void main() {
   late FakeImageStore store;
@@ -71,7 +72,8 @@ void main() {
     );
     await tester.pump();
     expect(inserted.single, hasLength(1));
-    expect(find.text('full'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
+    expect(spoken('full'), findsOneWidget);
   });
 
   testWidgets('nothing is shown once the screen closed mid-attach', (
@@ -92,6 +94,6 @@ void main() {
     gate.complete();
     await done;
     await tester.pump();
-    expect(find.text('full'), findsNothing);
+    expect(spoken('full'), findsNothing);
   });
 }

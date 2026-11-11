@@ -18,6 +18,7 @@ import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
 
 import 'github_mirror_harness.dart';
+import 'text_free_guard.dart';
 
 /// Stub launcher that records the URL instead of opening it, so `_openPage`
 /// can be exercised without a real platform channel.
@@ -45,10 +46,7 @@ void main() {
     await pumpMirror(tester);
     await tester.tap(find.bySemanticsLabel('Connect GitHub'));
     await tester.pump();
-    expect(
-      find.textContaining('Enter the OAuth App client id'),
-      findsOneWidget,
-    );
+    expect(spoken('Enter the OAuth App client id'), findsOneWidget);
   });
 
   testWidgets('Test connection reports a reachable repo', (tester) async {
@@ -59,7 +57,7 @@ void main() {
     await tester.pump(); // start
     await tester.pump(); // resolve future + rebuild
 
-    expect(find.textContaining('reachable'), findsOneWidget);
+    expect(spoken('reachable'), findsOneWidget);
   });
 
   testWidgets('Test connection reports an inaccessible repo', (tester) async {
@@ -70,7 +68,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Could not access'), findsOneWidget);
+    expect(spoken('Could not access'), findsOneWidget);
   });
 
   testWidgets('Test connection surfaces a network error', (tester) async {
@@ -81,7 +79,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Error:'), findsOneWidget);
+    expect(spoken('Error:'), findsOneWidget);
   });
 
   testWidgets('device flow failure to start shows a message', (tester) async {
@@ -101,7 +99,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Could not start device flow'), findsOneWidget);
+    expect(spoken('Could not start device flow'), findsOneWidget);
   });
 
   testWidgets('device flow happy path saves the token', (tester) async {
@@ -145,6 +143,6 @@ void main() {
       await tester.pump();
     }
 
-    expect(find.textContaining('Connected and synced'), findsOneWidget);
+    expect(spoken('Connected and synced'), findsOneWidget);
   });
 }

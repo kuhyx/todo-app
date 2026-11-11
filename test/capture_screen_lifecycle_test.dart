@@ -20,6 +20,7 @@ import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
 
 import 'capture_screen_harness.dart';
+import 'text_free_guard.dart';
 
 void main() {
   testWidgets(
@@ -35,8 +36,8 @@ void main() {
       await tester.pump();
 
       // Only a failure is worth surfacing; a routine success is silent.
-      expect(find.textContaining('Synced at'), findsNothing);
-      expect(find.textContaining('merged 0 device(s)'), findsNothing);
+      expect(spoken('Synced at'), findsNothing);
+      expect(spoken('merged 0 device(s)'), findsNothing);
     },
   );
 
@@ -53,8 +54,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.textContaining('Sync failed at 12:00:00'), findsOneWidget);
-    expect(find.textContaining('rate limited'), findsOneWidget);
+    expect(spoken('Sync failed at 12:00:00'), findsOneWidget);
+    expect(spoken('rate limited'), findsOneWidget);
   });
 
   testWidgets('losing focus triggers a debounced auto-sync', (tester) async {

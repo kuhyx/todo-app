@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/enum_glyphs.dart';
+import 'package:todo/ui/template_glyphs.dart';
 
 /// Asks for a priority, then a template, then hands both back via [onStart].
 class NoteEditorWizard extends StatefulWidget {
@@ -125,7 +126,7 @@ class _NoteEditorWizardState extends State<NoteEditorWizard> {
         ),
         items: [
           for (final t in templates)
-            DropdownMenuItem(value: t.id, child: Text(t.label)),
+            DropdownMenuItem(value: t.id, child: templateGlyph(t)),
         ],
         onChanged: (id) {
           if (id == null) return;

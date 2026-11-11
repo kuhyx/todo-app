@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/notes_list_screen.dart';
+import 'package:todo/ui/text_free_localizations.dart';
 
 import 'fake_note_repository.dart';
 
@@ -42,6 +43,8 @@ Future<FakeNoteRepository> pumpList(
   addTearDown(settings.dispose);
   await tester.pumpWidget(
     MaterialApp(
+      // As in main.dart: Material's own button tooltips are blanked.
+      localizationsDelegates: kTextFreeLocalizations,
       home: NotesListScreen(repository: repo, appSettings: settings),
     ),
   );

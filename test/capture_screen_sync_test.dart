@@ -20,6 +20,7 @@ import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
 
 import 'capture_screen_harness.dart';
+import 'text_free_guard.dart';
 
 void main() {
   testWidgets('Sync with a configured token runs the sync service', (
@@ -39,14 +40,13 @@ void main() {
     await tester.pump(); // setState(_syncing = true)
     await tester.pump(); // service runs, snackbar scheduled
     await tester.pump(); // snackbar builds
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
 
     // No firebaseFactory was injected, so this runs over GitHub alone --
     // the status line must say so rather than reading identically to a
     // Firebase-connected sync.
     expect(
-      find.textContaining(
-        'Synced: GitHub-only (Firebase not connected) — merged 0 device',
-      ),
+      spoken('Synced: GitHub-only (Firebase not connected) — merged 0 device'),
       findsOneWidget,
     );
   });
@@ -59,10 +59,11 @@ void main() {
     await tester.pump();
     await tester.pump();
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
 
     // 'Sync failed:' is the snackbar; the status line says 'Sync failed at'.
-    expect(find.textContaining('Sync failed:'), findsOneWidget);
-    expect(find.textContaining('Sync failed at'), findsOneWidget);
+    expect(spoken('Sync failed:'), findsOneWidget);
+    expect(spoken('Sync failed at'), findsOneWidget);
   });
 
   testWidgets('manual sync reports peer files it could not decode', (
@@ -89,9 +90,10 @@ void main() {
     await tester.pump();
     await tester.pump();
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
 
     expect(
-      find.textContaining('skipped 1 unreadable file(s)'),
+      spoken('skipped 1 unreadable file(s)'),
       findsWidgets, // snackbar and status line both call it out
     );
   });
@@ -120,7 +122,7 @@ void main() {
     await tester.pumpAndSettle(); // save + pop transition back to Settings
     expect(find.byType(SettingsScreen), findsOneWidget);
 
-    await tester.pageBack();
+    await tester.tap(find.byType(BackButton)); // no 'Back' tooltip to find
     await tester.pumpAndSettle(); // pop transition back to capture
 
     expect(find.byType(SettingsScreen), findsNothing); // back on capture
@@ -154,7 +156,7 @@ void main() {
       expect(find.bySemanticsLabel('Priority'), findsNothing);
       expect(find.bySemanticsLabel('Status'), findsNothing);
       // Routine status chatter is gone; only a badge count remains.
-      expect(find.textContaining('Autosaves as you type'), findsNothing);
+      expect(spoken('Autosaves as you type'), findsNothing);
       expect(find.text('1'), findsOneWidget);
       // The note still persisted normally underneath the simplified UI.
       expect(find.text('A plain idea'), findsOneWidget);

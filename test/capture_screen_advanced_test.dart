@@ -20,6 +20,7 @@ import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
 
 import 'capture_screen_harness.dart';
+import 'text_free_guard.dart';
 
 void main() {
   testWidgets(
@@ -140,7 +141,7 @@ void main() {
     // Capture must never be interrupted by a snackbar…
     expect(find.byType(SnackBar), findsNothing);
     // …but the failure is no longer swallowed: the status line shows it.
-    expect(find.textContaining('Sync failed at'), findsOneWidget);
-    expect(find.textContaining('offline'), findsOneWidget);
+    expect(spoken('Sync failed at'), findsOneWidget);
+    expect(spoken('offline'), findsOneWidget);
   });
 }

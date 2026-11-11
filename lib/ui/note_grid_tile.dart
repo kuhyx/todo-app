@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
+import 'package:todo/ui/enum_glyphs.dart';
 
 /// Danger for high, the accent for medium, muted for low.
 Color priorityColor(Priority p, ColorScheme scheme) => switch (p) {
@@ -13,6 +14,9 @@ Color priorityColor(Priority p, ColorScheme scheme) => switch (p) {
   Priority.medium => scheme.primary,
   Priority.low => scheme.outline,
 };
+
+/// Painted in place of an empty note's title: a mark, not a word.
+const String kEmptyTitle = '…';
 
 /// The glyph standing for [s] wherever a status is shown without words.
 IconData statusIcon(Status s) => switch (s) {
@@ -85,7 +89,7 @@ class NoteGridTile extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        title.isEmpty ? '(empty)' : title,
+                        title.isEmpty ? kEmptyTitle : title,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -115,25 +119,20 @@ class NoteGridTile extends StatelessWidget {
                 ),
               Row(
                 children: [
+                  // Shape + the tile's accent border carry status/priority;
+                  // the enum words survive only as spoken labels.
                   Icon(
                     statusIcon(note.status),
                     size: 14,
                     color: scheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(
-                    child: Text(
-                      note.status.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: cue,
-                    ),
+                    semanticLabel: note.status.label,
                   ),
                   const Spacer(),
-                  Text(
-                    note.priority.label,
-                    maxLines: 1,
-                    style: cue?.copyWith(color: accentFor(scheme)),
+                  Icon(
+                    priorityIcon(note.priority),
+                    size: 14,
+                    color: accentFor(scheme),
+                    semanticLabel: note.priority.label,
                   ),
                 ],
               ),

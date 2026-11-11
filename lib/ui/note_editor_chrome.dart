@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/note_editor_mode.dart';
+import 'package:todo/ui/template_glyphs.dart';
 
 /// Template dropdown above a segmented View / Guided / Raw selector.
 class NoteEditorChrome extends StatelessWidget {
@@ -50,7 +51,7 @@ class NoteEditorChrome extends StatelessWidget {
           ),
           items: [
             for (final t in NoteTemplate.all)
-              DropdownMenuItem(value: t.id, child: Text(t.label)),
+              DropdownMenuItem(value: t.id, child: templateGlyph(t)),
           ],
           onChanged: (id) {
             if (id == null) return;

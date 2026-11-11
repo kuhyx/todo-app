@@ -54,9 +54,10 @@ class ImageEmbed extends StatelessWidget {
                 const Positioned(
                   right: 4,
                   top: 4,
-                  child: Tooltip(
-                    message: kImageWaitingToUpload,
-                    child: Icon(Icons.cloud_upload_outlined, size: 18),
+                  child: Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 18,
+                    semanticLabel: kImageWaitingToUpload,
                   ),
                 ),
             ],
@@ -87,7 +88,7 @@ Widget imageFor(ImageSource source, {required BoxFit fit}) {
   };
 }
 
-/// Grey box with [kImageNotDownloaded].
+/// Grey box with a download glyph, spoken as [kImageNotDownloaded].
 class ImagePlaceholder extends StatelessWidget {
   /// Creates the placeholder.
   const ImagePlaceholder({super.key});
@@ -100,10 +101,10 @@ class ImagePlaceholder extends StatelessWidget {
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(8),
-          child: Text(
-            kImageNotDownloaded,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall,
+          child: Icon(
+            Icons.cloud_download_outlined,
+            color: theme.colorScheme.outline,
+            semanticLabel: kImageNotDownloaded,
           ),
         ),
       ),

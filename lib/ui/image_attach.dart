@@ -9,12 +9,12 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:design_system/design_system.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
 import 'package:todo/images/attachment_ref.dart';
+import 'package:todo/ui/cue_snack.dart';
 
 /// Lets a screen insert lines into whichever editor is currently mounted.
 class ImageAttachController {
@@ -73,11 +73,15 @@ Future<void> attachImages(
   target.insert([for (final ref in refs) ref.imageMarkdown]);
   if (!context.mounted) return;
   if (failure != null) {
-    showError(context, failure);
+    showCue(context, Icons.cloud_off, failure, error: true);
   } else if (notImages > 0) {
-    showError(
+    // A broken-image glyph plus how many were refused.
+    showCue(
       context,
+      Icons.broken_image_outlined,
       notImages == 1 ? 'Not an image' : '$notImages files were not images',
+      error: true,
+      count: notImages,
     );
   }
 }
@@ -104,5 +108,7 @@ Future<void> attachFiles(
     }
   }
   target.insert([for (final attachment in attached) attachment.markdown]);
-  if (failure != null && context.mounted) showError(context, failure);
+  if (failure != null && context.mounted) {
+    showCue(context, Icons.cloud_off, failure, error: true);
+  }
 }

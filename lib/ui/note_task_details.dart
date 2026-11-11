@@ -12,20 +12,27 @@ class NoteTaskDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    // A glyph per field in place of its written name (kept spoken only);
+    // the values are content and stay as typed.
     final rows = [
-      ('Repo', note.repo),
-      ('Done check', note.doneCheck),
-      ('By', note.by),
-      ('Evidence', note.evidence),
-    ].where((row) => row.$2 != null);
+      (Icons.folder_outlined, 'Repo', note.repo),
+      (Icons.fact_check_outlined, 'Done check', note.doneCheck),
+      (Icons.person_outline, 'By', note.by),
+      (Icons.verified_outlined, 'Evidence', note.evidence),
+    ].where((row) => row.$3 != null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final (label, value) in rows) ...[
+        for (final (icon, label, value) in rows) ...[
           const SizedBox(height: 12),
-          Text(label, style: theme.labelLarge),
-          const SizedBox(height: 4),
-          Text(value!, style: theme.bodyMedium),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 20, semanticLabel: label),
+              const SizedBox(width: 8),
+              Expanded(child: Text(value!, style: theme.bodyMedium)),
+            ],
+          ),
         ],
       ],
     );

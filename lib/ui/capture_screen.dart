@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:crdt_sync/crdt_sync.dart';
-import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -22,6 +21,7 @@ import 'package:todo/ui/capture_draft.dart';
 import 'package:todo/ui/capture_status.dart';
 import 'package:todo/ui/capture_status_footer.dart';
 import 'package:todo/ui/capture_sync_runner.dart';
+import 'package:todo/ui/cue_snack.dart';
 import 'package:todo/ui/image_attach.dart';
 import 'package:todo/ui/image_input.dart';
 import 'package:todo/ui/note_form.dart';
@@ -194,7 +194,14 @@ class _CaptureScreenState extends State<CaptureScreen>
   Future<void> _sync() async {
     final settings = _settings ?? await SyncSettings.load();
     if (!settings.isConfigured && await openFirebase() == null) {
-      _showSnack('Connect Firebase (or add a GitHub token) in settings');
+      // The cue plus the settings screen opening is the whole message.
+      if (mounted) {
+        showCue(
+          context,
+          Icons.cloud_off,
+          'Connect Firebase (or add a GitHub token) in settings',
+        );
+      }
       await _openSettings();
       return;
     }
@@ -215,12 +222,7 @@ class _CaptureScreenState extends State<CaptureScreen>
           if (outcome.ok) 'detail': outcome.detail,
         },
       );
-      _showSnack(
-        outcome.ok
-            ? 'Synced: ${outcome.detail}'
-            : 'Sync failed: ${outcome.detail}',
-        isError: !outcome.ok,
-      );
+      _showSyncCue(outcome);
     } finally {
       if (mounted) setState(() => _syncing = false);
     }

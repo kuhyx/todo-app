@@ -11,6 +11,7 @@ import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/repository_factory.dart';
 import 'package:todo/frame_stats.dart';
 import 'package:todo/ui/capture_screen.dart';
+import 'package:todo/ui/text_free_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +70,7 @@ class TodoApp extends StatelessWidget {
       store: imageStore,
       child: MaterialApp(
         title: 'todo',
+        localizationsDelegates: kTextFreeLocalizations,
         theme: buildLightTheme(),
         darkTheme: buildDarkTheme(),
         home: CaptureScreen(

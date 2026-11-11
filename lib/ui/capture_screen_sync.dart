@@ -104,13 +104,20 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
   /// replace-don't-queue behaviour match every other app; [isError] picks
   /// the danger hue and the longer duration, because an error the user
   /// missed is an error they will hit again.
-  void _showSnack(String message, {bool isError = false}) {
+  /// A manual sync's result as a glyph: done, done-but-degraded (Firebase
+  /// off or a peer unreadable, in the danger hue), or failed. The summary
+  /// sentence is spoken only; the status line keeps the failure time.
+  void _showSyncCue(CaptureSyncOutcome outcome) {
     if (!mounted) return;
-    if (isError) {
-      showError(context, message);
-    } else {
-      showToast(context, message);
-    }
+    final spoken = outcome.ok
+        ? 'Synced: ${outcome.detail}'
+        : 'Sync failed: ${outcome.detail}';
+    final (icon, error) = !outcome.ok
+        ? (Icons.sync_problem, true)
+        : outcome.degraded
+        ? (Icons.cloud_off, true)
+        : (Icons.cloud_done, false);
+    showCue(context, icon, spoken, error: error);
   }
 
   /// Reloads the persisted last-sync outcome so the status line survives a

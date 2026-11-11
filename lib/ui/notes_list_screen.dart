@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/ui/empty_notes_cue.dart';
 import 'package:todo/ui/note_selection.dart';
 import 'package:todo/ui/notes_assign_flow.dart';
 import 'package:todo/ui/notes_filter_sheet.dart';
@@ -224,11 +225,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
                 final notes = snapshot.data ?? const <Note>[];
                 if (notes.isEmpty) {
                   return Center(
-                    child: Text(
-                      _filter.isEmpty
-                          ? 'No notes yet'
-                          : 'No notes match these filters',
-                    ),
+                    child: EmptyNotesCue(filtered: !_filter.isEmpty),
                   );
                 }
                 return NotesListBody(

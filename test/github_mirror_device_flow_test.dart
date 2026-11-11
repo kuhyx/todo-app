@@ -18,6 +18,7 @@ import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
 
 import 'github_mirror_harness.dart';
+import 'text_free_guard.dart';
 
 /// Stub launcher that records the URL instead of opening it, so `_openPage`
 /// can be exercised without a real platform channel.
@@ -80,7 +81,7 @@ void main() {
       await tester.pump();
     }
 
-    expect(find.textContaining('sync failed'), findsOneWidget);
+    expect(spoken('sync failed'), findsOneWidget);
   });
 
   testWidgets('Save persists the settings and closes the screen', (

@@ -44,16 +44,16 @@ class CaptureStatusFooter extends StatelessWidget {
             if (status == null || status.ok) {
               return const SizedBox.shrink();
             }
+            // Glyph + time in the danger hue; the error itself is spoken.
             return Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(
+              child: _cueLine(
+                Icons.sync_problem,
+                formatSyncTime(status.time),
                 'Sync failed at ${formatSyncTime(status.time)} · '
                 '${status.detail}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                theme.textTheme.bodySmall,
+                theme.colorScheme.error,
               ),
             );
           },
@@ -63,15 +63,45 @@ class CaptureStatusFooter extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: ValueListenableBuilder<DateTime?>(
               valueListenable: lastSavedAt,
-              builder: (context, savedAt, _) => Text(
-                savedAt == null
-                    ? 'Autosaves as you type'
-                    : 'Saved locally at ${formatSyncTime(savedAt)}',
-                style: theme.textTheme.bodySmall,
-              ),
+              // Before the first save: the save glyph alone, muted.
+              builder: (context, savedAt, _) => savedAt == null
+                  ? _cueLine(
+                      Icons.save_outlined,
+                      '',
+                      'Autosaves as you type',
+                      theme.textTheme.bodySmall,
+                      theme.colorScheme.outline,
+                    )
+                  : _cueLine(
+                      Icons.save,
+                      formatSyncTime(savedAt),
+                      'Saved locally at ${formatSyncTime(savedAt)}',
+                      theme.textTheme.bodySmall,
+                      null,
+                    ),
             ),
           ),
       ],
     );
   }
+
+  /// One status line: a small glyph and a time, spoken as [spoken].
+  Widget _cueLine(
+    IconData icon,
+    String time,
+    String spoken,
+    TextStyle? style,
+    Color? color,
+  ) => Semantics(
+    label: spoken,
+    excludeSemantics: true,
+    container: true,
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(time, style: style?.copyWith(color: color)),
+      ],
+    ),
+  );
 }

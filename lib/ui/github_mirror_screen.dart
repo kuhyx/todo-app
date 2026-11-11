@@ -9,6 +9,7 @@ import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/run_sync.dart';
 import 'package:todo/sync/sync_settings.dart';
+import 'package:todo/ui/status_cue.dart';
 
 part 'github_mirror_screen_widget.dart';
 
@@ -27,7 +28,7 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
   );
 
   bool _testing = false;
-  String? _status;
+  StatusCue? _status;
 
   @override
   void dispose() {
@@ -49,8 +50,13 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
   Future<void> _connectGitHub() async {
     final clientId = _clientId.text.trim();
     if (clientId.isEmpty) {
-      setState(() => _status = 'Enter the OAuth App client id first.');
-      return;
+      return _show(
+        const StatusCue(
+          Icons.key_off,
+          'Enter the OAuth App client id first.',
+          error: true,
+        ),
+      );
     }
     final auth = GitHubDeviceAuth(
       clientId: clientId,
@@ -67,20 +73,19 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
       if (token != null && token.isNotEmpty) {
         setState(() {
           _token.text = token;
-          _status = 'Connected — syncing…';
+          _status = const StatusCue(Icons.sync, 'Connected — syncing…');
         });
         await _current.save();
         await _syncAfterConnect();
       }
     } on Exception catch (e) {
-      if (mounted) setState(() => _status = 'Could not start device flow: $e');
+      _show(StatusCue.failed('Could not start device flow: $e'));
     } finally {
       auth.close();
     }
   }
 
-  /// Runs a sync right after connecting so the user's notes download
-  /// immediately and they get clear confirmation it worked.
+  /// Syncs right after connecting so notes download at once, with a cue.
   Future<void> _syncAfterConnect() async {
     final s = _current;
     try {
@@ -96,17 +101,27 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
       widget.appSettings.value = widget.appSettings.value.adopt(
         run.appSettings,
       );
-      if (mounted) {
-        setState(
-          () => _status =
-              'Connected and synced (merged '
-              '${run.syncResult.mergedDevices} device(s)). Your notes are '
-              'up to date.',
-        );
-      }
+      _show(
+        StatusCue.ok(
+          'Connected and synced (merged '
+          '${run.syncResult.mergedDevices} device(s)). Your notes are '
+          'up to date.',
+        ),
+      );
     } on Exception catch (e) {
-      if (mounted) setState(() => _status = 'Connected, but sync failed: $e');
+      _show(
+        StatusCue(
+          Icons.sync_problem,
+          'Connected, but sync failed: $e',
+          error: true,
+        ),
+      );
     }
+  }
+
+  /// Shows [cue] as the screen's latest result, if still mounted.
+  void _show(StatusCue cue) {
+    if (mounted) setState(() => _status = cue);
   }
 
   Future<void> _test() async {
@@ -123,13 +138,17 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
     );
     try {
       final ok = await client.canAccessRepo();
-      setState(
-        () => _status = ok
-            ? 'Connected — repo is reachable.'
-            : 'Could not access ${s.owner}/${s.repo}. Check token scope.',
+      _show(
+        ok
+            ? const StatusCue.ok('Connected — repo is reachable.')
+            : StatusCue(
+                Icons.lock,
+                'Could not access ${s.owner}/${s.repo}. Check token scope.',
+                error: true,
+              ),
       );
     } on Exception catch (e) {
-      setState(() => _status = 'Error: $e');
+      _show(StatusCue.failed('Error: $e'));
     } finally {
       client.close();
       if (mounted) setState(() => _testing = false);
@@ -154,12 +173,6 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            'Authorize in your browser — no token to paste. Syncs to '
-            'kuhyx/syncs by default.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,
             child: IconButton.filled(
@@ -228,7 +241,7 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
           ),
           if (_status != null) ...[
             const SizedBox(height: 16),
-            Text(_status!, style: Theme.of(context).textTheme.bodyMedium),
+            StatusCueView(_status!),
           ],
         ],
       ),

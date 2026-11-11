@@ -8,6 +8,7 @@ import 'package:todo/ui/images/file_embed.dart';
 import 'package:todo/ui/images/image_embed.dart';
 
 import '../fake_image_store.dart';
+import '../text_free_guard.dart';
 
 void main() {
   final pdf = AttachmentRef.forFile('n1', 'a.pdf');
@@ -57,13 +58,14 @@ void main() {
     await pump(tester, embed());
     await tester.tap(find.text('Raport.pdf'));
     await tester.pump();
-    expect(find.text(failure!), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500)); // snack fades in
+    expect(spoken(failure!), findsOneWidget);
   });
 
   testWidgets('a file not here yet says so and does not open', (tester) async {
     store.missing.add(pdf);
     await pump(tester, embed());
-    expect(find.text(kImageNotDownloaded), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_download_outlined), findsOneWidget);
     await tester.tap(find.text('Raport.pdf'));
     await tester.pump();
     expect(opened, isEmpty);
@@ -74,15 +76,15 @@ void main() {
   ) async {
     store.pending.add(pdf);
     await pump(tester, embed());
-    expect(find.byTooltip(kImageWaitingToUpload), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_upload_outlined), findsOneWidget);
     await pump(tester, embed(compact: true));
-    expect(find.byTooltip(kImageWaitingToUpload), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_upload_outlined), findsOneWidget);
   });
 
   testWidgets('the size is asked again when the store changes', (tester) async {
     store.missing.add(pdf);
     await pump(tester, embed());
-    expect(find.text(kImageNotDownloaded), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_download_outlined), findsOneWidget);
     store
       ..missing.clear()
       ..changed();

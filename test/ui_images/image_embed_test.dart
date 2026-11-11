@@ -37,7 +37,7 @@ void main() {
   testWidgets('a local image renders and opens full screen', (tester) async {
     await pump(tester, ImageEmbed(ref: ref));
     expect(find.byType(Image), findsOneWidget);
-    expect(find.byTooltip(kImageWaitingToUpload), findsNothing);
+    expect(find.byIcon(Icons.cloud_upload_outlined), findsNothing);
     await tester.tap(find.byType(ImageEmbed));
     await tester.pumpAndSettle();
     expect(find.byType(ImageViewerScreen), findsOneWidget);
@@ -47,7 +47,7 @@ void main() {
   testWidgets('a queued image carries the upload badge', (tester) async {
     store.pending.add(ref);
     await pump(tester, ImageEmbed(ref: ref));
-    expect(find.byTooltip(kImageWaitingToUpload), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_upload_outlined), findsOneWidget);
   });
 
   testWidgets('a missing image is a placeholder and not tappable', (
@@ -55,7 +55,7 @@ void main() {
   ) async {
     store.missing.add(ref);
     await pump(tester, ImageEmbed(ref: ref));
-    expect(find.text(kImageNotDownloaded), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_download_outlined), findsOneWidget);
     await tester.tap(find.byType(ImageEmbed));
     await tester.pumpAndSettle();
     expect(find.byType(ImageViewerScreen), findsNothing);
@@ -70,7 +70,7 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await tester.pump();
-    expect(find.text(kImageNotDownloaded), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_download_outlined), findsOneWidget);
     store.network = true;
     store.changed();
     await tester.pump();
@@ -78,7 +78,7 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
     await tester.pump();
-    expect(find.text(kImageNotDownloaded), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_download_outlined), findsOneWidget);
   });
 
   testWidgets('the strip shows one thumbnail per linked image', (tester) async {
