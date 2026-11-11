@@ -149,8 +149,16 @@ deploy_phone() {
         # Outside a Claude session each phone_lease call would name its own
         # pid as owner, so phone_deploy's launch step blocked on the lease its
         # own install step took (exit 35). One owner for the whole run.
-        PHONE_LEASE_OWNER="${PHONE_LEASE_OWNER:-deploy:$$}" ADB_SERIAL="$SERIAL" \
-            heavy "$PHONE_DEPLOY" "$ROOT" --release || rc=$?
+        # Exit 48 = load too high right now; wait it out (up to 15 min).
+        local tries=0
+        while :; do
+            rc=0
+            PHONE_LEASE_OWNER="${PHONE_LEASE_OWNER:-deploy:$$}" ADB_SERIAL="$SERIAL" \
+                heavy "$PHONE_DEPLOY" "$ROOT" --release || rc=$?
+            ((rc == 48 && ++tries <= 30)) || break
+            say phone "machine busy, retrying in 30 s ($tries/30)"
+            sleep 30
+        done
         ((rc == 0)) || { fail phone "phone_deploy.sh exited $rc (see its exit-code table)"; return; }
     fi
     phone_health "$want"
