@@ -44,7 +44,9 @@ class NoteEditorChrome extends StatelessWidget {
         DropdownButtonFormField<String>(
           initialValue: template.id,
           decoration: const InputDecoration(
-            label: Icon(Icons.description, semanticLabel: 'Template'),
+            // A prefix, not a floating label: a floated icon sat on the
+            // border on top of the selected template's glyph.
+            prefixIcon: Icon(Icons.description, semanticLabel: 'Template'),
             isDense: true,
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
