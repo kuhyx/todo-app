@@ -38,6 +38,13 @@ readonly MCP_TOKEN="${HOME}/.config/todo-mcp-client/token"
 readonly PHONE_DEPLOY="${HOME}/.claude/scripts/phone_deploy.sh"
 readonly CAPPED="${HOME}/.claude/scripts/capped.sh"
 readonly WEB_VERSION_JSON="/opt/todo/web/version.json"
+readonly KEY_PROPS="$ROOT/android/key.properties"
+readonly SHARED_KEY_PROPS="${HOME}/.android/release/key.properties"
+
+# systemd units and Ship do not source ~/.zshenv; phone_deploy needs the SDK
+# for its apksigner check.
+export ANDROID_HOME="${ANDROID_HOME:-${HOME}/sdk/foss-android-sdk}"
+export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
 
 FAILED=()
 
@@ -135,6 +142,10 @@ deploy_phone() {
     if [[ "$(phone_version)" == "$want" ]]; then
         say phone "already at $want, skipping build"
     else
+        # A fresh checkout has no (gitignored) key.properties; without it the
+        # build signs with the debug key and cannot install over a CI build.
+        [[ -f "$KEY_PROPS" || ! -f "$SHARED_KEY_PROPS" ]] ||
+            install -m 600 "$SHARED_KEY_PROPS" "$KEY_PROPS"
         ADB_SERIAL="$SERIAL" heavy "$PHONE_DEPLOY" "$ROOT" --release || rc=$?
         ((rc == 0)) || { fail phone "phone_deploy.sh exited $rc (see its exit-code table)"; return; }
     fi
