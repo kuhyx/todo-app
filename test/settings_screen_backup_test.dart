@@ -24,6 +24,7 @@ import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
 
 import 'settings_screen_harness.dart';
+import 'text_free_guard.dart';
 
 /// Stub file picker that returns a fixed in-memory file (no disk I/O, so the
 /// `_import` flow stays timer-free and deterministic under the widget tester).
@@ -101,7 +102,7 @@ void main() {
 
       // _export does real file I/O on desktop, so drive it under runAsync.
       await tester.runAsync(() async {
-        await tester.tap(find.text('Export notes'));
+        await tester.tap(find.bySemanticsLabel('Export notes'));
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
       await tester.pump();
@@ -120,12 +121,12 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.runAsync(() async {
-        await tester.tap(find.text('Export notes'));
+        await tester.tap(find.bySemanticsLabel('Export notes'));
         await Future<void>.delayed(const Duration(milliseconds: 50));
       });
       await tester.pump();
 
-      expect(find.textContaining('Export failed'), findsOneWidget);
+      expect(spoken('Export failed'), findsOneWidget);
     });
 
     testWidgets('Import notes reads the picked file and merges', (
@@ -152,7 +153,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.sync));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Import notes'));
+      await tester.tap(find.bySemanticsLabel('Import notes'));
       await tester.pump(); // openFile resolves (in-memory)
       await tester.pump(); // read + parse + merge + setState
 
@@ -168,7 +169,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.sync));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Import notes'));
+      await tester.tap(find.bySemanticsLabel('Import notes'));
       await tester.pump();
       await tester.pump();
 
@@ -186,11 +187,11 @@ void main() {
       await tester.tap(find.byIcon(Icons.sync));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Import notes'));
+      await tester.tap(find.bySemanticsLabel('Import notes'));
       await tester.pump();
       await tester.pump();
 
-      expect(find.textContaining('Import failed'), findsOneWidget);
+      expect(spoken('Import failed'), findsOneWidget);
       expect(await repo.listNotes(), isEmpty);
     });
   });

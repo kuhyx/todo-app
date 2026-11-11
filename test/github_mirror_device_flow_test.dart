@@ -203,7 +203,8 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 1)); // _delay(0) fires
     await tester.pump(); // token error throws → _error set
-    expect(find.textContaining('nope'), findsOneWidget); // error rendered
+    await tester.pump(const Duration(milliseconds: 300)); // dialog faded in
+    expect(spoken('nope'), findsOneWidget); // error rendered (spoken glyph)
 
     // Tap the "open on GitHub" action: copies the code and launches the URL.
     // _openPage awaits Clipboard.setData then the launcher's supportsMode +
@@ -213,7 +214,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(launcher.launched, 'https://github.com/login/device');
 
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(find.bySemanticsLabel('Cancel'));
     await tester.pumpAndSettle(); // finish the dialog pop animation
     expect(find.text('WXYZ-1234'), findsNothing); // dialog dismissed
   });

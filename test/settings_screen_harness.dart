@@ -26,6 +26,7 @@ import 'package:todo/sync/notes_markdown.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:todo/ui/github_mirror_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
+import 'package:todo/ui/text_free_localizations.dart';
 
 import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
@@ -93,6 +94,8 @@ Future<FakeNoteRepository> pumpSettings(
   addTearDown(repo.close);
   await tester.pumpWidget(
     MaterialApp(
+      // As in main.dart: Material's own button tooltips are blanked.
+      localizationsDelegates: kTextFreeLocalizations,
       home: SettingsScreen(
         initial: initial,
         repository: repo,

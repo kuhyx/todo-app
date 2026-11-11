@@ -115,7 +115,7 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
     final (icon, error) = !outcome.ok
         ? (Icons.sync_problem, true)
         : outcome.degraded
-        ? (Icons.cloud_off, true)
+        ? (Icons.warning_amber, true)
         : (Icons.cloud_done, false);
     showCue(context, icon, spoken, error: error);
   }

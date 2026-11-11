@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -121,6 +122,24 @@ void main() {
       findsOneWidget,
     );
     expect(find.bySemanticsLabel('Copy: $kAddLoginCommand'), findsOneWidget);
+
+    // The command is copied, not painted: the button puts it on the
+    // clipboard (stubbed channel; the test host has no clipboard plugin).
+    final copied = <Object?>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') copied.add(call.arguments);
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+    await tester.tap(find.bySemanticsLabel('Copy: $kAddLoginCommand'));
+    await tester.pump();
+    expect(copied, [
+      {'text': kAddLoginCommand},
+    ]);
   });
 
   testWidgets('closing the screen mid-test is harmless', (tester) async {

@@ -83,6 +83,14 @@ void main() {
     expectNoChromeWords(t);
   });
 
+  testWidgets('sync settings paint no words', (t) async {
+    await pumpSettings(t);
+    await t.tap(find.bySemanticsLabel('Sync settings: Firebase'));
+    await _frames(t);
+    await _frames(t);
+    expectNoChromeWords(t);
+  });
+
   testWidgets('GitHub sync and its test result paint no words', (t) async {
     await pumpMirror(
       t,
