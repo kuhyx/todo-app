@@ -146,7 +146,11 @@ deploy_phone() {
         # build signs with the debug key and cannot install over a CI build.
         [[ -f "$KEY_PROPS" || ! -f "$SHARED_KEY_PROPS" ]] ||
             install -m 600 "$SHARED_KEY_PROPS" "$KEY_PROPS"
-        ADB_SERIAL="$SERIAL" heavy "$PHONE_DEPLOY" "$ROOT" --release || rc=$?
+        # Outside a Claude session each phone_lease call would name its own
+        # pid as owner, so phone_deploy's launch step blocked on the lease its
+        # own install step took (exit 35). One owner for the whole run.
+        PHONE_LEASE_OWNER="${PHONE_LEASE_OWNER:-deploy:$$}" ADB_SERIAL="$SERIAL" \
+            heavy "$PHONE_DEPLOY" "$ROOT" --release || rc=$?
         ((rc == 0)) || { fail phone "phone_deploy.sh exited $rc (see its exit-code table)"; return; }
     fi
     phone_health "$want"
