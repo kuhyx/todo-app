@@ -7,6 +7,7 @@
 /// records hand-written into RTDB.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crdt_sync/crdt_sync.dart';
@@ -149,6 +150,8 @@ class CliSession {
       store: _remote(push: push),
       oldPrefix: plainService.notesDir,
       readPassphrase: _readPassphrase,
+      // Argon2id once per install, not on every CLI/MCP call.
+      keyCache: E2eKeyCache(read: _readCachedKey, write: _writeCachedKey),
     );
     if (!push) {
       // Read-only during the migration: old builds still write the plaintext
@@ -180,6 +183,29 @@ class CliSession {
 
   RemoteStore _remote({required bool push}) =>
       push ? _firebase : PullOnlyStore(_firebase);
+
+  /// Owner-only file in the data dir caching the derived E2E key.
+  static const e2eKeyFileName = 'e2e_key';
+
+  File get _keyFile => File(p.join(dataDir, e2eKeyFileName));
+
+  Future<List<int>?> _readCachedKey() async {
+    final file = _keyFile;
+    if (!file.existsSync()) return null;
+    try {
+      return base64.decode((await file.readAsString()).trim());
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Future<void> _writeCachedKey(List<int> bytes) async {
+    final file = _keyFile;
+    // Restrict before the key is written, never after.
+    await file.writeAsString('');
+    await Process.run('chmod', ['600', file.path]);
+    await file.writeAsString(base64.encode(bytes), flush: true);
+  }
 
   /// Environment variable holding the shared crdt-sync passphrase.
   static const e2ePassphraseEnv = 'TODO_E2E_PASSPHRASE';

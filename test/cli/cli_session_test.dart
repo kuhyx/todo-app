@@ -129,6 +129,21 @@ void main() {
       await session.close();
     });
 
+    test('the derived key is cached owner-only for the next run', () async {
+      final first = await open('cache');
+      await first.repository.upsert(note('n1'));
+      await first.sync(push: true);
+      await first.close();
+      final cached = File('${tmp.path}/cache/${CliSession.e2eKeyFileName}');
+      expect(cached.existsSync(), isTrue);
+      expect(cached.statSync().mode & 0x1ff, 384); // 0600
+      // Without any passphrase the next run still unlocks from the cache.
+      File('${tmp.path}/e2e_passphrase').deleteSync();
+      final second = await open('cache');
+      expect((await second.sync(push: true)).pushed, isFalse);
+      await second.close();
+    });
+
     test('a second node sees the first node note', () async {
       final a = await open('a');
       await a.repository.upsert(note('shared'));
