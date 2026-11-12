@@ -98,6 +98,7 @@ class SyncStatusStore {
 /// precisely how a desktop stuck syncing over the GitHub mirror alone
 /// went unnoticed for days.
 String describeSyncResult(SyncResult result) {
+  if (result.locked) return '🔒';
   final skipped = result.skippedFiles.length;
   final backend = result.firebaseConnected
       ? ''

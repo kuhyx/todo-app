@@ -22,6 +22,9 @@ void main() {
     writeSeedCredentials(
       tmp,
     ).copySync('${home.path}/.config/todo/firebase_auth.json');
+    File(
+      '${tmp.path}/e2e_passphrase',
+    ).copySync('${home.path}/.config/todo/e2e_passphrase');
     env = {'HOME': home.path, 'XDG_DATA_HOME': '${tmp.path}/xdg'};
     out = StringBuffer();
     err = StringBuffer();
@@ -86,7 +89,10 @@ void main() {
     test('pushes an ordinary CRDT log and prints the new id', () async {
       final id = await add('a', 'Title\n\nbody', ['--priority', 'high']);
       expect(id, matches(RegExp(r'^[0-9a-f-]{36}$')));
-      expect(db.files.keys.where((k) => k.contains('notes/')), hasLength(1));
+      expect(
+        db.files.keys.where((k) => k.contains('notes-e2e/')),
+        hasLength(1),
+      );
       expect(err.toString(), isEmpty);
     });
 

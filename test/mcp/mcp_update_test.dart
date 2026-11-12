@@ -61,7 +61,7 @@ void main() {
   });
 
   test('an unmergeable peer log is reported, not hidden', () async {
-    h.db.files['todo-sync/notes/broken~2Ejson'] = 'not a log';
+    h.db.files['todo-sync/notes-e2e/broken~2Ejson'] = 'not a log';
     expect(await h.refused(c, 'list_tasks', {}), contains('unmergeable'));
   });
 }

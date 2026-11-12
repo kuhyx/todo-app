@@ -47,8 +47,9 @@ void main() {
     expect(pubspec, contains('google_account_token-v0.1.0'));
     expect(pubspec, isNot(contains('google_sign_in')));
     expect(
-      File('android/app/src/main/kotlin/dev/kuhy/todo/AccountTokenChannel.kt')
-          .existsSync(),
+      File(
+        'android/app/src/main/kotlin/dev/kuhy/todo/AccountTokenChannel.kt',
+      ).existsSync(),
       isFalse,
     );
     expect(File('lib/sync/account_token.dart').existsSync(), isFalse);

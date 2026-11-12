@@ -69,9 +69,7 @@ void main() {
     expect(response.statusCode, 500);
 
     // Still alive afterwards.
-    final after = await http.get(
-      Uri.parse('http://localhost:${wedged.port}/'),
-    );
+    final after = await http.get(Uri.parse('http://localhost:${wedged.port}/'));
     expect(after.statusCode, 200);
   });
 

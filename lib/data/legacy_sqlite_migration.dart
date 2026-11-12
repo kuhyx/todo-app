@@ -73,11 +73,7 @@ class LegacySqliteMigration {
   }
   // coverage:ignore-end
 
-  static Future<void> _onUpgrade(
-    CrdtTableExecutor db,
-    int from,
-    int to,
-  ) async {
+  static Future<void> _onUpgrade(CrdtTableExecutor db, int from, int to) async {
     if (from < 2) {
       await db.execute(
         'ALTER TABLE notes ADD COLUMN status INTEGER NOT NULL DEFAULT 0',

@@ -19,12 +19,36 @@ import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/run_sync.dart';
 import 'package:todo/sync/sync_settings.dart';
 
+import 'fake_secure_storage.dart';
+
+final _headers = <String, String>{};
+
+/// Stateful GitHub stand-in for the encryption header, the one file the
+/// sync service itself does not own: PUT stores it, GET serves it back.
+http.Response? _headerReply(http.Request request) {
+  if (!request.url.path.endsWith('/e2e')) return null;
+  if (request.method == 'PUT') {
+    final body = jsonDecode(request.body) as Map<String, dynamic>;
+    _headers['e2e'] = utf8.decode(base64.decode(body['content'] as String));
+    return http.Response(jsonEncode({'content': {}, 'sha': 'h'}), 200);
+  }
+  final text = _headers['e2e'];
+  if (text == null) return http.Response('', 404);
+  return http.Response(
+    jsonEncode({'content': base64.encode(utf8.encode(text)), 'sha': 'h'}),
+    200,
+  );
+}
+
 const _settings = SyncSettings(owner: 'kuhyx', repo: 'syncs', token: 'tok');
 
 void main() {
   late NoteRepository repo;
 
   setUp(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    installFakeSecureStorage();
+    _headers.clear();
     SharedPreferences.setMockInitialValues({});
     repo = await NoteRepository.openInMemory(nodeId: 'me');
   });
@@ -39,6 +63,8 @@ void main() {
       _settings,
       httpClient: http_testing.MockClient((request) async {
         paths.add('${request.method} ${request.url.host}');
+        final header = _headerReply(request);
+        if (header != null) return header;
         return http.Response(jsonEncode({'content': '', 'sha': 'x'}), 200);
       }),
       firebaseFactory: () async => null,
@@ -83,6 +109,8 @@ void main() {
       _settings,
       httpClient: http_testing.MockClient((request) async {
         githubPaths.add(request.method);
+        final header = _headerReply(request);
+        if (header != null) return header;
         return http.Response(jsonEncode({'content': '', 'sha': 'x'}), 200);
       }),
       firebaseFactory: () async => firebase,
@@ -108,6 +136,8 @@ void main() {
       repo,
       _settings,
       httpClient: http_testing.MockClient((request) async {
+        final header = _headerReply(request);
+        if (header != null) return header;
         return http.Response(jsonEncode({'content': '', 'sha': 'x'}), 200);
       }),
       firebaseFactory: () async => null,
@@ -158,6 +188,8 @@ void main() {
         appSettings: const AppSettings(advancedMode: false),
         analytics: analytics,
         httpClient: http_testing.MockClient((request) async {
+          final header = _headerReply(request);
+          if (header != null) return header;
           return http.Response(jsonEncode({'content': '', 'sha': 'x'}), 200);
         }),
         firebaseFactory: () async => firebase,

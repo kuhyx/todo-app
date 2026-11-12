@@ -19,6 +19,9 @@ class CliHarness {
     writeSeedCredentials(
       tmp,
     ).copySync('${home.path}/.config/todo/firebase_auth.json');
+    File(
+      '${tmp.path}/e2e_passphrase',
+    ).copySync('${home.path}/.config/todo/e2e_passphrase');
     env = {'HOME': home.path, 'XDG_DATA_HOME': '${tmp.path}/xdg'};
   }
 

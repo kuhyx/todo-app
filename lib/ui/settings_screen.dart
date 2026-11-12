@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:crdt_sync/crdt_sync.dart';
+import 'package:crdt_sync_flutter/crdt_sync_flutter.dart'
+    show E2ePassphraseButton;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -222,6 +224,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _link(
             const Icon(Icons.sync, semanticLabel: 'Sync settings: Firebase'),
             _openSyncSettings,
+          ),
+          const ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: E2ePassphraseButton(locked: true),
           ),
           CloudImagesTile(httpClient: widget.httpClient),
           _link(

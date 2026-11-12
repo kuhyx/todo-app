@@ -135,42 +135,39 @@ void main() {
       expect((remaining.single as Map)['name'], 'mid_flush_event');
     });
 
-    test(
-      'restores the claimed batch ahead of events logged mid-flush on '
-      'failure',
-      () async {
-        // The HTTP handler runs mid-`putFileText`, strictly after flush()
-        // has already claimed (cleared) the buffer, so writing here is a
-        // genuine race rather than something that could instead land before
-        // or after `flush()` depending on scheduling.
-        final client = _fakeClient((_) async {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(
-            'analytics.buffer',
-            jsonEncode([
-              AnalyticsEvent(
-                name: 'mid_flush_event',
-                timestamp: DateTime(2026),
-              ).toJson(),
-            ]),
-          );
-          return http.Response('error', 500);
-        });
-        const service = AnalyticsService(nodeId: 'device-a');
-        await service.logEvent(
-          AnalyticsEvent(name: 'app_open', timestamp: DateTime(2026)),
-        );
-
-        await service.flush(client);
-
+    test('restores the claimed batch ahead of events logged mid-flush on '
+        'failure', () async {
+      // The HTTP handler runs mid-`putFileText`, strictly after flush()
+      // has already claimed (cleared) the buffer, so writing here is a
+      // genuine race rather than something that could instead land before
+      // or after `flush()` depending on scheduling.
+      final client = _fakeClient((_) async {
         final prefs = await SharedPreferences.getInstance();
-        final remaining =
-            jsonDecode(prefs.getString('analytics.buffer')!) as List;
-        expect(remaining, hasLength(2));
-        expect((remaining[0] as Map)['name'], 'app_open');
-        expect((remaining[1] as Map)['name'], 'mid_flush_event');
-      },
-    );
+        await prefs.setString(
+          'analytics.buffer',
+          jsonEncode([
+            AnalyticsEvent(
+              name: 'mid_flush_event',
+              timestamp: DateTime(2026),
+            ).toJson(),
+          ]),
+        );
+        return http.Response('error', 500);
+      });
+      const service = AnalyticsService(nodeId: 'device-a');
+      await service.logEvent(
+        AnalyticsEvent(name: 'app_open', timestamp: DateTime(2026)),
+      );
+
+      await service.flush(client);
+
+      final prefs = await SharedPreferences.getInstance();
+      final remaining =
+          jsonDecode(prefs.getString('analytics.buffer')!) as List;
+      expect(remaining, hasLength(2));
+      expect((remaining[0] as Map)['name'], 'app_open');
+      expect((remaining[1] as Map)['name'], 'mid_flush_event');
+    });
 
     test(
       'a RemoteSyncError from an expired session restores the buffer',

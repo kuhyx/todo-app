@@ -11,6 +11,7 @@ class SyncResult {
     this.skippedFiles = const [],
     this.skippedUnchanged = 0,
     this.firebaseConnected = false,
+    this.locked = false,
   });
 
   /// How many other devices' logs were pulled and merged.
@@ -41,6 +42,10 @@ class SyncResult {
   /// device dropping out.
   final int skippedUnchanged;
 
+  /// True when end-to-end encryption has no usable key on this device, so
+  /// nothing was pulled, merged or pushed.
+  final bool locked;
+
   /// Returns a copy with [firebaseConnected] set. [SyncService] never sets
   /// it -- only [runSync], which is the layer that knows which [RemoteStore]
   /// it built -- so this is the seam that lets it do that without
@@ -51,6 +56,7 @@ class SyncResult {
     skippedFiles: skippedFiles,
     skippedUnchanged: skippedUnchanged,
     firebaseConnected: value,
+    locked: locked,
   );
 
   @override
@@ -73,7 +79,11 @@ class SyncResult {
 /// two never share a path and an old client can't misread a new file.
 class SyncService {
   /// Creates a [SyncService], optionally overriding [notesDir].
-  const SyncService({this.notesDir = 'todo-sync/notes', this.stateStore});
+  const SyncService({
+    this.notesDir = 'todo-sync/notes',
+    this.stateStore,
+    this.revsPath,
+  });
 
   /// Directory in the repo under which per-device note-log files live.
   final String notesDir;
@@ -87,7 +97,11 @@ class SyncService {
   final SyncStateStore? stateStore;
 
   /// Where revisions live, as a sibling of [notesDir].
-  String get revsDir => defaultRevsPath(notesDir);
+  /// Revision cache directory; null derives it from [notesDir].
+  final String? revsPath;
+
+  /// Where peers publish their revisions.
+  String get revsDir => revsPath ?? defaultRevsPath(notesDir);
 
   /// Runs a full pull-merge-push cycle. Safe to call repeatedly.
   ///
@@ -123,7 +137,15 @@ class SyncService {
         skippedUnchanged++;
         continue;
       }
-      final text = await remote.getFileText('$notesDir/$name');
+      final String? text;
+      try {
+        text = await remote.getFileText('$notesDir/$name');
+      } on E2eDecryptError {
+        // Wrong key, tampered blob or a newer format: skipped and reported,
+        // never merged and never fatal.
+        skipped.add(name);
+        continue;
+      }
       final remoteLog = text == null ? null : _decodeLog(text);
       if (remoteLog == null) {
         // A vanished or undecodable peer file must not abort the sync, but

@@ -91,9 +91,7 @@ void main() {
     });
 
     test('swallows a push failure and keeps the local write', () async {
-      final client = _fakeClient(
-        (_) async => http.Response('error', 500),
-      );
+      final client = _fakeClient((_) async => http.Response('error', 500));
       const initial = AppSettings(advancedMode: false);
 
       final updated = await initial.withAdvancedMode(
@@ -107,22 +105,19 @@ void main() {
       expect(reloaded.advancedMode, isTrue);
     });
 
-    test(
-      'swallows a FirebaseAuthError (expired session) and keeps the local '
-      'write',
-      () async {
-        const initial = AppSettings(advancedMode: false);
+    test('swallows a FirebaseAuthError (expired session) and keeps the local '
+        'write', () async {
+      const initial = AppSettings(advancedMode: false);
 
-        final updated = await initial.withAdvancedMode(
-          value: true,
-          client: _authFailingClient(),
-        );
+      final updated = await initial.withAdvancedMode(
+        value: true,
+        client: _authFailingClient(),
+      );
 
-        expect(updated.advancedMode, isTrue);
-        final reloaded = await AppSettings.load();
-        expect(reloaded.advancedMode, isTrue);
-      },
-    );
+      expect(updated.advancedMode, isTrue);
+      final reloaded = await AppSettings.load();
+      expect(reloaded.advancedMode, isTrue);
+    });
   });
 
   group('reconcileWithRemote', () {
@@ -220,9 +215,7 @@ void main() {
       () async {
         const initial = AppSettings(advancedMode: false);
 
-        final result = await initial.reconcileWithRemote(
-          _authFailingClient(),
-        );
+        final result = await initial.reconcileWithRemote(_authFailingClient());
 
         expect(identical(result, initial), isTrue);
       },

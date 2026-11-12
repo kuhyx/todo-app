@@ -20,61 +20,59 @@ import 'fake_note_repository.dart';
 import 'fake_secure_storage.dart';
 
 import 'capture_screen_harness.dart';
+import 'e2e_github_header.dart';
 import 'text_free_guard.dart';
 
 void main() {
-  testWidgets(
-    'auto-sync adopts a newer advancedMode value from Firebase',
-    (tester) async {
-      final remoteTime = DateTime(2026, 6);
-      final firebase = FirebaseRestClient(
-        databaseUrl: 'https://x-rtdb.europe-west1.firebasedatabase.app',
-        auth: FirebaseTokenProvider(
-          apiKey: 'AIzaKey',
-          store: InMemoryCredentialStore(
-            FirebaseCredentials(
-              idToken: 'id',
-              refreshToken: 'refresh',
-              expiresAt: DateTime.now().add(const Duration(hours: 1)),
-            ),
+  testWidgets('auto-sync adopts a newer advancedMode value from Firebase', (
+    tester,
+  ) async {
+    final remoteTime = DateTime(2026, 6);
+    final firebase = FirebaseRestClient(
+      databaseUrl: 'https://x-rtdb.europe-west1.firebasedatabase.app',
+      auth: FirebaseTokenProvider(
+        apiKey: 'AIzaKey',
+        store: InMemoryCredentialStore(
+          FirebaseCredentials(
+            idToken: 'id',
+            refreshToken: 'refresh',
+            expiresAt: DateTime.now().add(const Duration(hours: 1)),
           ),
         ),
-        httpClient: MockClient((request) async {
-          if (request.url.path == '/settings/advancedMode.json') {
-            return http.Response(
-              '{"value": "true", '
-              '"updatedAtMillis": "${remoteTime.millisecondsSinceEpoch}"}',
-              200,
-            );
-          }
-          if (request.method == 'PUT') return http.Response(request.body, 200);
-          return http.Response('null', 200);
-        }),
-      );
-      final appSettings = ValueNotifier(
-        AppSettings(
-          advancedMode: false,
-          // Older than remoteTime, and non-null, so the reconciliation
-          // guard's `currentAt != null && !reconciledAt.isAfter(currentAt)`
-          // check actually evaluates both operands.
-          advancedModeUpdatedAt: remoteTime.subtract(
-            const Duration(days: 1),
-          ),
-        ),
-      );
+      ),
+      httpClient: e2eMock((request) async {
+        if (request.url.path == '/settings/advancedMode.json') {
+          return http.Response(
+            '{"value": "true", '
+            '"updatedAtMillis": "${remoteTime.millisecondsSinceEpoch}"}',
+            200,
+          );
+        }
+        if (request.method == 'PUT') return http.Response(request.body, 200);
+        return http.Response('null', 200);
+      }),
+    );
+    final appSettings = ValueNotifier(
+      AppSettings(
+        advancedMode: false,
+        // Older than remoteTime, and non-null, so the reconciliation
+        // guard's `currentAt != null && !reconciledAt.isAfter(currentAt)`
+        // check actually evaluates both operands.
+        advancedModeUpdatedAt: remoteTime.subtract(const Duration(days: 1)),
+      ),
+    );
 
-      await pumpCapture(
-        tester,
-        prefs: configuredPrefs,
-        firebaseFactory: () async => firebase,
-        appSettings: appSettings,
-      );
-      await tester.pump(); // settings load → auto-sync (pull) …
-      await tester.pump(); // … then push, then reconcile
+    await pumpCapture(
+      tester,
+      prefs: configuredPrefs,
+      firebaseFactory: () async => firebase,
+      appSettings: appSettings,
+    );
+    await tester.pump(); // settings load → auto-sync (pull) …
+    await tester.pump(); // … then push, then reconcile
 
-      expect(appSettings.value.advancedMode, isTrue);
-    },
-  );
+    expect(appSettings.value.advancedMode, isTrue);
+  });
 
   testWidgets('logs app_open when analytics is injected', (tester) async {
     const analytics = AnalyticsService(nodeId: 'device-a');

@@ -46,7 +46,16 @@ Set<String> claudeNodeIds(Map<String, String> env) {
 class CliSession {
   /// Wraps already-open parts; [open] is the normal way in. Public so a test
   /// can subclass the session and script [sync]'s outcome.
-  CliSession(this.dataDir, this.repository, this._firebase);
+  CliSession(
+    this.dataDir,
+    this.repository,
+    this._firebase, {
+    this.passphraseFile,
+  });
+
+  /// Where the passphrase is read from besides the environment: next to the
+  /// seeded Firebase session, e.g. `~/.config/todo/e2e_passphrase`.
+  final File? passphraseFile;
 
   /// File holding this install's persisted CRDT node id.
   static const nodeIdFileName = 'node_id';
@@ -105,7 +114,14 @@ class CliSession {
       auth: auth,
       httpClient: httpClient,
     );
-    return CliSession(dataDir, repository, firebase);
+    return CliSession(
+      dataDir,
+      repository,
+      firebase,
+      passphraseFile: File(
+        p.join(p.dirname(seedCredentials), e2ePassphraseFileName),
+      ),
+    );
   }
 
   /// Pull every peer's log and merge it; with [push], also publish this
@@ -113,15 +129,53 @@ class CliSession {
   ///
   /// Without [push] nothing is written anywhere remote, and the revision cache
   /// is bypassed so a read always sees every peer's current log.
-  Future<SyncResult> sync({required bool push}) {
-    if (!push) {
-      return const SyncService().sync(repository, PullOnlyStore(_firebase));
+  Future<SyncResult> sync({required bool push}) async {
+    final plainService = SyncService(
+      stateStore: push
+          ? PersistedSyncStateStore(
+              FileLogPersistence(File(p.join(dataDir, syncStateFileName))),
+            )
+          : null,
+    );
+    final e2e = await openEncryptedStore(
+      store: _remote(push: push),
+      oldPrefix: plainService.notesDir,
+      readPassphrase: _readPassphrase,
+    );
+    if (e2e is! E2eReady && !push) {
+      // Read-only: nothing encrypted yet (or no key) falls back to the old
+      // plaintext prefix, which still holds the pre-migration data.
+      return await const SyncService().sync(repository, _remote(push: false));
     }
-    return SyncService(
-      stateStore: PersistedSyncStateStore(
-        FileLogPersistence(File(p.join(dataDir, syncStateFileName))),
-      ),
-    ).sync(repository, _firebase);
+    if (e2e is! E2eReady) {
+      throw StateError(
+        'sync is locked: put the crdt-sync passphrase in '
+        '$e2ePassphraseEnv or ${passphraseFile?.path ?? e2ePassphraseFileName}',
+      );
+    }
+    final layout = E2eLayout.of(plainService.notesDir);
+    return await SyncService(
+      notesDir: layout.prefix,
+      revsPath: layout.revsPath,
+      stateStore: plainService.stateStore,
+    ).sync(repository, e2e.store);
+  }
+
+  RemoteStore _remote({required bool push}) =>
+      push ? _firebase : PullOnlyStore(_firebase);
+
+  /// Environment variable holding the shared crdt-sync passphrase.
+  static const e2ePassphraseEnv = 'TODO_E2E_PASSPHRASE';
+
+  /// File name of the passphrase, beside the seeded Firebase session.
+  static const e2ePassphraseFileName = 'e2e_passphrase';
+
+  Future<String?> _readPassphrase() async {
+    final fromEnv = Platform.environment[e2ePassphraseEnv];
+    if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
+    final file = passphraseFile;
+    if (file == null || !file.existsSync()) return null;
+    return (await file.readAsString()).trim();
   }
 
   /// Releases the log and the HTTP client.

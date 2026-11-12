@@ -6,10 +6,7 @@ void main() {
     test('returns the token the sign-in function yields', () async {
       // The injected path: proves the closure is what feeds crdt_sync, and
       // that no platform channel is touched to get there.
-      expect(
-        await googleIdToken(signInFn: () async => 'a-token'),
-        'a-token',
-      );
+      expect(await googleIdToken(signInFn: () async => 'a-token'), 'a-token');
     });
 
     test('passes a null cancellation straight through', () async {

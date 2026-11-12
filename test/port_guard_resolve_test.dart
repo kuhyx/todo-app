@@ -91,17 +91,11 @@ void main() {
       );
       final action = await guard.resolve(8730);
       expect(action, isA<AbortWithOwner>());
-      expect(
-        (action as AbortWithOwner).description,
-        contains('unidentified'),
-      );
+      expect((action as AbortWithOwner).description, contains('unidentified'));
     });
 
     test('retries when the owner exited mid-probe', () async {
-      final guard = PortGuard(
-        profileDir: _profile,
-        probe: FakeProbe(pid: 42),
-      );
+      final guard = PortGuard(profileDir: _profile, probe: FakeProbe(pid: 42));
       expect(await guard.resolve(8730), isA<BindNow>());
     });
 
@@ -202,20 +196,14 @@ void main() {
       final probe = FakeProbe(freeAfter: ProcessSignal.sigkill);
       final guard = PortGuard(profileDir: _profile, probe: probe);
       expect(await _reap(guard, 42, 8730), isTrue);
-      expect(probe.signalsSent, [
-        ProcessSignal.sigterm,
-        ProcessSignal.sigkill,
-      ]);
+      expect(probe.signalsSent, [ProcessSignal.sigterm, ProcessSignal.sigkill]);
     });
 
     test('reports failure when the port never comes free', () async {
       final probe = FakeProbe(inUse: [true]);
       final guard = PortGuard(profileDir: _profile, probe: probe);
       expect(await _reap(guard, 42, 8730), isFalse);
-      expect(probe.signalsSent, [
-        ProcessSignal.sigterm,
-        ProcessSignal.sigkill,
-      ]);
+      expect(probe.signalsSent, [ProcessSignal.sigterm, ProcessSignal.sigkill]);
     });
   });
 }

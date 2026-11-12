@@ -100,7 +100,10 @@ class CaptureSyncRunner {
         ok: true,
         detail: detail,
         reconciled: result.appSettings,
-        degraded: !synced.firebaseConnected || synced.skippedFiles.isNotEmpty,
+        degraded:
+            synced.locked ||
+            !synced.firebaseConnected ||
+            synced.skippedFiles.isNotEmpty,
       );
     } on Exception catch (e) {
       await status.record(ok: false, detail: '$e', live: live());

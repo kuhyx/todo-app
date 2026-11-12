@@ -64,6 +64,8 @@ class FakeRtdb {
 
 /// Writes a Firebase session that does not expire during a test run.
 File writeSeedCredentials(Directory dir, {String name = 'seed.json'}) {
+  // The CLI reads its crdt-sync passphrase from beside the seed file.
+  File('${dir.path}/e2e_passphrase').writeAsStringSync('test-passphrase');
   return File('${dir.path}/$name')..writeAsStringSync(
     jsonEncode({
       'id_token': 'seed-id-token',

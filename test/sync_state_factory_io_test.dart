@@ -27,9 +27,9 @@ void main() {
   test('persists revisions across a restart', () async {
     // A fresh store instance stands in for the next app launch: an
     // in-memory cache would forget every peer and re-download everything.
-    await openSyncStateStoreIn(dir.path).save(
-      const SyncState(pushedRev: 'mine', peerRevs: {'phone': 'theirs'}),
-    );
+    await openSyncStateStoreIn(
+      dir.path,
+    ).save(const SyncState(pushedRev: 'mine', peerRevs: {'phone': 'theirs'}));
 
     final reloaded = await openSyncStateStoreIn(dir.path).load();
 
@@ -38,9 +38,7 @@ void main() {
   });
 
   test('writes beside the log it describes', () async {
-    await openSyncStateStoreIn(
-      dir.path,
-    ).save(const SyncState(pushedRev: 'x'));
+    await openSyncStateStoreIn(dir.path).save(const SyncState(pushedRev: 'x'));
 
     expect(File(p.join(dir.path, kSyncStateFileName)).existsSync(), isTrue);
   });

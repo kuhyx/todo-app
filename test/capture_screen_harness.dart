@@ -31,6 +31,7 @@ import 'package:todo/ui/settings_screen.dart';
 import 'package:todo/ui/text_free_localizations.dart';
 
 import 'fake_note_repository.dart';
+import 'e2e_github_header.dart';
 import 'fake_secure_storage.dart';
 
 // A real CRDT DB schedules sqflite timers that never drain under the
@@ -108,7 +109,7 @@ const configuredPrefs = {
 // A MockClient that records request methods and answers the sync flow:
 // repo-exists GET (not /contents/) → 200, the (empty) log listing → 404,
 // and the device's own PUT → 200.
-MockClient recordingMock(List<String> methods) => MockClient((req) async {
+MockClient recordingMock(List<String> methods) => e2eMock((req) async {
   methods.add(req.method);
   if (req.method == 'PUT') return http.Response('{}', 200);
   if (!req.url.path.contains('/contents/')) return http.Response('{}', 200);

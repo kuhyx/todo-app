@@ -95,10 +95,7 @@ void main() {
       const service = AnalyticsService(nodeId: 'device-a');
       for (var i = 0; i < AnalyticsService.maxBufferedEvents + 5; i++) {
         await service.logEvent(
-          AnalyticsEvent(
-            name: 'event_$i',
-            timestamp: DateTime.now(),
-          ),
+          AnalyticsEvent(name: 'event_$i', timestamp: DateTime.now()),
         );
       }
 

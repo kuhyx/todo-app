@@ -109,10 +109,7 @@ void main() {
     });
 
     test('accepts a binary replaced by an upgrade', () {
-      expect(
-        isTodoWrapper('/opt/todo/bin/todo_desktop (deleted)', []),
-        isTrue,
-      );
+      expect(isTodoWrapper('/opt/todo/bin/todo_desktop (deleted)', []), isTrue);
     });
 
     test('accepts a development run out of the repo', () {
@@ -155,48 +152,36 @@ void main() {
 
     test('matches a normally separated argument vector', () {
       expect(
-        hasWindowAttached(
-          [
-            ['thorium', '--user-data-dir=$_profile', '--class=todo'],
-          ],
-          _profile,
-        ),
+        hasWindowAttached([
+          ['thorium', '--user-data-dir=$_profile', '--class=todo'],
+        ], _profile),
         isTrue,
       );
     });
 
     test('matches when the flag is the final argument', () {
       expect(
-        hasWindowAttached(
-          [
-            ['thorium', '--user-data-dir=$_profile'],
-          ],
-          _profile,
-        ),
+        hasWindowAttached([
+          ['thorium', '--user-data-dir=$_profile'],
+        ], _profile),
         isTrue,
       );
     });
 
     test('does not match a sibling profile directory', () {
       expect(
-        hasWindowAttached(
-          [
-            ['thorium', '--user-data-dir=${_profile}2'],
-          ],
-          _profile,
-        ),
+        hasWindowAttached([
+          ['thorium', '--user-data-dir=${_profile}2'],
+        ], _profile),
         isFalse,
       );
     });
 
     test('does not match when no process mentions the profile', () {
       expect(
-        hasWindowAttached(
-          [
-            ['bash', '-c', 'sleep 1'],
-          ],
-          _profile,
-        ),
+        hasWindowAttached([
+          ['bash', '-c', 'sleep 1'],
+        ], _profile),
         isFalse,
       );
     });

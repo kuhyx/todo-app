@@ -64,10 +64,7 @@ void main() {
 
       final first = await SyncService(stateStore: store).sync(repo, remote);
       expect(first.pushed, isTrue);
-      expect(remote.writes, [
-        'todo-sync/notes/me.json',
-        'todo-sync/revs/me',
-      ]);
+      expect(remote.writes, ['todo-sync/notes/me.json', 'todo-sync/revs/me']);
       remote.writes.clear();
 
       final second = await SyncService(stateStore: store).sync(repo, remote);

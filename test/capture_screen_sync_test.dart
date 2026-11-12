@@ -17,6 +17,7 @@ import 'package:todo/ui/github_mirror_screen.dart';
 import 'package:todo/ui/settings_screen.dart';
 
 import 'fake_note_repository.dart';
+import 'e2e_github_header.dart';
 import 'fake_secure_storage.dart';
 
 import 'capture_screen_harness.dart';
@@ -29,7 +30,7 @@ void main() {
     // Empty remote directory → the service has nothing to merge and pushes
     // this device's own log (PUT). The bare repo GET (not /contents/) returns
     // 200 so crdt_sync's client treats the 404 dir as "empty", not missing.
-    final mock = MockClient((req) async {
+    final mock = e2eMock((req) async {
       if (req.method == 'PUT') return http.Response('{}', 200);
       if (!req.url.path.contains('/contents/')) return http.Response('{}', 200);
       return http.Response('', 404);
@@ -70,10 +71,10 @@ void main() {
     tester,
   ) async {
     // One peer file exists but holds garbage → merged 0, skipped 1.
-    final mock = MockClient((req) async {
+    final mock = e2eMock((req) async {
       if (req.method == 'PUT') return http.Response('{}', 200);
       if (!req.url.path.contains('/contents/')) return http.Response('{}', 200);
-      if (req.url.path.endsWith('/todo-sync/notes')) {
+      if (req.url.path.endsWith('/todo-sync/notes-e2e')) {
         return http.Response('[{"name": "bad.json"}]', 200);
       }
       if (req.url.path.endsWith('/bad.json')) {
@@ -132,7 +133,7 @@ void main() {
   // A MockClient that records request methods and answers the sync flow:
   // repo-exists GET (not /contents/) → 200, the (empty) log listing → 404,
   // and the device's own PUT → 200.
-  MockClient recordingMock(List<String> methods) => MockClient((req) async {
+  MockClient recordingMock(List<String> methods) => e2eMock((req) async {
     methods.add(req.method);
     if (req.method == 'PUT') return http.Response('{}', 200);
     if (!req.url.path.contains('/contents/')) return http.Response('{}', 200);

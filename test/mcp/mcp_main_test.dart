@@ -62,8 +62,8 @@ void main() {
     final stop = await start();
     expect(stop, isNotNull);
     expect(err.toString(), contains('serving http://127.0.0.1:'));
-    expect(db.files.keys, contains(startsWith('todo-sync/notes/')));
-    expect(db.files.keys, contains(startsWith('todo-sync/revs/')));
+    expect(db.files.keys, contains(startsWith('todo-sync/notes-e2e/')));
+    expect(db.files.keys, contains(startsWith('todo-sync/revs-e2e/')));
     await stop!();
   });
 }

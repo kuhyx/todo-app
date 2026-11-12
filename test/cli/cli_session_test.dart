@@ -117,8 +117,8 @@ void main() {
       final first = await session.sync(push: true);
       expect(first.pushed, isTrue);
       final node = session.repository.nodeId;
-      expect(db.files.keys, contains('todo-sync/notes/$node~2Ejson'));
-      expect(db.files.keys, contains('todo-sync/revs/$node'));
+      expect(db.files.keys, contains('todo-sync/notes-e2e/$node~2Ejson'));
+      expect(db.files.keys, contains('todo-sync/revs-e2e/$node'));
       expect(
         File('${tmp.path}/push/${CliSession.syncStateFileName}').existsSync(),
         isTrue,

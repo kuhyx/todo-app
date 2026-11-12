@@ -7,6 +7,9 @@
 library;
 
 import 'package:crdt_sync/crdt_sync.dart';
+import 'package:crdt_sync_flutter/crdt_sync_flutter.dart'
+    show kE2ePassphraseKey, kSecureStorage;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:todo/analytics/analytics_service.dart';
 import 'package:todo/data/app_settings.dart';
@@ -15,6 +18,10 @@ import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/sync_service.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:todo/sync/sync_state_factory.dart';
+
+/// Argon2id cost for new headers; only tests lower it.
+@visibleForTesting
+Argon2Params e2eArgon2Params = Argon2Params.recommended;
 
 /// Bundles a [SyncResult] with the [AppSettings] as reconciled against the
 /// same Firebase session — so a settings change made on another device is
@@ -44,8 +51,12 @@ class SyncRunResult {
 /// rather than each concern (notes, settings, analytics) opening and
 /// closing its own.
 ///
-/// [firebaseFactory] and [stateStore] exist for tests, which must not reach
-/// the OS keystore or an application-support directory.
+/// [firebaseFactory], [stateStore] and [readPassphrase] exist for tests, which
+/// must not reach the OS keystore or an application-support directory.
+///
+/// Everything pushed is end-to-end encrypted under the shared crdt-sync
+/// passphrase; without a usable key the run is a no-op flagged
+/// [SyncResult.locked] rather than a plaintext sync.
 Future<SyncRunResult> runSync(
   NoteRepository repository,
   SyncSettings settings, {
@@ -54,6 +65,7 @@ Future<SyncRunResult> runSync(
   http.Client? httpClient,
   Future<FirebaseRestClient?> Function()? firebaseFactory,
   SyncStateStore? stateStore,
+  Future<String?> Function()? readPassphrase,
 }) async {
   final github = GitHubClient(
     owner: settings.owner,
@@ -72,12 +84,27 @@ Future<SyncRunResult> runSync(
       stateStore: stateStore ?? await openSyncStateStore(),
       // coverage:ignore-end
     );
-    final result = await service.sync(
-      repository,
-      firebase == null
-          ? github
-          : MirrorStore(primary: firebase, mirror: github),
+    final backend = firebase == null
+        ? github
+        : MirrorStore(primary: firebase, mirror: github);
+    final e2e = await openEncryptedStore(
+      store: backend,
+      oldPrefix: service.notesDir,
+      readPassphrase:
+          readPassphrase ?? () => kSecureStorage.read(key: kE2ePassphraseKey),
+      params: e2eArgon2Params,
     );
+    if (e2e is! E2eReady) {
+      return const SyncRunResult(
+        syncResult: SyncResult(mergedDevices: 0, pushed: false, locked: true),
+      );
+    }
+    final layout = E2eLayout.of(service.notesDir);
+    final result = await SyncService(
+      notesDir: layout.prefix,
+      revsPath: layout.revsPath,
+      stateStore: service.stateStore,
+    ).sync(repository, e2e.store);
     await analytics?.flush(firebase);
     return SyncRunResult(
       syncResult: result.withFirebaseConnected(value: firebase != null),
