@@ -7,13 +7,13 @@
 library;
 
 import 'package:crdt_sync/crdt_sync.dart';
-import 'package:crdt_sync_flutter/crdt_sync_flutter.dart'
-    show kE2ePassphraseKey, kSecureStorage, keystoreKeyCache;
+import 'package:crdt_sync_flutter/crdt_sync_flutter.dart' show keystoreKeyCache;
 import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:todo/analytics/analytics_service.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/sync/e2e_passphrase_source.dart';
 import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/sync_service.dart';
 import 'package:todo/sync/sync_settings.dart';
@@ -94,8 +94,7 @@ Future<SyncRunResult> runSync(
     final e2e = await openEncryptedStore(
       store: backend,
       oldPrefix: service.notesDir,
-      readPassphrase:
-          readPassphrase ?? () => kSecureStorage.read(key: kE2ePassphraseKey),
+      readPassphrase: readPassphrase ?? readE2ePassphrase,
       params: e2eArgon2Params,
       // Argon2id once per device, not once per tick.
       keyCache: keystoreKeyCache(service.notesDir),

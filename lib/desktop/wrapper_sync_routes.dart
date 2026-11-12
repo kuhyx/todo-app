@@ -121,4 +121,23 @@ extension _SyncRoutes on WrapperServer {
     // through must remain retryable rather than burning the one serve.
     _todoCredentialsServed = true;
   }
+
+  /// Serves the shared crdt-sync password as the E2E passphrase, once per
+  /// wrapper process, like [_syncCredentials]: the web app stores it in its
+  /// keystore on first sync and never asks for it.
+  Future<void> _syncE2ePassphrase(HttpRequest request) async {
+    final passwordFile = File(p.join(syncConfigDir, 'password'));
+    if (_e2ePassphraseServed || !passwordFile.existsSync()) {
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    final text = (await passwordFile.readAsString()).trim();
+    if (text.isEmpty) {
+      request.response.statusCode = HttpStatus.notFound;
+      return;
+    }
+    request.response.headers.contentType = ContentType.text;
+    request.response.write(text);
+    _e2ePassphraseServed = true;
+  }
 }

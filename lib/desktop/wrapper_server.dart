@@ -7,6 +7,11 @@ import 'package:path/path.dart' as p;
 
 import 'package:todo/desktop/static_content_type.dart';
 import 'package:todo/desktop/wrapper_image_routes.dart';
+import 'package:todo/sync/e2e_passphrase_source.dart'
+    show kSyncE2ePassphrasePath;
+
+export 'package:todo/sync/e2e_passphrase_source.dart'
+    show kSyncE2ePassphrasePath;
 
 export 'wrapper_paths.dart';
 
@@ -85,6 +90,9 @@ class WrapperServer {
   /// that gate protects the legacy shared `/sync-account` route other apps'
   /// wrappers also serve, which stays opt-in.
   bool _todoCredentialsServed = false;
+
+  /// Whether [kSyncE2ePassphrasePath] has served the passphrase yet.
+  bool _e2ePassphraseServed = false;
 
   /// `todo`'s own seeded Firebase session, written by
   /// `crdt-sync/tool/seed_session.py --app todo` in the same
@@ -183,6 +191,9 @@ class WrapperServer {
     }
     if (path == kSyncCredentialsPath) {
       return await _syncCredentials(request);
+    }
+    if (path == kSyncE2ePassphrasePath) {
+      return await _syncE2ePassphrase(request);
     }
     if (await images.handle(request)) return;
     return await _static(request, path);
