@@ -8,8 +8,8 @@ library;
 
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:crdt_sync_flutter/crdt_sync_flutter.dart'
-    show kE2ePassphraseKey, kSecureStorage;
-import 'package:flutter/foundation.dart' show visibleForTesting;
+    show kE2ePassphraseKey, kSecureStorage, keystoreKeyCache;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:todo/analytics/analytics_service.dart';
 import 'package:todo/data/app_settings.dart';
@@ -22,6 +22,10 @@ import 'package:todo/sync/sync_state_factory.dart';
 /// Argon2id cost for new headers; only tests lower it.
 @visibleForTesting
 Argon2Params e2eArgon2Params = Argon2Params.recommended;
+
+/// Whether the last sync found no usable end-to-end key; drives the lock
+/// tile in settings.
+final ValueNotifier<bool> e2eLocked = ValueNotifier<bool>(false);
 
 /// Bundles a [SyncResult] with the [AppSettings] as reconciled against the
 /// same Firebase session — so a settings change made on another device is
@@ -93,7 +97,10 @@ Future<SyncRunResult> runSync(
       readPassphrase:
           readPassphrase ?? () => kSecureStorage.read(key: kE2ePassphraseKey),
       params: e2eArgon2Params,
+      // Argon2id once per device, not once per tick.
+      keyCache: keystoreKeyCache(service.notesDir),
     );
+    e2eLocked.value = e2e is! E2eReady;
     if (e2e is! E2eReady) {
       return const SyncRunResult(
         syncResult: SyncResult(mergedDevices: 0, pushed: false, locked: true),

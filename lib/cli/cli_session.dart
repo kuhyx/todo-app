@@ -51,7 +51,12 @@ class CliSession {
     this.repository,
     this._firebase, {
     this.passphraseFile,
+    this.sharedPasswordFile,
   });
+
+  /// The fleet-wide crdt-sync password the Python daemons read too
+  /// (`~/.config/crdt-sync/password`), found from the seed's config root.
+  final File? sharedPasswordFile;
 
   /// Where the passphrase is read from besides the environment: next to the
   /// seeded Firebase session, e.g. `~/.config/todo/e2e_passphrase`.
@@ -121,6 +126,9 @@ class CliSession {
       passphraseFile: File(
         p.join(p.dirname(seedCredentials), e2ePassphraseFileName),
       ),
+      sharedPasswordFile: File(
+        p.join(p.dirname(p.dirname(seedCredentials)), 'crdt-sync', 'password'),
+      ),
     );
   }
 
@@ -142,10 +150,19 @@ class CliSession {
       oldPrefix: plainService.notesDir,
       readPassphrase: _readPassphrase,
     );
-    if (e2e is! E2eReady && !push) {
-      // Read-only: nothing encrypted yet (or no key) falls back to the old
-      // plaintext prefix, which still holds the pre-migration data.
-      return await const SyncService().sync(repository, _remote(push: false));
+    if (!push) {
+      // Read-only during the migration: old builds still write the plaintext
+      // prefix, so merge it, then the encrypted one when this host has a key.
+      final plain = await const SyncService().sync(
+        repository,
+        _remote(push: false),
+      );
+      if (e2e is! E2eReady) return plain;
+      final layout = E2eLayout.of(plainService.notesDir);
+      return await SyncService(
+        notesDir: layout.prefix,
+        revsPath: layout.revsPath,
+      ).sync(repository, e2e.store);
     }
     if (e2e is! E2eReady) {
       throw StateError(
@@ -173,9 +190,13 @@ class CliSession {
   Future<String?> _readPassphrase() async {
     final fromEnv = Platform.environment[e2ePassphraseEnv];
     if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
-    final file = passphraseFile;
-    if (file == null || !file.existsSync()) return null;
-    return (await file.readAsString()).trim();
+    for (final file in [passphraseFile, sharedPasswordFile]) {
+      if (file != null && file.existsSync()) {
+        final text = (await file.readAsString()).trim();
+        if (text.isNotEmpty) return text;
+      }
+    }
+    return null;
   }
 
   /// Releases the log and the HTTP client.

@@ -69,6 +69,7 @@ class CliHarness {
 
   /// Publishes [notes] as device [node]'s log.
   void seedPeer(List<Note> notes, {String node = 'peer'}) {
+    resetE2eCopyMemo();
     db.files['todo-sync/notes/$node~2Ejson'] = logToJson({
       for (final n in notes) n.id: NoteRepository.recordAtNoteTime(n, node),
     });

@@ -15,6 +15,7 @@ import 'package:todo/sync/backlog_export.dart';
 import 'package:todo/sync/firebase_backend.dart';
 import 'package:todo/sync/google_sign_in_backend.dart';
 import 'package:todo/sync/notes_markdown.dart';
+import 'package:todo/sync/run_sync.dart';
 import 'package:todo/sync/sync_settings.dart';
 import 'package:todo/ui/app_route.dart';
 import 'package:todo/ui/cloud_images_settings.dart';
@@ -166,6 +167,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await widget.repository.importNotes(notes);
   }
 
+  /// Retries the sync after a passphrase is entered; the lock tile follows
+  /// [e2eLocked], which the run updates.
+  Future<void> _syncNow() async {
+    try {
+      await runSync(
+        widget.repository,
+        widget.initial,
+        httpClient: widget.httpClient,
+        firebaseFactory: widget.firebaseFactory,
+        stateStore: widget.stateStore,
+      );
+    } on Exception {
+      // The capture screen's status line reports sync failures.
+    }
+  }
+
   Future<void> _openSyncSettings() async {
     await Navigator.of(context).push<void>(
       appRoute(
@@ -225,9 +242,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Icon(Icons.sync, semanticLabel: 'Sync settings: Firebase'),
             _openSyncSettings,
           ),
-          const ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: E2ePassphraseButton(locked: true),
+          ValueListenableBuilder<bool>(
+            valueListenable: e2eLocked,
+            builder: (context, locked, _) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: E2ePassphraseButton(
+                locked: locked,
+                // A new passphrase is only proven by a sync that unlocks.
+                onSaved: () => unawaited(_syncNow()),
+              ),
+            ),
           ),
           CloudImagesTile(httpClient: widget.httpClient),
           _link(

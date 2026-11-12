@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crdt_sync/crdt_sync.dart' show resetE2eCopyMemo;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
 
@@ -64,6 +65,8 @@ class FakeRtdb {
 
 /// Writes a Firebase session that does not expire during a test run.
 File writeSeedCredentials(Directory dir, {String name = 'seed.json'}) {
+  // A fresh fake database: the one-time copy must run again for it.
+  resetE2eCopyMemo();
   // The CLI reads its crdt-sync passphrase from beside the seed file.
   File('${dir.path}/e2e_passphrase').writeAsStringSync('test-passphrase');
   return File('${dir.path}/$name')..writeAsStringSync(
