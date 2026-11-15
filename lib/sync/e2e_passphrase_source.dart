@@ -10,9 +10,9 @@ library;
 import 'package:crdt_sync_flutter/crdt_sync_flutter.dart'
     show kE2ePassphraseKey, kSecureStorage, saveE2ePassphrase;
 import 'package:http/http.dart' as http;
+import 'package:todo/sync/e2e_passphrase_path.dart';
 
-/// Path of the wrapper's one-shot passphrase route.
-const kSyncE2ePassphrasePath = '/sync-e2e-passphrase';
+export 'package:todo/sync/e2e_passphrase_path.dart';
 
 /// Returns the passphrase, adopting the wrapper's once; null when none.
 Future<String?> readE2ePassphrase({Uri? base, http.Client? client}) async {

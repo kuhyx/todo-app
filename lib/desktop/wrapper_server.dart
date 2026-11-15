@@ -7,11 +7,9 @@ import 'package:path/path.dart' as p;
 
 import 'package:todo/desktop/static_content_type.dart';
 import 'package:todo/desktop/wrapper_image_routes.dart';
-import 'package:todo/sync/e2e_passphrase_source.dart'
-    show kSyncE2ePassphrasePath;
+import 'package:todo/sync/e2e_passphrase_path.dart';
 
-export 'package:todo/sync/e2e_passphrase_source.dart'
-    show kSyncE2ePassphrasePath;
+export 'package:todo/sync/e2e_passphrase_path.dart';
 
 export 'wrapper_paths.dart';
 
