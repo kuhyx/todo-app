@@ -7,6 +7,8 @@ Wants=network-online.target
 ExecStart=%h/.local/lib/todo-mcp/todo_mcp
 Restart=on-failure
 RestartSec=30
+# The default soft limit is 1024; leaked sockets once used every one of them.
+LimitNOFILE=65536
 
 [Install]
 WantedBy=default.target
