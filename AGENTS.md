@@ -218,3 +218,18 @@ about *this repo*:
 
 Sourced from [flutter/flutter docs/rules/rules.md](https://github.com/flutter/flutter/blob/main/docs/rules/rules.md)
 via `~/.claude/CLAUDE.md`'s Flutter AI tooling setup. Re-fetch periodically.
+
+## Driving the app on the phone
+
+Tap and type by label, never by coordinate, with `android_ui` from
+`~/src/testsAndMisc` (not copied here):
+
+```bash
+cd ~/src/testsAndMisc && .venv/bin/python -m python_pkg.android_ui \
+    -s 23181JEGR08034 --display self dump
+```
+
+The same driver is the `android-ui` MCP server
+(`.venv/bin/python -m python_pkg.android_ui.mcp_server`, in that repo's
+`.mcp.json`). Tools and error contract:
+`~/src/testsAndMisc/python_pkg/android_ui/README.md`.

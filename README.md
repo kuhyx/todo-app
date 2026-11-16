@@ -37,3 +37,18 @@ dart run bin/todo_note.dart --delete <id>
 `--list` and `--get` never push; `--data-dir <dir>` selects a throwaway node.
 Exit codes: 0 ok, 1 sync/auth failure or note not found, 2 bad arguments.
 All logic is in `lib/cli/` (tested in `test/cli/`); `--help` lists every flag.
+
+## Driving the app on the phone
+
+Tap and type by label, never by coordinate, with `android_ui` from
+`~/src/testsAndMisc` (not copied here):
+
+```bash
+cd ~/src/testsAndMisc && .venv/bin/python -m python_pkg.android_ui \
+    -s 23181JEGR08034 --display self dump
+```
+
+The same driver is the `android-ui` MCP server
+(`.venv/bin/python -m python_pkg.android_ui.mcp_server`, in that repo's
+`.mcp.json`). Tools and error contract:
+`~/src/testsAndMisc/python_pkg/android_ui/README.md`.
