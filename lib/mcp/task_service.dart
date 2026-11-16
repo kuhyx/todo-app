@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:todo/cli/cli_args.dart';
 import 'package:todo/cli/cli_session.dart';
 import 'package:todo/cli/note_lookup.dart';
@@ -11,14 +13,23 @@ import 'package:todo/mcp/task_split.dart';
 class TaskService {
   /// Serves [_session]'s notes; every call pulls first, writes then push.
   /// [board] is the todoImplementer board `new_note` checks and starts on.
-  TaskService(this._session, {this._board});
+  ///
+  /// A call that outlives [callTimeout] (a sync stuck on a dead connection)
+  /// fails with a TimeoutException instead of holding every later call, so
+  /// the queue never wedges and abandoned requests do not pile up sockets.
+  TaskService(
+    this._session, {
+    this._board,
+    this.callTimeout = const Duration(seconds: 60),
+  });
 
   final CliSession _session;
   final BoardClient? _board;
+  final Duration callTimeout;
   Future<void> _tail = Future.value();
 
   Future<T> _serial<T>(Future<T> Function() body) {
-    final run = _tail.then((_) => body());
+    final run = _tail.then((_) => body()).timeout(callTimeout);
     _tail = run.then((_) {}, onError: (_) {});
     return run;
   }
