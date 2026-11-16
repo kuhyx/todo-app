@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:mcp_dart/mcp_dart.dart';
+import 'package:todo/mcp/request_guard.dart';
 import 'package:todo/mcp/task_service.dart';
 import 'package:todo/mcp/token_file.dart';
 
@@ -59,13 +60,13 @@ class TodoMcpServer {
       port: port,
       authenticator: (request) {
         if (request is! HttpRequest) return false;
-        _guardDeadline(request, requestDeadline);
+        guardDeadline(request, requestDeadline);
         return switch (store.verdict(
           request.headers.value(HttpHeaders.authorizationHeader),
         )) {
           TokenVerdict.accepted => true,
           TokenVerdict.rejected => false,
-          TokenVerdict.unavailable => _answerUnavailable(request),
+          TokenVerdict.unavailable => answerUnavailable(request),
         };
       },
       allowedHosts: const {'localhost', '127.0.0.1', '::1', _publicHost},
@@ -84,40 +85,6 @@ class TodoMcpServer {
 
   /// Stops listening and closes every session.
   Future<void> close() => _http.stop();
-}
-
-/// Answers 503 here because the library can only say 403 for a refusal; it
-/// then fails to write its own 403 ("Header already sent", swallowed by the
-/// zone guard in [TodoMcpServer.start]) and the request stays refused.
-bool _answerUnavailable(HttpRequest request) {
-  request.response
-    ..statusCode = HttpStatus.serviceUnavailable
-    ..write('Service Unavailable')
-    ..close().ignore();
-  return false;
-}
-
-/// Closes [request]'s response with 503 once [deadline] passes, unless it was
-/// answered first. Safe on any state: a response already closed or a dead
-/// socket is ignored.
-void _guardDeadline(HttpRequest request, Duration deadline) {
-  if (request.method == 'GET') return;
-  final response = request.response;
-  final timer = Timer(deadline, () async {
-    try {
-      response
-        ..statusCode = HttpStatus.serviceUnavailable
-        ..write('Request timed out');
-    } on StateError {
-      // Headers already sent: just end the stream.
-    }
-    try {
-      await response.close();
-    } on Object {
-      // The peer is gone; the socket is released either way.
-    }
-  });
-  response.done.then<void>((_) {}, onError: (_) {}).whenComplete(timer.cancel);
 }
 
 McpServer _server(TaskService tasks) {

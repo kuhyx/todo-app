@@ -33,4 +33,8 @@ systemctl --user enable --now todo-mcp.service
 ```
 
 Deploy a new build: `mcp/install.sh` (restarts a running unit).
-Revoke a token: delete its line in `tokens`; no restart needed.
+Revoke a token: delete its line in `tokens`; no restart needed. The file is
+loaded once and re-read when its mtime or size changes; a read error (or a
+deleted file) keeps the last good set, and before any good load the answer is
+503, not 403. A POST open for 90 s gets 503 and its socket closed; sync HTTP
+calls time out after 30 s; the unit sets `LimitNOFILE=65536`.
