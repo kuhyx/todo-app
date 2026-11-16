@@ -38,11 +38,17 @@ class TodoMcpServer {
   /// Binds [host]:[port] (0 = any free port); [tokens] is loaded once and
   /// re-read when its mtime changes, errors going to [log] (default stderr).
   ///
+  /// A POST or DELETE that has no answer after [requestDeadline] is closed
+  /// with 503, which also frees its socket when the client already gave up
+  /// (Dart's HttpServer never notices a half-closed idle request). Keep it
+  /// above [TaskService.callTimeout] so a stuck tool call reports its own
+  /// error first. GET streams are long-lived by design and exempt.
   static Future<TodoMcpServer> start({
     required TaskService tasks,
     required File tokens,
     String host = '127.0.0.1',
     int port = kTodoMcpPort,
+    Duration requestDeadline = const Duration(seconds: 90),
     void Function(String)? log,
   }) async {
     final out = log ?? (String line) => stderr.writeln(line);
@@ -53,6 +59,7 @@ class TodoMcpServer {
       port: port,
       authenticator: (request) {
         if (request is! HttpRequest) return false;
+        _guardDeadline(request, requestDeadline);
         return switch (store.verdict(
           request.headers.value(HttpHeaders.authorizationHeader),
         )) {
@@ -88,6 +95,29 @@ bool _answerUnavailable(HttpRequest request) {
     ..write('Service Unavailable')
     ..close().ignore();
   return false;
+}
+
+/// Closes [request]'s response with 503 once [deadline] passes, unless it was
+/// answered first. Safe on any state: a response already closed or a dead
+/// socket is ignored.
+void _guardDeadline(HttpRequest request, Duration deadline) {
+  if (request.method == 'GET') return;
+  final response = request.response;
+  final timer = Timer(deadline, () async {
+    try {
+      response
+        ..statusCode = HttpStatus.serviceUnavailable
+        ..write('Request timed out');
+    } on StateError {
+      // Headers already sent: just end the stream.
+    }
+    try {
+      await response.close();
+    } on Object {
+      // The peer is gone; the socket is released either way.
+    }
+  });
+  response.done.then<void>((_) {}, onError: (_) {}).whenComplete(timer.cancel);
 }
 
 McpServer _server(TaskService tasks) {
