@@ -24,7 +24,7 @@ class McpHarness {
   final BoardClient? board;
   static const token = 'test-token-for-pc';
 
-  final tmp = Directory.systemTemp.createTempSync('mcp_harness');
+  final Directory tmp = Directory.systemTemp.createTempSync('mcp_harness');
   final db = FakeRtdb();
   late final File tokens = File('${tmp.path}/tokens');
   late final CliSession session;
@@ -135,4 +135,4 @@ class McpHarness {
 
 /// The first full uuid in [text].
 String idIn(String text) =>
-    RegExp(r'[0-9a-f]{8}-[0-9a-f-]{27}').firstMatch(text)!.group(0)!;
+    RegExp('[0-9a-f]{8}-[0-9a-f-]{27}').firstMatch(text)!.group(0)!;

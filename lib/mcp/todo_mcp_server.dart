@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:mcp_dart/mcp_dart.dart';
@@ -34,31 +35,59 @@ class TodoMcpServer {
   /// `http://<host>:<bound port>/mcp`.
   Uri get uri => Uri.parse('http://${_http.host}:${_http.boundPort}/mcp');
 
-  /// Binds [host]:[port] (0 = any free port); [tokens] is read per request.
+  /// Binds [host]:[port] (0 = any free port); [tokens] is loaded once and
+  /// re-read when its mtime changes, errors going to [log] (default stderr).
+  ///
   static Future<TodoMcpServer> start({
     required TaskService tasks,
     required File tokens,
     String host = '127.0.0.1',
     int port = kTodoMcpPort,
+    void Function(String)? log,
   }) async {
+    final out = log ?? (String line) => stderr.writeln(line);
+    final store = TokenStore(tokens, log: out);
     final http = StreamableMcpServer(
       serverFactory: (_) => _server(tasks),
       host: host,
       port: port,
-      authenticator: (request) => tokenAccepted(
-        tokens,
-        request is HttpRequest
-            ? request.headers.value(HttpHeaders.authorizationHeader)
-            : null,
-      ),
+      authenticator: (request) {
+        if (request is! HttpRequest) return false;
+        return switch (store.verdict(
+          request.headers.value(HttpHeaders.authorizationHeader),
+        )) {
+          TokenVerdict.accepted => true,
+          TokenVerdict.rejected => false,
+          TokenVerdict.unavailable => _answerUnavailable(request),
+        };
+      },
       allowedHosts: const {'localhost', '127.0.0.1', '::1', _publicHost},
     );
-    await http.start();
+    // The library runs each request as an unawaited future in the zone that
+    // called start(): without a guard, one failed write (a response we closed
+    // first) would be an uncaught error and kill the process.
+    await runZonedGuarded(http.start, (error, stack) {
+      if (error is StateError && '$error'.contains('Header already sent')) {
+        return; // the library answering a request we already answered
+      }
+      out('todo-mcp: request error: $error');
+    });
     return TodoMcpServer._(http);
   }
 
   /// Stops listening and closes every session.
   Future<void> close() => _http.stop();
+}
+
+/// Answers 503 here because the library can only say 403 for a refusal; it
+/// then fails to write its own 403 ("Header already sent", swallowed by the
+/// zone guard in [TodoMcpServer.start]) and the request stays refused.
+bool _answerUnavailable(HttpRequest request) {
+  request.response
+    ..statusCode = HttpStatus.serviceUnavailable
+    ..write('Service Unavailable')
+    ..close().ignore();
+  return false;
 }
 
 McpServer _server(TaskService tasks) {

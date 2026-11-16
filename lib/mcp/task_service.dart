@@ -25,6 +25,8 @@ class TaskService {
 
   final CliSession _session;
   final BoardClient? _board;
+
+  /// Longest one call may run before it fails with a TimeoutException.
   final Duration callTimeout;
   Future<void> _tail = Future.value();
 
