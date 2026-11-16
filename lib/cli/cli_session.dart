@@ -16,32 +16,13 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:todo/cli/file_credential_store.dart';
 import 'package:todo/cli/pull_only_store.dart';
+import 'package:todo/cli/timeout_client.dart';
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/sync/firebase_project.dart';
 import 'package:todo/sync/sync_service.dart';
 import 'package:uuid/uuid.dart';
 
-/// Default data dir: `$XDG_DATA_HOME/todo-cli`, else `~/.local/share/todo-cli`.
-String defaultDataDir(Map<String, String> env) {
-  final xdg = env['XDG_DATA_HOME'] ?? '';
-  final base = xdg.isNotEmpty
-      ? xdg
-      : p.join(env['HOME'] ?? '', '.local', 'share');
-  return p.join(base, 'todo-cli');
-}
-
-/// Node ids of the installs Claude files notes through: the MCP server and
-/// the CLI under the same data root as [defaultDataDir]. Missing ones are
-/// skipped.
-Set<String> claudeNodeIds(Map<String, String> env) {
-  final cli = defaultDataDir(env);
-  return {
-    for (final dir in [cli, p.join(p.dirname(cli), 'todo-mcp')])
-      if (File(p.join(dir, CliSession.nodeIdFileName)) case final f
-          when f.existsSync())
-        f.readAsStringSync().trim(),
-  }..remove('');
-}
+export 'package:todo/cli/cli_paths.dart';
 
 /// The open state of one CLI invocation. Call [close] when done.
 class CliSession {
@@ -83,13 +64,19 @@ class CliSession {
   /// Opens (creating on first use) the session rooted at [dataDir].
   ///
   /// [seedCredentials] is todo's desktop session, read once and never written.
-  /// [httpClient] replaces the real network client (tests only).
+  /// [httpClient] replaces the real network client (tests only). Either way
+  /// every request is bounded by [requestTimeout] (see [TimeoutClient]).
   static Future<CliSession> open(
     String dataDir, {
     required String seedCredentials,
     String seedApp = 'todo',
     http.Client? httpClient,
+    Duration requestTimeout = const Duration(seconds: 30),
   }) async {
+    final network = TimeoutClient(
+      httpClient ?? http.Client(),
+      timeout: requestTimeout,
+    );
     final dir = Directory(dataDir);
     await dir.create(recursive: true);
     // Holds a database-write credential: owner-only, like ~/.config/todo.
@@ -102,7 +89,7 @@ class CliSession {
     );
     final auth = FirebaseTokenProvider(
       apiKey: kProject.apiKey,
-      httpClient: httpClient,
+      httpClient: network,
       store: FileCredentialStore(
         file: File(p.join(dataDir, credentialsFileName)),
         seedFile: File(seedCredentials),
@@ -118,7 +105,7 @@ class CliSession {
     final firebase = FirebaseRestClient(
       databaseUrl: kProject.databaseUrl,
       auth: auth,
-      httpClient: httpClient,
+      httpClient: network,
     );
     return CliSession(
       dataDir,
