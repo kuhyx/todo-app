@@ -6,8 +6,8 @@
 /// and the barrier answer "no", and the confirm glyph wears the error colour.
 library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Asks whether to delete a note; true only when the delete glyph is pressed.
 Future<bool> confirmDeleteNote(BuildContext context) async {

@@ -75,6 +75,7 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
           analytics: widget.analytics,
           httpClient: widget.httpClient,
         ),
+        name: '/settings',
       ),
     );
     if (!mounted) return;
@@ -94,6 +95,7 @@ extension _CaptureSyncBehaviour on _CaptureScreenState {
           repository: widget.repository,
           appSettings: widget.appSettings,
         ),
+        name: '/notes',
       ),
     );
   }

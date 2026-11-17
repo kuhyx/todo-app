@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:crdt_sync/crdt_sync.dart';
-import 'package:flutter/material.dart';
+import 'package:crdt_sync_flutter/crdt_sync_flutter.dart' show WaitWatch;
 import 'package:github_device_auth/github_device_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:material_ui/material_ui.dart';
 import 'package:todo/analytics/analytics_service.dart';
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note_repository.dart';
@@ -222,10 +223,13 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
               IconButton.outlined(
                 onPressed: _testing ? null : _test,
                 icon: _testing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    ? const WaitWatch(
+                        operation: 'mirror.test',
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       )
                     : const Icon(
                         Icons.wifi_tethering,

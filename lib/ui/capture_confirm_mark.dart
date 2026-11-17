@@ -3,7 +3,7 @@ library;
 
 import 'package:design_system/design_system.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Plays once each time [captured] changes value.
 class CaptureConfirmMark extends StatefulWidget {

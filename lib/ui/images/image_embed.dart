@@ -2,7 +2,7 @@
 /// saying why it is not here yet. Tapping opens it full screen.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
@@ -42,7 +42,11 @@ class ImageEmbed extends StatelessWidget {
         onTap: source is MissingImageSource
             ? null
             : () => Navigator.of(context).push<void>(
-                appRoute(context, (_) => ImageViewerScreen(source: source)),
+                appRoute(
+                  context,
+                  (_) => ImageViewerScreen(source: source),
+                  name: '/image',
+                ),
               ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),

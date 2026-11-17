@@ -5,7 +5,7 @@
 /// the editor paints around them is a glyph; the label and helper are spoken.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/data/note_template.dart';
 

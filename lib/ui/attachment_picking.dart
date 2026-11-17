@@ -5,8 +5,8 @@ library;
 import 'package:file_picker/file_picker.dart' show FilePicker;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:material_ui/material_ui.dart';
 
 export 'package:file_selector/file_selector.dart' show XFile;
 

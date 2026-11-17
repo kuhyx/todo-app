@@ -5,7 +5,7 @@
 /// Deliberately NOT named `*_test.dart`: it is a helper with no `main()`.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final RegExp _word = RegExp('[A-Za-z]{2,}');

@@ -77,10 +77,10 @@ packages:
     dependency: transitive
     description:
       name: clock
-      sha256: fddb70d9b5277016c77a80201021d40a2247104d9f4aa7bab7157b7e3f05b84b
+      sha256: e51d50bca3217c9a9fa2b41a30e4a38971133f5f9ec7a3d57bae095007f1d28e
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.2"
+    version: "1.1.3"
   code_assets:
     dependency: transitive
     description:
@@ -109,20 +109,20 @@ packages:
     dependency: "direct main"
     description:
       path: crdt_sync_dart
-      ref: "crdt_sync_dart-v0.14.0"
-      resolved-ref: "84343aec2dd07c38cba40690c3b5f2c84ae9cdf6"
+      ref: "crdt_sync_dart-v0.14.1"
+      resolved-ref: edd0f7a7882cb1d3904932ba94faa282d08165df
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.14.0"
+    version: "0.14.1"
   crdt_sync_flutter:
     dependency: "direct main"
     description:
       path: crdt_sync_flutter
-      ref: "crdt_sync_flutter-v0.8.0"
-      resolved-ref: e5990c9c15761934110f955529bc1d68479b06ff
+      ref: "crdt_sync_flutter-v0.9.0"
+      resolved-ref: dfc5d07f5225ed15609f9709748ed2efd6cc4d1d
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.8.0"
+    version: "0.9.0"
   cross_file:
     dependency: transitive
     description:
@@ -155,6 +155,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  cupertino_ui:
+    dependency: transitive
+    description:
+      name: cupertino_ui
+      sha256: c3eaf7f5bdfee36deb0b14a4cbf7602f1b6b8d8b8576b81f38fc08c25881c94c
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.7"
   data_transfer_flutter:
     dependency: transitive
     description:
@@ -176,11 +184,11 @@ packages:
     dependency: "direct main"
     description:
       path: design_system
-      ref: "design_system-v0.3.1"
-      resolved-ref: "8dfc4fb55ff5f5091e34e118f3134138cc83b8a3"
+      ref: "design_system-v0.4.1"
+      resolved-ref: "422a5e53d975b7a1cbeadeb4e29ab0965bfc4bec"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.3.1"
+    version: "0.4.1"
   dev_build:
     dependency: transitive
     description:
@@ -346,6 +354,11 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.14.4"
+  flutter_localizations:
+    dependency: transitive
+    description: flutter
+    source: sdk
+    version: "0.0.0"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -416,11 +429,11 @@ packages:
     dependency: "direct main"
     description:
       path: github_device_auth
-      ref: "github_device_auth-v0.4.0"
-      resolved-ref: "3084080d744c348a217727e26a6be838e7d5a4ff"
+      ref: "github_device_auth-v0.5.1"
+      resolved-ref: da1d7c0692e2e402ae4944f2425b36a55ad43e9c
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.4.0"
+    version: "0.5.1"
   glob:
     dependency: transitive
     description:
@@ -474,10 +487,10 @@ packages:
     dependency: "direct main"
     description:
       name: image
-      sha256: "89ed75b2f8231fe676808c5564f9590d728024ded7ac782a7ed8474f1c95b72a"
+      sha256: bc13f61f0f5cb77936e78ae5dae3800f442718dac5d2bc4654f03c239230ed0c
       url: "https://pub.dev"
     source: hosted
-    version: "4.12.0"
+    version: "4.13.1"
   image_picker:
     dependency: "direct main"
     description:
@@ -542,6 +555,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.2"
+  intl:
+    dependency: transitive
+    description:
+      name: intl
+      sha256: "1ca20c894b1717686a2319b8548763d812bc0aabdac580420a44c5178c57a867"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.20.3"
   jni:
     dependency: transitive
     description:
@@ -590,6 +611,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  listen:
+    dependency: transitive
+    description:
+      name: listen
+      sha256: "47501a08016a43fcad79252439d723f50f14f88fa7bfd8a177e0a417e5c9e1f2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   logging:
     dependency: transitive
     description:
@@ -614,14 +643,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
+  material_ui:
+    dependency: "direct main"
+    description:
+      name: material_ui
+      sha256: a6b19012df437a356cbc01f8ea22a105e07194c47c9a6009da0032a0ce35c4ab
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.11.1"
   mcp_dart:
     dependency: "direct main"
     description:
       name: mcp_dart
-      sha256: af0b2e25412f70440c881314a0b70a56ef87fd090b3eb71f31c356313096e6f5
+      sha256: "0fdd953006edb8bce24d31f2d36d5c4acc89009e1331417955d3e77560cdb77b"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.3"
+    version: "2.4.4"
   meta:
     dependency: transitive
     description:
@@ -999,10 +1036,10 @@ packages:
     dependency: transitive
     description:
       name: stack_trace
-      sha256: "8b27215b45d22309b5cddda1aa2b19bdfec9df0e765f2de506401c071d38d1b1"
+      sha256: "277654b3034d17ac6f9f1cb5595db011b1d5d41e8806866db28e0abaa101c490"
       url: "https://pub.dev"
     source: hosted
-    version: "1.12.1"
+    version: "1.12.2"
   stream_channel:
     dependency: transitive
     description:
@@ -1023,11 +1060,11 @@ packages:
     dependency: "direct main"
     description:
       path: sync_settings_ui
-      ref: "sync_settings_ui-v0.7.2"
-      resolved-ref: "4567e7ca3042e683befdf6697ace1c8be9c829fc"
+      ref: "sync_settings_ui-v0.8.3"
+      resolved-ref: dde5566b2c6eb38a8e1e58a4252925f3baca8ad1
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.7.2"
+    version: "0.8.3"
   synchronized:
     dependency: transitive
     description:
@@ -1048,10 +1085,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "2a122cbe059f8b610d3a5415f42e255b6c17b1f21eee1d960f31080237fb4f11"
+      sha256: "0a10344e901e5b2e63819567951cb6a06673ed6b84f40462188ff5a0c41f371f"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.12"
+    version: "0.7.14"
   typed_data:
     dependency: transitive
     description:
@@ -1136,10 +1173,10 @@ packages:
     dependency: transitive
     description:
       name: vector_math
-      sha256: f36f9f3be64c6198714492bb455c11056e33e2f85d9a0b676a48301e44fdcf47
+      sha256: fa49e1674cb84acb900141714e6c6e1f9ae099827c24d141430ff6819db4e1bc
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.2"
+    version: "2.4.4"
   very_good_analysis:
     dependency: "direct dev"
     description:
@@ -1206,4 +1243,4 @@ packages:
     version: "3.1.3"
 sdks:
   dart: ">=3.13.0 <4.0.0"
-  flutter: ">=3.44.0"
+  flutter: ">=3.47.0"

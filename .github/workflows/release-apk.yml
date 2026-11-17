@@ -110,7 +110,9 @@ jobs:
           flutter build apk --release \
             --target-platform android-arm64 \
             --build-name="${{ steps.ver.outputs.semver }}" \
-            --build-number="${{ steps.vc.outputs.code }}"
+            --build-number="${{ steps.vc.outputs.code }}" \
+            --dart-define=APP_BUILD="${{ steps.vc.outputs.code }}" \
+            --dart-define=APP_VERSION="${{ steps.ver.outputs.semver }}"
 
       # Fail closed. `findByName("release") ?: debug` silently falls back to
       # the debug key if key.properties is misplaced, producing a green build

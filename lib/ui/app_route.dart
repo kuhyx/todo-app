@@ -1,7 +1,7 @@
 /// The one page route every screen is pushed with.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A route for [builder] that switches screens instantly: no fade, no slide.
 ///
@@ -10,11 +10,17 @@ import 'package:flutter/material.dart';
 /// thread and a 260-300 ms frame stall on every tab switch and note open.
 /// The same instant switch applies on the phone. The context is unused but
 /// kept so every call site stays as it was.
-Route<T> appRoute<T>(BuildContext _, WidgetBuilder builder) =>
-    _AppPageRoute<T>(builder: builder);
+///
+/// [name] is a route pattern (`/notes/detail`), never an id or a title: the
+/// app-errors reporter stamps it on every report made on that screen.
+Route<T> appRoute<T>(BuildContext _, WidgetBuilder builder, {String? name}) =>
+    _AppPageRoute<T>(
+      builder: builder,
+      settings: RouteSettings(name: name),
+    );
 
 class _AppPageRoute<T> extends MaterialPageRoute<T> {
-  _AppPageRoute({required super.builder});
+  _AppPageRoute({required super.builder, super.settings});
 
   @override
   Duration get transitionDuration => Duration.zero;

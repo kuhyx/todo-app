@@ -6,7 +6,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/confirm_delete.dart';

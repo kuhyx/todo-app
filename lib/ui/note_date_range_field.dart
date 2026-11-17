@@ -7,7 +7,7 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Glyph for "created" (a note added), shared by the filter and sort menus.
 const IconData kCreatedIcon = Icons.post_add;

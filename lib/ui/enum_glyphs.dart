@@ -4,7 +4,7 @@
 /// The enum's `label` survives only as the spoken (semantics) label.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/note_grid_tile.dart';

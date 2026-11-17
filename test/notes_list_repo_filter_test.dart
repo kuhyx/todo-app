@@ -1,6 +1,6 @@
 // Repo tasks in the notes list: no source filter at all, and their fields
 // read-only in the note sheet.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/notes_list_defaults.dart';

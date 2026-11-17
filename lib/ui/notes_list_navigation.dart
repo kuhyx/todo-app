@@ -5,7 +5,7 @@
 /// context, the note, and the store.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/data/app_settings.dart';
 import 'package:todo/data/note.dart';
@@ -32,6 +32,7 @@ Future<void> openNote(
         repository: repository,
         appSettings: appSettings,
       ),
+      name: '/notes/detail',
     ),
   );
 }

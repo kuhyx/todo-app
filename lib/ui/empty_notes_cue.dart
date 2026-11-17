@@ -1,7 +1,7 @@
 /// The notes list's empty state as a picture, not a sentence.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A large muted glyph: an empty inbox when there are no notes at all, a
 /// crossed-out filter when the current filter hides every note (the filter

@@ -5,4 +5,5 @@
 /// transitive `dart:ui`.
 library;
 
+/// The route the wrapper serves the passphrase on, once.
 const kSyncE2ePassphrasePath = '/sync-e2e-passphrase';

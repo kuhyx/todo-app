@@ -2,7 +2,7 @@
 /// status bar or the navigation bar, no overflow, scrolls only past a screen.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/note_grid_tile.dart';

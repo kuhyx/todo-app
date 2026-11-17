@@ -4,8 +4,8 @@ import 'package:crdt_sync/crdt_sync.dart';
 import 'package:crdt_sync_flutter/crdt_sync_flutter.dart'
     show E2ePassphraseButton;
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:material_ui/material_ui.dart';
 import 'package:sync_settings_ui/sync_settings_ui.dart';
 import 'package:todo/analytics/analytics_event.dart';
 import 'package:todo/analytics/analytics_service.dart';
@@ -198,6 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           googleAvailable: widget.googleAvailable ?? googleSignInSupported,
           backup: BackupSlot(label: 'notes', export: _export, import: _import),
         ),
+        name: '/settings/sync',
       ),
     );
   }
@@ -215,6 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           firebaseFactory: widget.firebaseFactory,
           stateStore: widget.stateStore,
         ),
+        name: '/settings/github',
       ),
     );
   }

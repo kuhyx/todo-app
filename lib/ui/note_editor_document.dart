@@ -12,7 +12,7 @@
 /// [body] and the editor shows the raw field instead.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/data/note_template.dart';
 

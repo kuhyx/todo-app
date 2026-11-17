@@ -4,8 +4,9 @@
 /// screen still owns every action; this just lays the row out.
 library;
 
+import 'package:crdt_sync_flutter/crdt_sync_flutter.dart' show WaitWatch;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/data/note_repository.dart';
 import 'package:todo/frame_stats.dart';
@@ -93,10 +94,13 @@ class CaptureAppBar extends StatelessWidget implements PreferredSizeWidget {
           IconButton(
             onPressed: syncing ? null : onSync,
             icon: syncing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                ? const WaitWatch(
+                    operation: 'sync.run',
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   )
                 : const Icon(Icons.sync, semanticLabel: 'Sync'),
           ),

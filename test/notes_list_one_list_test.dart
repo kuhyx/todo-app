@@ -1,6 +1,6 @@
 // One list: ideas and repo notes together, one row each, repo searchable, and a filter
 // sheet that fits a Pixel 6a screen without scrolling.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo/data/note.dart';
 

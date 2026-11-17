@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:design_system/design_system.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/note_grid_tile.dart';

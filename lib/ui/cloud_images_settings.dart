@@ -10,10 +10,9 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:material_ui/material_ui.dart';
 import 'package:todo/attachments/image_password_store.dart';
 import 'package:todo/attachments/image_store_api.dart';
 import 'package:todo/attachments/image_store_scope.dart';
@@ -39,7 +38,11 @@ class CloudImagesTile extends StatelessWidget {
     leading: const Icon(Icons.cloud, semanticLabel: 'Cloud images'),
     trailing: const Icon(Icons.chevron_right),
     onTap: () => Navigator.of(context).push<void>(
-      appRoute(context, (_) => CloudImagesScreen(httpClient: httpClient)),
+      appRoute(
+        context,
+        (_) => CloudImagesScreen(httpClient: httpClient),
+        name: '/settings/images',
+      ),
     ),
   );
 }

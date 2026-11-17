@@ -1,7 +1,7 @@
 /// A screen's latest result as a glyph in place of a status sentence.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// One result: what to paint, whether it is a failure, and the old
 /// sentence, kept as the spoken label only.

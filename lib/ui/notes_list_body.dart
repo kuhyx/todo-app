@@ -3,7 +3,7 @@
 /// Split out of `notes_list_screen.dart` for file size.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/data/note.dart';
 import 'package:todo/ui/note_tile.dart';

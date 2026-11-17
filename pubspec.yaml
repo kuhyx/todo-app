@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.95+1
+version: 1.0.96+1
 
 environment:
   sdk: ^3.12.2
@@ -33,12 +33,12 @@ dependencies:
   crdt_sync:
     git:
       url: https://github.com/kuhyx/utils
-      ref: crdt_sync_dart-v0.14.0
+      ref: crdt_sync_dart-v0.14.1
       path: crdt_sync_dart
   crdt_sync_flutter:
     git:
       url: https://github.com/kuhyx/utils
-      ref: crdt_sync_flutter-v0.8.0
+      ref: crdt_sync_flutter-v0.9.0
       path: crdt_sync_flutter
 
   # The following adds the Cupertino Icons font to your application.
@@ -50,7 +50,7 @@ dependencies:
   design_system:
     git:
       url: https://github.com/kuhyx/utils
-      ref: design_system-v0.3.1
+      ref: design_system-v0.4.1
       path: design_system
   file_picker: 13.3.3
   file_selector: 1.1.0
@@ -64,7 +64,7 @@ dependencies:
   github_device_auth:
     git:
       url: https://github.com/kuhyx/utils
-      ref: github_device_auth-v0.4.0
+      ref: github_device_auth-v0.5.1
       path: github_device_auth
   # One-tap Google ID token via the framework AccountManager chooser (FOSS,
   # no Play Services sign-in SDK). Used by the sync backend in lib/sync/.
@@ -77,12 +77,16 @@ dependencies:
   idb_shim: 2.11.3
   # Re-encodes attached images (resize, EXIF strip) in pure Dart, so the
   # phone and the desktop wrapper share one code path.
-  image: 4.12.0
+  image: 4.13.1
   # Camera + gallery picks for image attachments on Android.
   image_picker: 1.2.4
+  # Flutter 3.50 deprecates package:flutter/material.dart; the shared UI
+  # packages (design_system, sync_settings_ui) sit on material_ui, so the app
+  # must too or their widgets lose MaterialLocalizations.
+  material_ui: 1.11.1
   # The todo MCP server (lib/mcp/): Streamable HTTP transport + tool
   # registry. Only mcp/todo_mcp.dart imports it; the app never does.
-  mcp_dart: 2.4.3
+  mcp_dart: 2.4.4
   # Hands an attached non-image file to whichever Android app opens its
   # type (FileProvider intent). Adds no permissions to the manifest.
   open_file: 4.0.0
@@ -102,7 +106,7 @@ dependencies:
   sync_settings_ui:
     git:
       url: https://github.com/kuhyx/utils
-      ref: sync_settings_ui-v0.7.2
+      ref: sync_settings_ui-v0.8.3
       path: sync_settings_ui
   url_launcher: 6.3.3
   uuid: 4.6.0

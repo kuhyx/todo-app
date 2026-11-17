@@ -6,7 +6,7 @@
 /// built in Preview and Raw.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:todo/data/note_template.dart';
 import 'package:todo/ui/note_editor_mode.dart';

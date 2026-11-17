@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:todo/data/note.dart';
 
 /// Read-only repo-task fields of [note]; empty for a plain idea.

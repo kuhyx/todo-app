@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// English Material strings with every button tooltip blanked.
 class TextFreeMaterialLocalizations extends DefaultMaterialLocalizations {

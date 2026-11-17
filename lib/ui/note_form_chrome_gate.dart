@@ -5,7 +5,7 @@
 /// lives here so both surfaces resolve visibility by the same rule.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Holds the editor's chrome-visibility signal and resolves it against
 /// advanced mode.
