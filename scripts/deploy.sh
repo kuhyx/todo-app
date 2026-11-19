@@ -22,8 +22,9 @@
 # version means equal code); the MCP binary is cheap and always rebuilt.
 #
 # Nothing live runs from ~/src/todo (the MCP is a frozen binary, the desktop
-# app lives in /opt/todo), so this deploys the checkout it sits in and never
-# pulls kuhy's working tree.
+# app lives in /opt/todo), so this deploys the checkout it sits in. The
+# declared deploy (CLAUDE.md) fast-forwards ~/src/todo and runs from there:
+# phone_deploy refuses a production install from a worktree (exit 49).
 # ============================================================================
 
 set -euo pipefail

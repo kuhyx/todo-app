@@ -50,7 +50,8 @@ and sync peer-to-peer through a GitHub repo used as dumb storage.
 - lint: `flutter analyze`
 - coverage: `flutter test --coverage --reporter=compact`
 - coverage-gaps: `coverage-gaps coverage/lcov.info`
-- deploy: `scripts/deploy.sh` (MCP service, desktop pacman package, phone release; exits non-zero unless every health check passes)
+- deploy: `git -C ~/src/todo pull --ff-only && ~/src/todo/scripts/deploy.sh` (MCP service, desktop pacman package, phone release;
+  exits non-zero unless every health check passes; runs from the main checkout because phone_deploy refuses a worktree, exit 49)
 
 ## Architecture
 
