@@ -22,15 +22,18 @@
 # version means equal code); the MCP binary is cheap and always rebuilt.
 #
 # Nothing live runs from ~/src/todo (the MCP is a frozen binary, the desktop
-# app lives in /opt/todo), so this deploys the checkout it sits in. The
-# declared deploy (CLAUDE.md) fast-forwards ~/src/todo and runs from there:
-# phone_deploy refuses a production install from a worktree (exit 49).
+# app lives in /opt/todo), but phone_deploy refuses a production install
+# from a worktree (exit 49). So a run from anywhere else (the board runs it
+# in its worktree) fast-forwards ~/src/todo, checks it now holds this
+# commit, and re-executes from there. A pull blocked by kuhy's own edits
+# fails with git's message, which the board recognises and reports.
 # ============================================================================
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly ROOT
+readonly CHECKOUT="${TODO_CHECKOUT:-${HOME}/src/todo}"
 readonly SERIAL="${ADB_SERIAL:-23181JEGR08034}"
 readonly APP_ID="dev.kuhy.todo"
 readonly MCP_UNIT="todo-mcp.service"
@@ -165,6 +168,22 @@ deploy_phone() {
     phone_health "$want"
 }
 
+# Deploy from kuhy's main checkout, never from a worktree (see header).
+run_from_checkout() {
+    local here want have
+    here="$(realpath -m -- "$ROOT")"
+    [[ $here == "$(realpath -m -- "$CHECKOUT")" ]] && return 0
+    want="$(git -C "$ROOT" rev-parse HEAD)"
+    echo "[deploy] running from $CHECKOUT, not $here"
+    git -C "$CHECKOUT" pull --ff-only
+    have="$(git -C "$CHECKOUT" rev-parse HEAD)"
+    if [[ $have != "$want" ]]; then
+        echo "[deploy] FAILED: $CHECKOUT is at $have after the pull, not $want" >&2
+        exit 1
+    fi
+    exec "$CHECKOUT/scripts/deploy.sh" "$@"
+}
+
 main() {
     local targets=("$@") t
     ((${#targets[@]})) || targets=(mcp desktop phone)
@@ -181,4 +200,5 @@ main() {
     echo "[deploy] all healthy: ${targets[*]} at $(pubspec_version)"
 }
 
+run_from_checkout "$@"
 main "$@"
