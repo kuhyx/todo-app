@@ -95,17 +95,18 @@ class TaskService {
     return (reply: await _save(added.note, verb), start: null);
   }
 
-  /// `list_tasks`: repo tasks, open ones unless `status` says otherwise.
+  /// `list_tasks`: repo tasks, open ones unless `status` says otherwise;
+  /// `no_repo: true` lists the repo-less notes (ideas) instead.
   Future<String> list(Map<String, dynamic> args) => _serial(() async {
     final a = _Args(args);
     final repo = a.repo();
     final statuses = a.statuses();
+    final ideas = a.flag('no_repo');
     await _pull();
-    return _lines(
-      await _session.repository.listNotes(
-        filter: NoteFilter(statuses: statuses, repo: repo, repoTasksOnly: true),
-      ),
+    final notes = await _session.repository.listNotes(
+      filter: NoteFilter(statuses: statuses, repo: repo, repoTasksOnly: !ideas),
     );
+    return _lines(ideas ? notes.where((n) => n.repo == null).toList() : notes);
   });
 
   /// `search_tasks`: repo tasks of any status whose text or repo matches.

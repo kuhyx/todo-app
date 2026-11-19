@@ -143,9 +143,13 @@ McpServer _server(TaskService tasks) {
     'list_tasks',
     'List repo tasks, one line each: 8-char id, status, priority, repo, '
         'title, created_by (kuhy|claude). Default status "open" '
-        '(todo + in_progress).',
+        '(todo + in_progress). no_repo: true lists the notes WITHOUT a repo '
+        '(ideas) instead.',
     {
       'repo': repo,
+      'no_repo': JsonSchema.boolean(
+        description: 'List only notes that have no repo (repo shows as -).',
+      ),
       'status': JsonSchema.string(
         description: 'open | all | todo | in_progress | done | abandoned.',
       ),
