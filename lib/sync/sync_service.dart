@@ -1,6 +1,7 @@
 import 'package:crdt_sync/crdt_sync.dart';
 
 import 'package:todo/data/note_repository.dart';
+import 'package:todo/sync/peer_pull.dart';
 
 /// Outcome of a sync run, for surfacing in the UI.
 class SyncResult {
@@ -113,53 +114,61 @@ class SyncService {
     final ownFileName = '$nodeId.json';
 
     final state = await stateStore?.load() ?? const SyncState();
-    final remoteRevs = stateStore == null
-        ? const <String, String>{}
-        : await _revisions(remote);
+    // Independent reads, so one round trip instead of two. eagerError keeps
+    // the first failure's own type, which callers catch.
+    final reads = await Future.wait<Object>([
+      if (stateStore == null)
+        Future.value(const <String, String>{})
+      else
+        _revisions(remote),
+      remote.listDirectory(notesDir),
+    ], eagerError: true);
+    final remoteRevs = reads[0] as Map<String, String>;
+    final names = reads[1] as List<String>;
     final seenRevs = <String, String>{};
 
-    // 1. Pull: list all device log files, merge everyone else's.
-    final names = await remote.listDirectory(notesDir);
-    var merged = 0;
+    // 1. Pull: every other device's log that changed since we merged it.
     var skippedUnchanged = 0;
-    final skipped = <String>[];
+    final changed = <String>[];
     for (final name in names) {
       if (name == ownFileName) continue; // our own file; skip it.
-      final peer = name.endsWith('.json')
-          ? name.substring(0, name.length - 5)
-          : name;
+      final peer = peerOf(name);
       final remoteRev = remoteRevs[peer];
       if (remoteRev != null && remoteRev == state.peerRevs[peer]) {
         // Unchanged since we last merged it, and that merge is already in the
-        // local log — so the ~150 KB download is pure waste. Carry the
-        // revision forward so it stays skipped next time.
+        // local log -- so the download is pure waste. Carry the revision
+        // forward so it stays skipped next time.
         seenRevs[peer] = remoteRev;
         skippedUnchanged++;
         continue;
       }
-      final String? text;
-      try {
-        text = await remote.getFileText('$notesDir/$name');
-      } on E2eDecryptError {
-        // Wrong key, tampered blob or a newer format: skipped and reported,
-        // never merged and never fatal.
-        skipped.add(name);
+      changed.add(name);
+    }
+    var merged = 0;
+    final skipped = <String>[];
+    Log? incoming;
+    for (final pulled in await pullPeers(
+      remote,
+      notesDir,
+      changed,
+      remoteRevs,
+    )) {
+      final log = pulled.log;
+      if (log == null) {
+        // A vanished, undecryptable or undecodable peer file must not abort
+        // the sync, but it must not vanish silently either -- that's how a
+        // device drops out of sync unnoticed. Reported, and deliberately not
+        // recorded as seen: a corrupt push must be retried next run.
+        skipped.add(pulled.name);
         continue;
       }
-      final remoteLog = text == null ? null : _decodeLog(text);
-      if (remoteLog == null) {
-        // A vanished or undecodable peer file must not abort the sync, but
-        // it must not vanish silently either — that's how a device drops
-        // out of sync unnoticed. Report it in the result instead.
-        // Deliberately not recorded as seen: a corrupt push must be retried
-        // next run, not remembered as merged.
-        skipped.add(name);
-        continue;
-      }
-      await repo.importLog(remoteLog);
-      seenRevs[peer] = remoteRev ?? revisionOf(text!);
+      // Peers merge with each other first (commutative, idempotent), so the
+      // local store is rewritten once rather than once per peer.
+      incoming = incoming == null ? log : mergeLogs(incoming, log);
+      seenRevs[pulled.peer] = pulled.rev!;
       merged++;
     }
+    if (incoming != null) await repo.importLog(incoming);
 
     // 2. Push: upload our own (now-merged) log under our node id.
     // putFileText resolves our file's current sha itself.
@@ -205,23 +214,5 @@ class SyncService {
   Future<Map<String, String>> _revisions(RemoteStore remote) async {
     if (remote is! BulkMapReader) return const {};
     return await (remote as BulkMapReader).getStringMap(revsDir);
-  }
-
-  /// Parses a remote note log, returning `null` for a corrupt or wrong-shape
-  /// payload so one bad device file never aborts the whole sync.
-  Log? _decodeLog(String text) {
-    try {
-      return logFromJson(text);
-    } on FormatException {
-      return null;
-    }
-    // crdt_sync's logFromJson throws a raw TypeError (not a custom
-    // exception) for a wrong-shape JSON payload from an untrusted peer
-    // file; must be caught too so one bad device file never aborts the
-    // whole sync (see doc comment above).
-    // ignore: avoid_catching_errors
-    on TypeError {
-      return null;
-    }
   }
 }

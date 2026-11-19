@@ -88,9 +88,13 @@ Future<SyncRunResult> runSync(
       stateStore: stateStore ?? await openSyncStateStore(),
       // coverage:ignore-end
     );
-    final backend = firebase == null
-        ? github
-        : MirrorStore(primary: firebase, mirror: github);
+    // No GitHub token means nothing to mirror: an unconfigured client still
+    // spends two round trips per call on 404s.
+    final backend = switch (firebase) {
+      null => github,
+      _ when !settings.isConfigured => firebase,
+      _ => MirrorStore(primary: firebase, mirror: github),
+    };
     final e2e = await openEncryptedStore(
       store: backend,
       oldPrefix: service.notesDir,
@@ -106,15 +110,26 @@ Future<SyncRunResult> runSync(
       );
     }
     final layout = E2eLayout.of(service.notesDir);
-    final result = await SyncService(
+    // Settings and analytics touch other Firebase paths than the notes, so
+    // they ride alongside the note sync instead of after it.
+    final reconciled = appSettings?.reconcileWithRemote(firebase);
+    final flushed = analytics?.flush(firebase);
+    final notes = SyncService(
       notesDir: layout.prefix,
       revsPath: layout.revsPath,
       stateStore: service.stateStore,
     ).sync(repository, e2e.store);
-    await analytics?.flush(firebase);
+    final done = await Future.wait<Object?>([
+      notes,
+      ?reconciled,
+      ?flushed,
+      // Not eager: the clients are closed below, so nothing may still be in
+      // flight when this returns or throws.
+    ]);
+    final result = done.first! as SyncResult;
     return SyncRunResult(
       syncResult: result.withFirebaseConnected(value: firebase != null),
-      appSettings: await appSettings?.reconcileWithRemote(firebase),
+      appSettings: await reconciled,
     );
   } finally {
     // Close both: unlike the long-lived desktop callers, each screen builds
