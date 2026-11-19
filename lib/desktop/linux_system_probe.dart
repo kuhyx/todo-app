@@ -21,11 +21,20 @@ class LinuxSystemProbe implements SystemProbe {
   /// Creates the default host probe.
   ///
   /// [ssExecutable] exists so a test can point at a missing binary and exercise
-  /// the "no `ss` on PATH" path.
-  const LinuxSystemProbe({this.ssExecutable = 'ss'});
+  /// the "no `ss` on PATH" path. [listProc] lets a test fail the `/proc`
+  /// listing on demand.
+  const LinuxSystemProbe({this.ssExecutable = 'ss', this.listProc = _listProc});
 
   /// Name of the socket-listing tool used to find the port owner.
   final String ssExecutable;
+
+  /// Lists `/proc`'s entries.
+  final List<FileSystemEntity> Function() listProc;
+
+  /// How many `/proc` listings a process exiting mid-listing may spoil.
+  static const _listAttempts = 3;
+
+  static List<FileSystemEntity> _listProc() => Directory('/proc').listSync();
 
   @override
   Future<int?> listenerPid(int port) async {
@@ -56,13 +65,26 @@ class LinuxSystemProbe implements SystemProbe {
   @override
   Future<List<List<String>>> processCmdlines() async {
     final cmdlines = <List<String>>[];
-    for (final entry in Directory('/proc').listSync()) {
+    for (final entry in _listProcRetrying()) {
       final pid = int.tryParse(p.basename(entry.path));
       if (pid == null) continue;
       final cmdline = readCmdline(pid);
       if (cmdline != null) cmdlines.add(cmdline);
     }
     return cmdlines;
+  }
+
+  /// Dart's listing lstat()s some entries, so a pid that exits between
+  /// readdir and that lstat fails the whole listing. A fresh listing no
+  /// longer holds that pid; a few failures in a row mean a real error.
+  List<FileSystemEntity> _listProcRetrying() {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return listProc();
+      } on PathNotFoundException {
+        if (attempt >= _listAttempts) rethrow;
+      }
+    }
   }
 
   @override

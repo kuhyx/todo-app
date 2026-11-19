@@ -1,13 +1,4 @@
 # todo's own additions to the fleet-wide allowlist
 # (~/src/utils/dependency-freshness.allowlist.yaml).
 
-exceptions:
-  - ecosystem: pub
-    package: file_picker
-    pinned: "13.3.3"
-    latest_known: "13.4.0"
-    reason: >-
-      sync_settings_ui 0.8.3 depends on data_transfer_flutter 0.2.2, which
-      exact-pins file_picker 13.3.3, so pub cannot resolve 13.4.0 here
-      (checked 2026-11-17). Lifts the day data_transfer_flutter bumps it.
-    blocked_by: "transitive:data_transfer_flutter@0.2.2"
+exceptions: []

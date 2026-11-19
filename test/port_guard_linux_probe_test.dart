@@ -126,6 +126,30 @@ void main() {
       expect(cmdlines, isNotEmpty);
     });
 
+    test('processCmdlines retries when a pid vanishes mid-listing', () async {
+      // Dart's readdir lstat()s some entries; a process exiting in between
+      // fails the whole listing (seen once in the suite on /proc/<pid>).
+      var calls = 0;
+      final probe = LinuxSystemProbe(
+        listProc: () {
+          if (++calls == 1) {
+            throw const PathNotFoundException('/proc/42', OSError('gone', 2));
+          }
+          return Directory('/proc').listSync();
+        },
+      );
+      expect(await probe.processCmdlines(), isNotEmpty);
+      expect(calls, 2);
+    });
+
+    test('processCmdlines gives up after repeated listing failures', () {
+      final probe = LinuxSystemProbe(
+        listProc: () =>
+            throw const PathNotFoundException('/proc/42', OSError('gone', 2)),
+      );
+      expect(probe.processCmdlines(), throwsA(isA<PathNotFoundException>()));
+    });
+
     test('signal terminates a real child process', () async {
       const probe = LinuxSystemProbe();
       final child = await Process.start('sleep', ['30']);
