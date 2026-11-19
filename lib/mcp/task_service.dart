@@ -8,6 +8,7 @@ import 'package:todo/data/note_repository.dart';
 import 'package:todo/data/repo_note.dart';
 import 'package:todo/mcp/board_client.dart';
 import 'package:todo/mcp/task_split.dart';
+import 'package:todo/sync/sync_service.dart';
 
 /// The six task tools over one persistent sync node; calls run one at a time.
 class TaskService {
@@ -21,6 +22,7 @@ class TaskService {
     this._session, {
     this._board,
     this.callTimeout = const Duration(seconds: 60),
+    this.readFreshness = const Duration(seconds: 2),
   });
 
   final CliSession _session;
@@ -28,6 +30,13 @@ class TaskService {
 
   /// Longest one call may run before it fails with a TimeoutException.
   final Duration callTimeout;
+
+  /// How long a finished sync still counts for the read calls (list, search,
+  /// get). The board reads 15 times per fetch and each sync is a Firebase
+  /// round trip of 0.5-1 s, so reads inside the window skip it; every write
+  /// still pulls and pushes. [Duration.zero] syncs on every read.
+  final Duration readFreshness;
+  final Stopwatch _since = Stopwatch();
   Future<void> _tail = Future.value();
 
   Future<T> _serial<T>(Future<T> Function() body) {
@@ -36,22 +45,34 @@ class TaskService {
     return run;
   }
 
-  Future<List<Note>> _pull() async {
-    final skipped = (await _session.sync(push: true)).skippedFiles;
-    if (skipped.isNotEmpty) throw StateError('sync: unmergeable $skipped');
+  Future<SyncResult> _sync() async {
+    final result = await _session.sync(push: true);
+    _since
+      ..reset()
+      ..start();
+    return result;
+  }
+
+  /// Pulls every peer, unless [read] and a sync ended within [readFreshness].
+  Future<List<Note>> _pull({bool read = false}) async {
+    final fresh = _since.isRunning && _since.elapsed < readFreshness;
+    if (!read || !fresh) {
+      final skipped = (await _sync()).skippedFiles;
+      if (skipped.isNotEmpty) throw StateError('sync: unmergeable $skipped');
+    }
     return await _session.repository.listNotes();
   }
 
   Future<String> _save(Note note, String verb) async {
     await _session.repository.upsert(note.copyWith(updatedAt: DateTime.now()));
-    await _session.sync(push: true);
+    await _sync();
     return '$verb ${note.id}\n${listLine(note)}';
   }
 
-  Future<Note> _find(_Args a) async {
+  Future<Note> _find(_Args a, {bool read = false}) async {
     final id = a.required('id');
     try {
-      return findNote(await _pull(), id);
+      return findNote(await _pull(read: read), id);
     } on NoteLookupError catch (e) {
       throw FormatException('id: $e');
     }
@@ -102,7 +123,7 @@ class TaskService {
     final repo = a.repo();
     final statuses = a.statuses();
     final ideas = a.flag('no_repo');
-    await _pull();
+    await _pull(read: true);
     final notes = await _session.repository.listNotes(
       filter: NoteFilter(statuses: statuses, repo: repo, repoTasksOnly: !ideas),
     );
@@ -112,7 +133,7 @@ class TaskService {
   /// `search_tasks`: repo tasks of any status whose text or repo matches.
   Future<String> search(Map<String, dynamic> args) => _serial(() async {
     final query = _Args(args).required('query');
-    await _pull();
+    await _pull(read: true);
     return _lines(
       await _session.repository.listNotes(
         filter: NoteFilter(query: query, repoTasksOnly: true),
@@ -122,7 +143,7 @@ class TaskService {
 
   /// `get_task`: one note in full.
   Future<String> get(Map<String, dynamic> args) =>
-      _serial(() async => noteDetail(await _find(_Args(args))));
+      _serial(() async => noteDetail(await _find(_Args(args), read: true)));
 
   /// `update_task`: changes only the keys given; `done_check: ""` clears it.
   Future<String> update(Map<String, dynamic> args) => _serial(() async {

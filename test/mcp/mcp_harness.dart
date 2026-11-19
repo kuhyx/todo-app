@@ -19,9 +19,12 @@ import '../cli/fake_rtdb.dart';
 
 class McpHarness {
   /// [board] is the fake board `new_note` talks to; none by default.
-  McpHarness({this.board});
+  /// [readFreshness] defaults to zero so every read syncs, as a test expects;
+  /// `task_service_fresh_test.dart` covers the production window.
+  McpHarness({this.board, this.readFreshness = Duration.zero});
 
   final BoardClient? board;
+  final Duration readFreshness;
   static const token = 'test-token-for-pc';
 
   final Directory tmp = Directory.systemTemp.createTempSync('mcp_harness');
@@ -39,7 +42,7 @@ class McpHarness {
       httpClient: db.client,
     );
     server = await TodoMcpServer.start(
-      tasks: TaskService(session, board: board),
+      tasks: TaskService(session, board: board, readFreshness: readFreshness),
       tokens: tokens,
       port: 0,
     );

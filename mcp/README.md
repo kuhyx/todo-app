@@ -23,6 +23,10 @@ task (`id8 status priority repo title created_by`); `get_task` prints
 | Log, node id, session copy (0600) | `~/.local/share/todo-mcp/` |
 | Binary | `~/.local/lib/todo-mcp/todo_mcp` |
 
+Reads (`list_tasks`, `search_tasks`, `get_task`) reuse a Firebase sync that finished within
+the last 2 s (`TaskService.readFreshness`); every write pulls and pushes. One board fetch
+makes about 15 calls, each used to be a 0.5-1 s sync.
+
 ## One-time setup
 
 ```bash
