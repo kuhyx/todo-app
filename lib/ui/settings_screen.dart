@@ -5,6 +5,7 @@ import 'package:crdt_sync_flutter/crdt_sync_flutter.dart'
     show E2ePassphraseButton;
 import 'package:file_selector/file_selector.dart';
 import 'package:http/http.dart' as http;
+import 'package:kuhy_credit/kuhy_credit.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:sync_settings_ui/sync_settings_ui.dart';
 import 'package:todo/analytics/analytics_event.dart';
@@ -263,6 +264,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               semanticLabel: 'Advanced sync (GitHub): not recommended',
             ),
             _openGitHubMirror,
+          ),
+          // kuhy's credit closes the list; its panel opens above the logo.
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: KuhyCredit(alignStart: true),
+            ),
           ),
         ],
       ),

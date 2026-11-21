@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.104+1
+version: 1.0.105+1
 
 environment:
   sdk: ^3.12.2
@@ -80,6 +80,12 @@ dependencies:
   image: 4.13.1
   # Camera + gallery picks for image attachments on Android.
   image_picker: 1.2.4
+  # kuhy's logo credit, shown at the end of Settings.
+  kuhy_credit:
+    git:
+      url: https://github.com/kuhyx/utils
+      ref: kuhy-credit-v0.3.0
+      path: kuhy_credit/flutter
   # Flutter 3.50 deprecates package:flutter/material.dart; the shared UI
   # packages (design_system, sync_settings_ui) sit on material_ui, so the app
   # must too or their widgets lose MaterialLocalizations.
@@ -98,7 +104,6 @@ dependencies:
   # Retained only to read the legacy on-device DB during the one-time
   # migration in NoteRepository.open; remove once all devices are migrated.
   sqlite_crdt: 3.0.4
-
   # Shared "Sync settings" screen (Firebase + local backup), reused across
   # every kuhy app that syncs. GitHub mirror stays app-local (see
   # lib/ui/github_mirror_screen.dart) since here it also triggers a note

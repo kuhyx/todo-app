@@ -3,10 +3,11 @@ import 'dart:io';
 
 import 'package:crdt_sync/crdt_sync.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:kuhy_credit/kuhy_credit.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_settings_ui/sync_settings_ui.dart';
@@ -196,5 +197,11 @@ void main() {
     // Guards the production default, which every other test overrides so the
     // suite cannot write to the user's ~/todo.
     expect(resolveExportHome(), Platform.environment['HOME']);
+  });
+
+  testWidgets('renders KuhyCredit at the bottom of the list', (tester) async {
+    await pumpSettings(tester);
+
+    expect(find.byType(KuhyCredit, skipOffstage: false), findsOneWidget);
   });
 }
