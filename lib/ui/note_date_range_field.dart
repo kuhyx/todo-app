@@ -16,6 +16,8 @@ const IconData kCreatedIcon = Icons.post_add;
 const IconData kUpdatedIcon = Icons.update;
 
 /// A labelled date range shown as one preset menu plus a custom picker.
+///
+/// One-word tooltips on hover/long-press per textgate rule.
 class DateRangeField extends StatelessWidget {
   /// Creates a labelled date-range control.
   const DateRangeField({
@@ -96,12 +98,29 @@ class DateRangeField extends StatelessWidget {
     // A popup menu rather than DropdownButton: re-picking "Custom…" while a
     // custom range is shown must still reopen the picker.
     return PopupMenuButton<_Preset>(
-      // Empty, not the label: a tooltip is painted on long-press.
-      tooltip: '',
+      tooltip: 'range',
       onSelected: (p) => _select(context, p),
       itemBuilder: (_) => [
-        for (final p in _Preset.values)
-          PopupMenuItem(value: p, child: p.glyph()),
+        PopupMenuItem(
+          value: _Preset.any,
+          child: Tooltip(message: 'any', child: _Preset.any.glyph()),
+        ),
+        PopupMenuItem(
+          value: _Preset.today,
+          child: Tooltip(message: 'today', child: _Preset.today.glyph()),
+        ),
+        PopupMenuItem(
+          value: _Preset.week,
+          child: Tooltip(message: 'week', child: _Preset.week.glyph()),
+        ),
+        PopupMenuItem(
+          value: _Preset.month,
+          child: Tooltip(message: 'month', child: _Preset.month.glyph()),
+        ),
+        PopupMenuItem(
+          value: _Preset.custom,
+          child: Tooltip(message: 'custom', child: _Preset.custom.glyph()),
+        ),
       ],
       child: InputDecorator(
         decoration: InputDecoration(

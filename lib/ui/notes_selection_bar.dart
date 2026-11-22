@@ -13,8 +13,7 @@ const kRefusalFlash = Duration(milliseconds: 1500);
 
 /// Set status, set priority, assign to repo, clear: icons only.
 ///
-/// Menus pass `tooltip: ''` because a tooltip is visible text; the icons
-/// carry semantic labels instead.
+/// One-word tooltips on hover/long-press per textgate rule.
 class NotesSelectionBar extends StatefulWidget {
   /// Creates the bar; every callback acts on the whole selection.
   const NotesSelectionBar({
@@ -70,7 +69,7 @@ class _NotesSelectionBarState extends State<NotesSelectionBar> {
           children: [
             PopupMenuButton<Status>(
               key: const ValueKey('bulk-status'),
-              tooltip: '',
+              tooltip: 'status',
               icon: const Icon(Icons.task_alt, semanticLabel: 'Set status'),
               onSelected: widget.onStatus,
               itemBuilder: (_) => [
@@ -84,7 +83,7 @@ class _NotesSelectionBarState extends State<NotesSelectionBar> {
             ),
             PopupMenuButton<Priority>(
               key: const ValueKey('bulk-priority'),
-              tooltip: '',
+              tooltip: 'priority',
               icon: const Icon(
                 Icons.flag_outlined,
                 semanticLabel: 'Set priority',
@@ -105,6 +104,7 @@ class _NotesSelectionBarState extends State<NotesSelectionBar> {
             ),
             IconButton(
               key: const ValueKey('bulk-assign'),
+              tooltip: 'assign',
               onPressed: _assign,
               icon: Icon(
                 refused ? Icons.block : Icons.drive_file_move_outline,

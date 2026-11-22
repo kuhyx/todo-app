@@ -15,18 +15,10 @@ import 'package:todo/ui/status_cue.dart';
 part 'github_mirror_screen_widget.dart';
 
 class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
-  late final TextEditingController _owner = TextEditingController(
-    text: widget.initial.owner,
-  );
-  late final TextEditingController _repo = TextEditingController(
-    text: widget.initial.repo,
-  );
-  late final TextEditingController _token = TextEditingController(
-    text: widget.initial.token,
-  );
-  late final TextEditingController _clientId = TextEditingController(
-    text: widget.initial.clientId,
-  );
+  late final _owner = TextEditingController(text: widget.initial.owner);
+  late final _repo = TextEditingController(text: widget.initial.repo);
+  late final _token = TextEditingController(text: widget.initial.token);
+  late final _clientId = TextEditingController(text: widget.initial.clientId);
 
   bool _testing = false;
   StatusCue? _status;
@@ -177,6 +169,7 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: IconButton.filled(
+              tooltip: 'connect',
               onPressed: _connectGitHub,
               icon: const Icon(Icons.login, semanticLabel: 'Connect GitHub'),
             ),
@@ -221,6 +214,7 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
           Row(
             children: [
               IconButton.outlined(
+                tooltip: 'test',
                 onPressed: _testing ? null : _test,
                 icon: _testing
                     ? const WaitWatch(
@@ -238,6 +232,7 @@ class _GitHubMirrorScreenState extends State<GitHubMirrorScreen> {
               ),
               const SizedBox(width: 12),
               IconButton.filled(
+                tooltip: 'save',
                 onPressed: _save,
                 icon: const Icon(Icons.save, semanticLabel: 'Save'),
               ),

@@ -103,6 +103,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
             picking: widget.attachmentPicking,
           ),
           IconButton(
+            tooltip: 'copy',
             icon: Icon(
               _copied ? Icons.check : Icons.copy_all,
               semanticLabel: 'Copy',
@@ -110,6 +111,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
             onPressed: _copy,
           ),
           IconButton(
+            tooltip: 'delete',
             icon: const Icon(
               Icons.delete_outline,
               semanticLabel: 'Delete note',

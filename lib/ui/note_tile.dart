@@ -51,6 +51,7 @@ class NoteTile extends StatelessWidget {
       ),
       subtitle: _meta(context),
       trailing: IconButton(
+        tooltip: 'actions',
         icon: const Icon(Icons.more_vert, semanticLabel: 'Quick actions'),
         onPressed: onActions,
       ),

@@ -83,6 +83,7 @@ class _RepoPickerSheetState extends State<RepoPickerSheet> {
                       : null,
                   suffixIcon: IconButton(
                     key: const ValueKey('repo-new-submit'),
+                    tooltip: 'use',
                     onPressed: _submit,
                     icon: const Icon(Icons.check, semanticLabel: 'Use repo'),
                   ),

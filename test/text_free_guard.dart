@@ -16,15 +16,20 @@ final RegExp _word = RegExp('[A-Za-z]{2,}');
 Finder spoken(String part) =>
     find.bySemanticsLabel(RegExp(RegExp.escape(part)));
 
-/// Every string the tree paints: each [RichText] (which is what [Text] builds)
-/// and every non-empty [Tooltip] message, since a tooltip is shown on
-/// long-press. Text being typed lives in an [EditableText] and is the user's,
-/// so it is never painted through a [RichText] and is not collected.
+/// textgate one-word tooltip: no whitespace, <= 20 chars, no . ! ? , ; :
+bool isOneWordTooltip(String s) =>
+    s.length <= 20 && !RegExp(r'[\s.!?,;:]').hasMatch(s);
+
+/// Every string the tree paints: each [RichText] (which is what [Text] builds),
+/// and every non-empty [Tooltip] message that is not an allowed one-word
+/// tooltip. Text being typed lives in an [EditableText] and is the user's, so
+/// it is never painted through a [RichText] and is not collected.
 List<String> paintedStrings(WidgetTester tester) => [
   for (final w in tester.widgetList<RichText>(find.byType(RichText)))
     w.text.toPlainText(),
   for (final t in tester.widgetList<Tooltip>(find.byType(Tooltip)))
-    if ((t.message ?? '').isNotEmpty) t.message!,
+    if ((t.message ?? '').isNotEmpty && !isOneWordTooltip(t.message!))
+      t.message!,
 ];
 
 /// Fails if any painted string still holds a word once every [content]

@@ -140,6 +140,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
           _selectButton(),
           // Eye, no label: open = Claude-made notes shown, slashed = hidden.
           IconButton(
+            tooltip: 'claude',
             icon: Icon(
               widget.appSettings.value.showClaudeNotes
                   ? Icons.visibility
@@ -148,31 +149,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
             ),
             onPressed: _toggleClaudeNotes,
           ),
-          PopupMenuButton<NoteSort>(
-            // Empty, not omitted: null falls back to the painted "Show menu".
-            tooltip: '',
-            icon: const Icon(Icons.sort, semanticLabel: 'Sort'),
-            initialValue: _sort,
-            onSelected: _setSort,
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: NoteSort.modifiedDesc,
-                child: Icon(Icons.update, semanticLabel: 'Last updated'),
-              ),
-              PopupMenuItem(
-                value: NoteSort.createdDesc,
-                child: Icon(Icons.post_add, semanticLabel: 'Newest created'),
-              ),
-              PopupMenuItem(
-                value: NoteSort.alphabetical,
-                child: Icon(Icons.sort_by_alpha, semanticLabel: 'Alphabetical'),
-              ),
-              PopupMenuItem(
-                value: NoteSort.priorityDesc,
-                child: Icon(Icons.flag_outlined, semanticLabel: 'Priority'),
-              ),
-            ],
-          ),
+          _sortButton(),
           // Filter icon with a badge counting user-applied facets. The
           // trailing padding + inward offset keep the badge from being
           // clipped at the screen edge.
@@ -183,6 +160,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
               label: Text('$badgeCount'),
               offset: const Offset(-8, 4),
               child: IconButton(
+                tooltip: 'filter',
                 icon: const Icon(Icons.filter_list, semanticLabel: 'Filter'),
                 onPressed: _openFilters,
               ),

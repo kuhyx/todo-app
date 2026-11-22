@@ -99,6 +99,7 @@ class _NoteActionsSheetState extends State<NoteActionsSheet> {
               const SizedBox(height: 16),
               Align(
                 child: IconButton.outlined(
+                  tooltip: 'delete',
                   color: Theme.of(context).colorScheme.error,
                   icon: const Icon(
                     Icons.delete_outline,

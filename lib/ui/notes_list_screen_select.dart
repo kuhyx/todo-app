@@ -9,6 +9,7 @@ extension _Selecting on _NotesListScreenState {
   /// App-bar toggle into and out of selection mode (tinted while on).
   Widget _selectButton() => IconButton(
     key: const ValueKey('select-mode'),
+    tooltip: 'select',
     isSelected: _selection.active,
     onPressed: _selection.toggleMode,
     icon: const Icon(Icons.checklist, semanticLabel: 'Select'),
@@ -40,4 +41,43 @@ extension _Selecting on _NotesListScreenState {
       onClear: _selection.clear,
     );
   }
+
+  /// App-bar sort menu: one icon per order, each with a one-word tooltip.
+  Widget _sortButton() => PopupMenuButton<NoteSort>(
+    // One word, not omitted: null falls back to the painted "Show menu".
+    tooltip: 'sort',
+    icon: const Icon(Icons.sort, semanticLabel: 'Sort'),
+    initialValue: _sort,
+    onSelected: _setSort,
+    itemBuilder: (_) => const [
+      PopupMenuItem(
+        value: NoteSort.modifiedDesc,
+        child: Tooltip(
+          message: 'updated',
+          child: Icon(Icons.update, semanticLabel: 'Last updated'),
+        ),
+      ),
+      PopupMenuItem(
+        value: NoteSort.createdDesc,
+        child: Tooltip(
+          message: 'newest',
+          child: Icon(Icons.post_add, semanticLabel: 'Newest created'),
+        ),
+      ),
+      PopupMenuItem(
+        value: NoteSort.alphabetical,
+        child: Tooltip(
+          message: 'alphabetical',
+          child: Icon(Icons.sort_by_alpha, semanticLabel: 'Alphabetical'),
+        ),
+      ),
+      PopupMenuItem(
+        value: NoteSort.priorityDesc,
+        child: Tooltip(
+          message: 'priority',
+          child: Icon(Icons.flag_outlined, semanticLabel: 'Priority'),
+        ),
+      ),
+    ],
+  );
 }

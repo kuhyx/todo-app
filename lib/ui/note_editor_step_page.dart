@@ -67,6 +67,7 @@ class NoteEditorStepPage extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: IconButton(
+            tooltip: 'exit',
             icon: const Icon(Icons.arrow_back, semanticLabel: 'Exit guided'),
             onPressed: onExit,
           ),

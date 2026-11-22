@@ -108,6 +108,7 @@ class AttachButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
+      tooltip: 'attach',
       icon: const Icon(Icons.attach_file, semanticLabel: 'Attach'),
       onPressed: () async {
         final files = await (picking ?? pickAttachments)(context);

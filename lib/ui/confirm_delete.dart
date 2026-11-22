@@ -42,12 +42,14 @@ class _ConfirmDeleteDialog extends StatelessWidget {
         actions: [
           IconButton(
             key: const ValueKey('confirm-cancel'),
+            tooltip: 'cancel',
             autofocus: true,
             onPressed: () => Navigator.of(context).pop(false),
             icon: const Icon(Icons.close, semanticLabel: 'Cancel'),
           ),
           IconButton(
             key: const ValueKey('confirm-delete'),
+            tooltip: 'delete',
             onPressed: () => Navigator.of(context).pop(true),
             icon: Icon(Icons.delete, color: error, semanticLabel: 'Delete'),
           ),

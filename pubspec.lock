@@ -167,11 +167,11 @@ packages:
     dependency: transitive
     description:
       path: data_transfer_flutter
-      ref: "data_transfer_flutter-v0.2.3"
-      resolved-ref: bb2f92f459283a29ad4864cf37704cc5f749cc6d
+      ref: "data_transfer_flutter-v0.2.4"
+      resolved-ref: "5c2effe7d1148830c9e273e47a272791dc17509e"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.2.3"
+    version: "0.2.4"
   dbus:
     dependency: transitive
     description:
@@ -184,11 +184,11 @@ packages:
     dependency: "direct main"
     description:
       path: design_system
-      ref: "design_system-v0.4.1"
-      resolved-ref: "422a5e53d975b7a1cbeadeb4e29ab0965bfc4bec"
+      ref: "design_system-v0.5.1"
+      resolved-ref: "7252ba0a7637f08dba09a79426817e423643c62f"
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.4.1"
+    version: "0.5.1"
   dev_build:
     dependency: transitive
     description:
@@ -233,10 +233,10 @@ packages:
     dependency: "direct main"
     description:
       name: file_picker
-      sha256: c3780977700b8962c3b9b6a9aa4e2c988956893d70d4a4fa2d7adf4ec9b9eaee
+      sha256: "5b99250437a4d34ee2cdc0686924452103540eaa1c248094b63f07f9d7216f6c"
       url: "https://pub.dev"
     source: hosted
-    version: "13.4.0"
+    version: "13.4.1"
   file_picker_darwin:
     dependency: transitive
     description:
@@ -249,10 +249,10 @@ packages:
     dependency: transitive
     description:
       name: file_picker_linux
-      sha256: "9215ee8c672508cdd9a325202669f849e1baac883658626b3abed5d7777e6a4b"
+      sha256: cf3889644e8e54551f5c3a4f98b6b6ef5f0ef85c07d2a0c1a969538983be2f9b
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.4"
+    version: "2.0.5"
   file_picker_platform_interface:
     dependency: transitive
     description:
@@ -415,6 +415,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.2.2"
+  flutter_svg:
+    dependency: transitive
+    description:
+      name: flutter_svg
+      sha256: "4565a66f0a968f2e1ab4197854686990258aadab9572eb80a7655053a01dc302"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -591,11 +599,11 @@ packages:
     dependency: "direct main"
     description:
       path: "kuhy_credit/flutter"
-      ref: "kuhy-credit-v0.3.0"
-      resolved-ref: c3946412729991bf1e9c3b6a5cc55dbe80419fc0
+      ref: "kuhy-credit-v0.3.2"
+      resolved-ref: adeb40f68e1d6c701da43e396fc46bffa3ef10c7
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.3.0"
+    version: "0.3.2"
   leak_tracker:
     dependency: transitive
     description:
@@ -796,6 +804,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
+  path_parsing:
+    dependency: transitive
+    description:
+      name: path_parsing
+      sha256: "883402936929eac138ee0a45da5b0f2c80f89913e6dc3bf77eb65b84b409c6ca"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.0"
   path_provider:
     dependency: "direct main"
     description:
@@ -1085,11 +1101,11 @@ packages:
     dependency: "direct main"
     description:
       path: sync_settings_ui
-      ref: "sync_settings_ui-v0.8.4"
-      resolved-ref: "15ef5b44f186cea0ab163cc88cb8743c51d58247"
+      ref: "sync_settings_ui-v0.8.5"
+      resolved-ref: abfb596d7ce2f28acfefbd55e7b3227257325261
       url: "https://github.com/kuhyx/utils"
     source: git
-    version: "0.8.4"
+    version: "0.8.5"
   synchronized:
     dependency: transitive
     description:
@@ -1194,6 +1210,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.6.0"
+  vector_graphics:
+    dependency: transitive
+    description:
+      name: vector_graphics
+      sha256: "06081e4f2d8f17c306aa58989520694b463ad411bc7c7b93e76afa3e41ca17ac"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.1"
+  vector_graphics_codec:
+    dependency: transitive
+    description:
+      name: vector_graphics_codec
+      sha256: "023f3afd1b08d040406e7ccc324f5173c04762a59e374f29d04cef00a4940742"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
+  vector_graphics_compiler:
+    dependency: transitive
+    description:
+      name: vector_graphics_compiler
+      sha256: "4c9d2e7121eea8b4f160e6e435900a0ae7214cfc97c2d6cf84c25532b789b50d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.4"
   vector_math:
     dependency: transitive
     description:
@@ -1254,10 +1294,10 @@ packages:
     dependency: transitive
     description:
       name: xml
-      sha256: "0fe8cc98946def31cbcbc8734aa4067031e6f65ea3a78a508060bfed2200bfeb"
+      sha256: "67f0aff7be013d107995e9b75bf4e7f2c3ef2dfdb2c8e68024bba0a7fd5756a4"
       url: "https://pub.dev"
     source: hosted
-    version: "7.1.0"
+    version: "7.0.1"
   yaml:
     dependency: transitive
     description:

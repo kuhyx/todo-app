@@ -189,6 +189,7 @@ class _CloudImagesScreenState extends State<CloudImagesScreen> {
                 ),
                 if (!status.configured)
                   IconButton(
+                    tooltip: 'copy',
                     onPressed: () => unawaited(
                       Clipboard.setData(
                         const ClipboardData(text: kAddLoginCommand),

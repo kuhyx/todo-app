@@ -58,6 +58,7 @@ class _NoteEditorWizardState extends State<NoteEditorWizard> {
         Row(
           children: [
             IconButton(
+              tooltip: 'cancel',
               icon: const Icon(Icons.close, semanticLabel: 'Cancel'),
               onPressed: widget.onCancel,
             ),
