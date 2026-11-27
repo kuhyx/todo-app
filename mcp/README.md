@@ -23,10 +23,22 @@ rules, the `MANUAL WORK REQUIRED:` title rule, the `Todo: <id8>` commit trailer
 and the close-the-task rule. mcp_dart 2.4.4 has no Skills API, so
 `lib/mcp/filing_skill.dart` registers the capability, `skills/list`,
 `skills/get` and the SKILL.md resource itself; the entry's sha256 and size are
-computed from the served text. Claude Code 2.1.332 only asks for MCP skills
-when its remote flag `tengu_wiggly_crystal` is on; it was off for kuhy's
-account on 2026-11-27, so `/skills` does not list `todo:filing-tasks` yet. `claude -p` board workers never load MCP skills, so
-`~/.claude/CLAUDE.md` and the `md-file-conventions` skill keep their copies.
+computed from the served text. `claude -p` board workers never load MCP
+skills, so `~/.claude/CLAUDE.md` and the `md-file-conventions` skill keep
+their copies.
+
+Claude Code does not list the skill yet. In 2.1.332 the connect path runs
+`Xg() && capabilities.resources ? fetchMcpSkillsForClient(...) : []`, and
+`Xg()` returns the remote flag `tengu_wiggly_crystal` (default false). That
+flag was false for kuhy's account on 2026-11-27, so the client never sent
+`skills/list` (no `[mcp-skills]` line in `--debug` output). Even with the flag
+on, the client still refuses MCP skills for team/enterprise orgs that set
+`disableDirectMcpSkills`, for HIPAA/ZDR orgs and for plans it does not allow.
+The server side was probed live on :8735 the same day: `initialize`
+advertises the extension and `skills/list` plus `resources/read` serve the
+SKILL.md. To recheck after a Claude Code update, run
+`jq '.cachedGrowthBookFeatures.tengu_wiggly_crystal' ~/.claude.json`; once it
+prints `true`, `/skills` in a new session should list `todo:filing-tasks`.
 
 | What | Where |
 |---|---|
