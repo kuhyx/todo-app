@@ -16,6 +16,18 @@ task (`id8 status priority repo title created_by`); `get_task` prints
 `created_by` is `claude` for notes filed through `add_task` or the CLI and
 `kuhy` for everything else (a missing value reads as `kuhy`).
 
+The server also publishes one skill through the MCP Skills extension
+(`io.modelcontextprotocol/skills`, revision 2026-07-28): `filing-tasks`,
+which Claude Code lists as `todo:filing-tasks`. It holds the `add_task` field
+rules, the `MANUAL WORK REQUIRED:` title rule, the `Todo: <id8>` commit trailer
+and the close-the-task rule. mcp_dart 2.4.4 has no Skills API, so
+`lib/mcp/filing_skill.dart` registers the capability, `skills/list`,
+`skills/get` and the SKILL.md resource itself; the entry's sha256 and size are
+computed from the served text. Claude Code 2.1.332 only asks for MCP skills
+when its remote flag `tengu_wiggly_crystal` is on; it was off for kuhy's
+account on 2026-11-27, so `/skills` does not list `todo:filing-tasks` yet. `claude -p` board workers never load MCP skills, so
+`~/.claude/CLAUDE.md` and the `md-file-conventions` skill keep their copies.
+
 | What | Where |
 |---|---|
 | Firebase seed (read once) | `~/.config/todo-mcp/firebase_auth.json` |

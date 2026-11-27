@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:mcp_dart/mcp_dart.dart';
+import 'package:todo/mcp/filing_skill.dart';
 import 'package:todo/mcp/request_guard.dart';
 import 'package:todo/mcp/task_service.dart';
 import 'package:todo/mcp/token_file.dart';
@@ -204,6 +205,7 @@ McpServer _server(TaskService tasks) {
     ['query'],
     tasks.search,
   );
+  registerFilingSkill(server);
   return server;
 }
 
