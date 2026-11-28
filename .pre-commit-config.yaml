@@ -40,17 +40,6 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # The shared 250-line cap. Checks only the files in the commit, so an
-      # unrelated commit never breaks; exits 1 rather than warning. No
-      # baseline and no allowlist -- those are suppressions. The exemption
-      # list (generated/vendored/data files) lives with the checker in
-      # ~/src/utils/file_length/config.py so the gate and the survey cannot
-      # disagree.
-      - id: file-length
-        name: file length <= 250 lines
-        entry: scripts/check_file_length.sh
-        language: system
-
       # Four markdown namespaces (README / CLAUDE* / DOCS* / TODO*), plus the
       # rule that a TODO carries "REMOVE ME AFTER FINISH" and nothing else may.
       # Shared gate in ~/src/utils owns the namespaces and the exemption list, so

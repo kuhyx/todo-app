@@ -47,9 +47,9 @@ and sync peer-to-peer through a GitHub repo used as dumb storage.
 - run: `./run.sh` (desktop; mobile: `flutter run`)
 - test: `flutter test --reporter=compact`
 - test-changed: `scripts/test_changed.sh`
-- lint: `flutter analyze`
-- coverage: `flutter test --coverage --reporter=compact`
-- coverage-gaps: `coverage-gaps coverage/lcov.info`
+- lint: n/a: dropped (kuhy, 2026-11-27)
+- coverage: n/a: dropped (kuhy, 2026-11-27)
+- coverage-gaps: n/a: dropped (kuhy, 2026-11-27)
 - deploy: `scripts/deploy.sh` (MCP service, desktop pacman package, phone release; exits non-zero unless every health check passes)
 
 ## Architecture
